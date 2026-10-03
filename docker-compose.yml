@@ -9,7 +9,7 @@ services:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       MYSQL_DATABASE: ${MYSQL_DATABASE:-wa_akg}
     ports:
-      - "3306:3306"
+      - "3307:3306"
     volumes:
       - mysql_data:/var/lib/mysql
     healthcheck:
@@ -25,17 +25,17 @@ services:
     container_name: wa-akg-app
     restart: always
     ports:
-      - "3000:3000"
+      - "43000:43000"
     environment:
       - DATABASE_URL=mysql://root:${MYSQL_ROOT_PASSWORD}@db:3306/${MYSQL_DATABASE:-wa_akg}
       - AUTH_SECRET=${AUTH_SECRET}
-      - BASE_URL=${BASE_URL:-http://localhost:3000}
-      - NEXTAUTH_URL=${NEXTAUTH_URL:-http://localhost:3000}
+      - BASE_URL=${BASE_URL:-http://localhost:43000}
+      - NEXTAUTH_URL=${NEXTAUTH_URL:-http://localhost:43000}
       - NODE_ENV=production
-      - PORT=${PORT:-3000}
+      - PORT=${PORT:-43000}
       - HOSTNAME=0.0.0.0
-      - NEXT_PUBLIC_APP_URL=${BASE_URL:-http://localhost:3000}
-      - NEXT_PUBLIC_API_URL=${BASE_URL:-http://localhost:3000}/api
+      - NEXT_PUBLIC_APP_URL=${BASE_URL:-http://localhost:43000}
+      - NEXT_PUBLIC_API_URL=${BASE_URL:-http://localhost:43000}/api
       - BAILEYS_LOG_LEVEL=${BAILEYS_LOG_LEVEL:-error}
       - NEXT_PUBLIC_SWAGGER_USERNAME=${NEXT_PUBLIC_SWAGGER_USERNAME:-admin}
       - NEXT_PUBLIC_SWAGGER_PASSWORD=${NEXT_PUBLIC_SWAGGER_PASSWORD}
