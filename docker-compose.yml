@@ -1,57 +1,74 @@
-version: '3.8'
+name: wa-akg
 
 services:
   db:
     image: mysql:8.0
     container_name: wa-akg-db
-    restart: always
+    restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Defina MYSQL_ROOT_PASSWORD no arquivo .env}
       MYSQL_DATABASE: ${MYSQL_DATABASE:-wa_akg}
     ports:
       - "3307:3306"
     volumes:
       - mysql_data:/var/lib/mysql
+    command: --default-authentication-plugin=mysql_native_password
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p\"$${MYSQL_ROOT_PASSWORD}\" --silent"]
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 12
+      start_period: 30s
+    networks:
+      - wa-akg-network
 
   app:
     build:
       context: .
       dockerfile: Dockerfile
     container_name: wa-akg-app
-    restart: always
+    restart: unless-stopped
+    init: true
     ports:
-      - "43000:43000"
+      - "${PORT:-43000}:${PORT:-43000}"
     environment:
-      - DATABASE_URL=mysql://root:${MYSQL_ROOT_PASSWORD}@db:3306/${MYSQL_DATABASE:-wa_akg}
-      - AUTH_SECRET=${AUTH_SECRET}
-      - BASE_URL=${BASE_URL:-http://localhost:43000}
-      - NEXTAUTH_URL=${NEXTAUTH_URL:-http://localhost:43000}
-      - NODE_ENV=production
-      - PORT=${PORT:-43000}
-      - HOSTNAME=0.0.0.0
-      - NEXT_PUBLIC_APP_URL=${BASE_URL:-http://localhost:43000}
-      - NEXT_PUBLIC_API_URL=${BASE_URL:-http://localhost:43000}/api
-      - BAILEYS_LOG_LEVEL=${BAILEYS_LOG_LEVEL:-error}
-      - NEXT_PUBLIC_SWAGGER_USERNAME=${NEXT_PUBLIC_SWAGGER_USERNAME:-admin}
-      - NEXT_PUBLIC_SWAGGER_PASSWORD=${NEXT_PUBLIC_SWAGGER_PASSWORD}
-      - NEXT_PUBLIC_SWAGGER_ENABLED=${NEXT_PUBLIC_SWAGGER_ENABLED:-true}
-      - TZ=${TZ:-Asia/Jakarta}
-      - LOCALE=${LOCALE:-id-ID}
-      - ADMIN_EMAIL=${ADMIN_EMAIL}
-      - ADMIN_PASSWORD=${ADMIN_PASSWORD}
+      NODE_ENV: production
+      PORT: ${PORT:-43000}
+      HOSTNAME: 0.0.0.0
+      DATABASE_URL: mysql://root:${MYSQL_ROOT_PASSWORD}@db:3306/${MYSQL_DATABASE:-wa_akg}
+      AUTH_SECRET: ${AUTH_SECRET:?Defina AUTH_SECRET no arquivo .env}
+      BASE_URL: ${BASE_URL:-http://localhost:43000}
+      NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:43000}
+      NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost:43000}
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:43000/api}
+      AUTH_TRUST_HOST: ${AUTH_TRUST_HOST:-true}
+      BAILEYS_LOG_LEVEL: ${BAILEYS_LOG_LEVEL:-error}
+      NEXT_PUBLIC_SWAGGER_ENABLED: ${NEXT_PUBLIC_SWAGGER_ENABLED:-true}
+      NEXT_PUBLIC_SWAGGER_USERNAME: ${NEXT_PUBLIC_SWAGGER_USERNAME:-admin}
+      NEXT_PUBLIC_SWAGGER_PASSWORD: ${NEXT_PUBLIC_SWAGGER_PASSWORD:?Defina NEXT_PUBLIC_SWAGGER_PASSWORD no arquivo .env}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:?Defina ADMIN_EMAIL no arquivo .env}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?Defina ADMIN_PASSWORD no arquivo .env}
+      TZ: ${TZ:-America/Sao_Paulo}
+      LOCALE: ${LOCALE:-pt-BR}
+      REMOVE_BG_API_KEY: ${REMOVE_BG_API_KEY:-}
     depends_on:
       db:
         condition: service_healthy
     volumes:
       - app_data:/app/data
       - uploads_data:/app/uploads
+    networks:
+      - wa-akg-network
 
 volumes:
   mysql_data:
+    name: wa-akg-mysql-data
   app_data:
+    name: wa-akg-app-data
   uploads_data:
+    name: wa-akg-uploads-data
+
+networks:
+  wa-akg-network:
+    name: wa-akg-network
+    driver: bridge
