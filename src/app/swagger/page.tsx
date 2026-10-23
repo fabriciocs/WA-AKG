@@ -23,39 +23,69 @@ export default function ApiDocsPage() {
             originalWarn(...args);
         };
 
-        // Check if already authorized via session storage
-        const isAuth = sessionStorage.getItem("swagger_auth") === "true";
-        if (isAuth) {
-            setAuthorized(true);
-        }
-        setLoading(false);
+        let cancelled = false;
+        fetch("/api/swagger-auth", { cache: "no-store" })
+            .then((response) => {
+                if (cancelled) return;
+                if (response.ok) {
+                    sessionStorage.setItem("swagger_auth", "true");
+                    setAuthorized(true);
+                } else {
+                    sessionStorage.removeItem("swagger_auth");
+                    setAuthorized(false);
+                }
+            })
+            .catch(() => {
+                sessionStorage.removeItem("swagger_auth");
+                setAuthorized(false);
+            })
+            .finally(() => {
+                if (!cancelled) setLoading(false);
+            });
 
         return () => {
+            cancelled = true;
             console.warn = originalWarn;
         };
     }, []);
 
-    const handleLogin = (e: React.FormEvent) => {
+    const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
+        setError("");
 
-        // Basic auth - compare with env variables or hardcoded (for demo)
-        const validUsername = process.env.NEXT_PUBLIC_SWAGGER_USERNAME || "admin";
-        const validPassword = process.env.NEXT_PUBLIC_SWAGGER_PASSWORD || "admin123";
+        try {
+            const response = await fetch("/api/swagger-auth", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                cache: "no-store",
+                body: JSON.stringify({ username, password }),
+            });
 
-        if (username === validUsername && password === validPassword) {
+            if (!response.ok) {
+                const result = await response.json().catch(() => null);
+                setError(result?.error || "Invalid credentials");
+                return;
+            }
+
             sessionStorage.setItem("swagger_auth", "true");
             setAuthorized(true);
-            setError("");
-        } else {
-            setError("Invalid credentials");
+            setPassword("");
+        } catch {
+            setError("Could not verify credentials. Check the server configuration and try again.");
         }
     };
 
-    const handleLogout = () => {
-        sessionStorage.removeItem("swagger_auth");
-        setAuthorized(false);
-        setUsername("");
-        setPassword("");
+    const handleLogout = async () => {
+        try {
+            await fetch("/api/swagger-auth", { method: "DELETE", cache: "no-store" });
+        } catch {
+            // Clear the local UI state even if the server is temporarily unavailable.
+        } finally {
+            sessionStorage.removeItem("swagger_auth");
+            setAuthorized(false);
+            setUsername("");
+            setPassword("");
+        }
     };
 
     if (loading) {
@@ -123,11 +153,7 @@ export default function ApiDocsPage() {
                     </form>
 
                     <div className="mt-6 text-center text-sm text-gray-500">
-                        <p>Default credentials:</p>
-                        <p className="font-mono mt-1">
-                            Username: <span className="font-semibold">admin</span> |
-                            Password: <span className="font-semibold">admin123</span>
-                        </p>
+                        <p>Use the Swagger credentials configured by the server administrator.</p>
                     </div>
                 </div>
             </div>

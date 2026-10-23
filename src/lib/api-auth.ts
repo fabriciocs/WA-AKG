@@ -1,3 +1,4 @@
+import { randomBytes } from "node:crypto";
 import { prisma } from "./prisma";
 import { NextRequest } from "next/server";
 import { auth } from "./auth";
@@ -249,10 +250,7 @@ export async function getAccessibleSessions(userId: string, userRole: string) {
  * Generate a new API key
  */
 export function generateApiKey(): string {
-    const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-    let result = "wag_"; // Prefix for easy identification
-    for (let i = 0; i < 32; i++) {
-        result += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    return result;
+    // 24 cryptographically secure random bytes encode to 32 URL-safe characters.
+    // API keys are bearer credentials; Math.random() is not suitable for secrets.
+    return `wag_${randomBytes(24).toString("base64url")}`;
 }
