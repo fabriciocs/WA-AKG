@@ -1,19 +1,34 @@
 import type { NextAuthConfig } from "next-auth";
 
+const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
+
 export const authConfig = {
+    basePath: basePath + '/api/auth',
     pages: {
-        signIn: '/auth/login',
+        signIn: basePath + '/auth/login',
     },
     callbacks: {
         authorized({ auth, request: { nextUrl } }) {
             const isLoggedIn = !!auth?.user;
-            const isOnDashboard = nextUrl.pathname.startsWith('/dashboard');
+            // Next.js may strip basePath from pathname before the middleware callback runs.
+            // Prefer the request's parsed basePath, then fall back to the configured environment value.
+            const requestBasePath = nextUrl.basePath || basePath;
+            const pathname = requestBasePath && nextUrl.pathname.startsWith(requestBasePath)
+                ? nextUrl.pathname.slice(requestBasePath.length) || '/'
+                : nextUrl.pathname;
+            const isOnDashboard = pathname.startsWith('/dashboard');
             
             if (isOnDashboard) {
                 if (isLoggedIn) return true;
-                return false; // Redirect unauthenticated users to login page
-            } else if (isLoggedIn && nextUrl.pathname === '/auth/login') {
-                return Response.redirect(new URL('/dashboard', nextUrl));
+
+                // Return an explicit prefixed URL instead of Auth.js's default sign-in redirect,
+                // which can omit basePath in custom-server/dev configurations.
+                const loginUrl = new URL(requestBasePath + '/auth/login', nextUrl);
+                const callbackUrl = requestBasePath + pathname + nextUrl.search;
+                loginUrl.searchParams.set('callbackUrl', callbackUrl);
+                return Response.redirect(loginUrl);
+            } else if (isLoggedIn && pathname === '/auth/login') {
+                return Response.redirect(new URL(requestBasePath + '/dashboard', nextUrl));
             }
             return true;
         },

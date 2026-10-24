@@ -1,4 +1,5 @@
 "use client";
+import { apiUrl } from "@/lib/api-url";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Virtuoso } from "react-virtuoso";
@@ -101,8 +102,8 @@ function LabelAssignPopover({ sessionId, jid, children }: { sessionId: string; j
         setLoading(true);
         try {
             const [labelRes, assignedRes] = await Promise.all([
-                fetch(`/api/labels/${sessionId}`),
-                fetch(`/api/labels/${sessionId}/chats?jid=${encodeURIComponent(jid)}`)
+                fetch(apiUrl(`/api/labels/${sessionId}`)),
+                fetch(apiUrl(`/api/labels/${sessionId}/chats?jid=${encodeURIComponent(jid)}`))
             ]);
             const labelData = await labelRes.json();
             const assignedData = await assignedRes.json();
@@ -125,7 +126,7 @@ function LabelAssignPopover({ sessionId, jid, children }: { sessionId: string; j
     const toggleLabel = async (labelId: string) => {
         const isAssigned = assigned.has(labelId);
         try {
-            const res = await fetch(`/api/labels/${sessionId}/chat/${encodeURIComponent(jid)}/labels`, {
+            const res = await fetch(apiUrl(`/api/labels/${sessionId}/chat/${encodeURIComponent(jid)}/labels`), {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ labelIds: [labelId], action: isAssigned ? "remove" : "add" })
@@ -407,7 +408,7 @@ export function ChatList({ sessionId, onSelectChat, selectedJid }: ChatListProps
         (async () => {
             try {
                 // Batch fetch all chat-label assignments in 1 call
-                const res = await fetch(`/api/labels/${sessionId}/chats`);
+                const res = await fetch(apiUrl(`/api/labels/${sessionId}/chats`));
                 if (!res.ok) return;
                 const data = await res.json();
                 const map = new Map<string, { colorHex: string }[]>();

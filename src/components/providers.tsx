@@ -5,7 +5,7 @@ import { SocketProvider } from "@/components/chat/socket-context";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
-    <SessionProvider>
+    <SessionProvider basePath={(process.env.NEXT_PUBLIC_BASE_PATH || "") + "/api/auth"}>
       <SocketProvider>
         {children}
       </SocketProvider>

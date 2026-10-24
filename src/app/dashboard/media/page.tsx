@@ -1,4 +1,5 @@
 "use client";
+import { apiUrl } from "@/lib/api-url";
 
 import { useState, useEffect, useMemo } from "react";
 import { useTranslations } from "next-intl";
@@ -135,7 +136,7 @@ export default function MediaPage() {
     const fetchMedia = async () => {
         setLoading(true);
         try {
-            const res = await fetch("/api/media");
+            const res = await fetch(apiUrl("/api/media"));
             if (!res.ok) throw new Error("Failed to fetch");
             const responseData = await res.json();
             const mediaData = responseData?.data || {};
@@ -269,7 +270,7 @@ export default function MediaPage() {
         setShowDeleteConfirm(false);
         setDeleting(true);
         try {
-            const res = await fetch("/api/media", {
+            const res = await fetch(apiUrl("/api/media"), {
                 method: "DELETE",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ filenames: Array.from(selected) }),

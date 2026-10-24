@@ -1,4 +1,5 @@
 "use client";
+import { apiUrl } from "@/lib/api-url";
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import {
@@ -101,7 +102,7 @@ export default function WebhookLogDialog({ webhookId, webhookName, targetSession
 
             const fetchTimezone = async () => {
                 try {
-                    const res = await fetch("/api/settings/system");
+                    const res = await fetch(apiUrl("/api/settings/system"));
                     if (res.ok) {
                         const data = await res.json();
                         if (data?.status && data?.data?.timezone) {
@@ -119,7 +120,7 @@ export default function WebhookLogDialog({ webhookId, webhookName, targetSession
     const fetchLogs = useCallback(async () => {
         setLoading(true);
         try {
-            const res = await fetch(`/api/webhooks/${targetSessionId}/${webhookId}/logs?limit=50&offset=0`);
+            const res = await fetch(apiUrl(`/api/webhooks/${targetSessionId}/${webhookId}/logs?limit=50&offset=0`));
             if (res.ok) {
                 const data = await res.json();
                 const fetched = data?.data || [];
@@ -143,7 +144,7 @@ export default function WebhookLogDialog({ webhookId, webhookName, targetSession
     const loadMore = async () => {
         setLoadingMore(true);
         try {
-            const res = await fetch(`/api/webhooks/${targetSessionId}/${webhookId}/logs?limit=50&offset=${meta.offset}`);
+            const res = await fetch(apiUrl(`/api/webhooks/${targetSessionId}/${webhookId}/logs?limit=50&offset=${meta.offset}`));
             if (res.ok) {
                 const data = await res.json();
                 const newEntries = data?.data || [];
@@ -170,13 +171,13 @@ export default function WebhookLogDialog({ webhookId, webhookName, targetSession
         
         const interval = setInterval(async () => {
             try {
-                const res = await fetch(`/api/webhooks/${targetSessionId}/${webhookId}/logs?limit=1&offset=0`);
+                const res = await fetch(apiUrl(`/api/webhooks/${targetSessionId}/${webhookId}/logs?limit=1&offset=0`));
                 if (res.ok) {
                     const data = await res.json();
                     const latest = data?.data?.[0];
                     if (latest && latest.id !== latestLogIdRef.current) {
                         // Silent update (without full loading state) to avoid UI flickering/resetting
-                        const silentRes = await fetch(`/api/webhooks/${targetSessionId}/${webhookId}/logs?limit=50&offset=0`);
+                        const silentRes = await fetch(apiUrl(`/api/webhooks/${targetSessionId}/${webhookId}/logs?limit=50&offset=0`));
                         if (silentRes.ok) {
                             const silentData = await silentRes.json();
                             const fetched = silentData?.data || [];

@@ -1,4 +1,5 @@
 "use client";
+import { apiUrl } from "@/lib/api-url";
 
 import { useState, useEffect } from "react";
 import { useSession as useSessionProvider } from "@/components/dashboard/session-provider";
@@ -66,7 +67,7 @@ export default function BotSettingsPage() {
     useEffect(() => {
         if (!sessionId) return;
 
-        fetch(`/api/sessions/${sessionId}/bot-config`)
+        fetch(apiUrl(`/api/sessions/${sessionId}/bot-config`))
             .then(res => { if (!res.ok) throw new Error(); return res.json(); })
             .then(responseData => {
                 const data = responseData?.data;
@@ -86,7 +87,7 @@ export default function BotSettingsPage() {
             })
             .catch(() => { });
 
-        fetch(`/api/sessions/${sessionId}/settings`)
+        fetch(apiUrl(`/api/sessions/${sessionId}/settings`))
             .then(res => { if (!res.ok) throw new Error(); return res.json(); })
             .then(responseData => {
                 const data = responseData?.data;
@@ -105,7 +106,7 @@ export default function BotSettingsPage() {
         if (!sessionId) return;
         setBotLoading(true);
         try {
-            const res = await fetch(`/api/sessions/${sessionId}/bot-config`, {
+            const res = await fetch(apiUrl(`/api/sessions/${sessionId}/bot-config`), {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(botConfig)
@@ -128,7 +129,7 @@ export default function BotSettingsPage() {
         if (!sessionId) return;
         setPrivacyLoading(true);
         try {
-            const res = await fetch(`/api/sessions/${sessionId}/settings`, {
+            const res = await fetch(apiUrl(`/api/sessions/${sessionId}/settings`), {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({

@@ -1,4 +1,5 @@
 "use client";
+import { apiUrl } from "@/lib/api-url";
 
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { io, Socket } from "socket.io-client";
@@ -23,7 +24,7 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
 
     useEffect(() => {
         const socket = io({
-            path: "/api/socket/io",
+            path: apiUrl("/api/socket/io"),
             addTrailingSlash: false,
             transports: ["websocket", "polling"],
         });

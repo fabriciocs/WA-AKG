@@ -1,4 +1,5 @@
 "use client";
+import { apiUrl } from "@/lib/api-url";
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
@@ -39,7 +40,7 @@ export default function InboxPage() {
 
     const fetchNotifications = useCallback(async () => {
         try {
-            const res = await fetch("/api/notifications");
+            const res = await fetch(apiUrl("/api/notifications"));
             if (res.ok) {
                 const data = await res.json();
                 setNotifications(data?.data || []);
@@ -69,7 +70,7 @@ export default function InboxPage() {
     const markAsRead = async (id?: string) => {
         try {
             const ids = id ? [id] : [];
-            const res = await fetch("/api/notifications/read", {
+            const res = await fetch(apiUrl("/api/notifications/read"), {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ ids })
@@ -86,7 +87,7 @@ export default function InboxPage() {
 
     const deleteNotification = async (id: string) => {
         try {
-            const res = await fetch(`/api/notifications/delete?id=${id}`, { method: "DELETE" });
+            const res = await fetch(apiUrl(`/api/notifications/delete?id=${id}`), { method: "DELETE" });
             if (res.ok) {
                 setNotifications(prev => prev.filter(n => n.id !== id));
                 toast.success(t("deleted"));

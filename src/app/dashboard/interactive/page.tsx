@@ -1,4 +1,5 @@
 "use client";
+import { apiUrl } from "@/lib/api-url";
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -199,7 +200,7 @@ function InteractiveContent() {
         setSendingPresetId(preset.id);
         try {
             toast.info(t("sendingTo", { target: targetPhone }));
-            const res = await fetch(`/api/messages/${sessionId}/${encodeURIComponent(jid)}/interactive`, {
+            const res = await fetch(apiUrl(`/api/messages/${sessionId}/${encodeURIComponent(jid)}/interactive`), {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(preset.payload)
@@ -312,7 +313,7 @@ function InteractiveContent() {
                 }
             });
 
-            const res = await fetch(`/api/messages/${sessionId}/${encodeURIComponent(jid)}/interactive`, {
+            const res = await fetch(apiUrl(`/api/messages/${sessionId}/${encodeURIComponent(jid)}/interactive`), {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({

@@ -1,4 +1,5 @@
 "use client";
+import { apiUrl } from "@/lib/api-url";
 
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -56,7 +57,7 @@ export default function UsersPage() {
 
     const fetchUsers = async () => {
         try {
-            const res = await fetch("/api/users");
+            const res = await fetch(apiUrl("/api/users"));
             if (res.ok) {
                 const responseData = await res.json();
                 setUsers(responseData?.data || []);
@@ -108,7 +109,7 @@ export default function UsersPage() {
         if (!deleteId) return;
 
         try {
-            const res = await fetch(`/api/users/${deleteId}`, { method: "DELETE" });
+            const res = await fetch(apiUrl(`/api/users/${deleteId}`), { method: "DELETE" });
             if (res.ok) {
                 toast.success(t("userDeleted"));
                 fetchUsers();

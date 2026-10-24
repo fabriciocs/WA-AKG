@@ -1,4 +1,5 @@
 "use client";
+import { apiUrl } from "@/lib/api-url";
 
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -99,7 +100,7 @@ export default function SchedulerPage() {
     const [editCustomCron, setEditCustomCron] = useState("");
 
     useEffect(() => {
-        fetch('/api/settings/system')
+        fetch(apiUrl('/api/settings/system'))
             .then(res => res.json())
             .then(data => {
                 if (data.status && data.data?.timezone) {
@@ -120,7 +121,7 @@ export default function SchedulerPage() {
     const fetchMessages = async (sessionId: string, tab: string) => {
         setLoading(true);
         try {
-            const res = await fetch(`/api/scheduler/${sessionId}?tab=${tab}`);
+            const res = await fetch(apiUrl(`/api/scheduler/${sessionId}?tab=${tab}`));
             if (res.ok) {
                 const data = await res.json();
                 setMessages(data?.data || []);
@@ -243,7 +244,7 @@ export default function SchedulerPage() {
         const cronData = buildCronData(isRecurring, recurrenceType, recurringMinutes, recurringHours, recurringDays, customCron, finalSendAt);
 
         try {
-            const res = await fetch(`/api/scheduler/${selectedSessionId}`, {
+            const res = await fetch(apiUrl(`/api/scheduler/${selectedSessionId}`), {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
@@ -309,7 +310,7 @@ export default function SchedulerPage() {
         const cronData = buildCronData(editIsRecurring, editRecurrenceType, editRecurringMinutes, editRecurringHours, editRecurringDays, editCustomCron, finalSendAt);
 
         try {
-            const res = await fetch(`/api/scheduler/${selectedSessionId}/${editId}`, {
+            const res = await fetch(apiUrl(`/api/scheduler/${selectedSessionId}/${editId}`), {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
@@ -337,7 +338,7 @@ export default function SchedulerPage() {
     const confirmDelete = async () => {
         if (!deleteId) return;
         try {
-            const res = await fetch(`/api/scheduler/${selectedSessionId}/${deleteId}`, { method: "DELETE" });
+            const res = await fetch(apiUrl(`/api/scheduler/${selectedSessionId}/${deleteId}`), { method: "DELETE" });
             if (res.ok) {
                 toast.success(t("toastDeleted"));
                 fetchMessages(selectedSessionId, activeTab);

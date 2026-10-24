@@ -1,4 +1,5 @@
 "use client";
+import { apiUrl } from "@/lib/api-url";
 
 import { useState, useEffect, useRef } from "react";
 import { useSession } from "@/components/dashboard/session-provider";
@@ -45,7 +46,7 @@ export default function ProfilePage() {
         if (!sessionId) return;
         setLoading(true);
         try {
-            const res = await fetch(`/api/profile/${sessionId}`);
+            const res = await fetch(apiUrl(`/api/profile/${sessionId}`));
             const data = await res.json();
             
             if (res.ok && data.data) {
@@ -67,7 +68,7 @@ export default function ProfilePage() {
         if (!sessionId) return;
         setUpdatingName(true);
         try {
-            const res = await fetch(`/api/profile/${sessionId}/name`, {
+            const res = await fetch(apiUrl(`/api/profile/${sessionId}/name`), {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ name: nameForm })
@@ -92,7 +93,7 @@ export default function ProfilePage() {
         if (!sessionId) return;
         setUpdatingStatus(true);
         try {
-            const res = await fetch(`/api/profile/${sessionId}/status`, {
+            const res = await fetch(apiUrl(`/api/profile/${sessionId}/status`), {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ status: statusForm })
@@ -122,7 +123,7 @@ export default function ProfilePage() {
         formData.append("image", file);
 
         try {
-            const res = await fetch(`/api/profile/${sessionId}/picture`, {
+            const res = await fetch(apiUrl(`/api/profile/${sessionId}/picture`), {
                 method: "PUT",
                 body: formData
             });
@@ -149,7 +150,7 @@ export default function ProfilePage() {
         if (!sessionId) return;
         setUpdatingPic(true);
         try {
-            const res = await fetch(`/api/profile/${sessionId}/picture`, {
+            const res = await fetch(apiUrl(`/api/profile/${sessionId}/picture`), {
                 method: "DELETE"
             });
             const data = await res.json();

@@ -1,4 +1,5 @@
 "use client";
+import { apiUrl } from "@/lib/api-url";
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
@@ -103,7 +104,7 @@ export default function BroadcastPage() {
         if (!sessionId) return;
         setHistoryLoading(true);
         try {
-            const res = await fetch(`/api/messages/${sessionId}/broadcast/history?limit=20`);
+            const res = await fetch(apiUrl(`/api/messages/${sessionId}/broadcast/history?limit=20`));
             if (res.ok) {
                 const data = await res.json();
                 setHistory(data.data || []);
@@ -128,7 +129,7 @@ export default function BroadcastPage() {
         setDetailOpen(true);
         setDetailLoading(true);
         try {
-            const res = await fetch(`/api/messages/${sessionId}/broadcast/history/${log.id}`);
+            const res = await fetch(apiUrl(`/api/messages/${sessionId}/broadcast/history/${log.id}`));
             if (res.ok) {
                 const data = await res.json();
                 setSelectedLog(data.data);
@@ -158,7 +159,7 @@ export default function BroadcastPage() {
                 return;
             }
 
-            const res = await fetch(`/api/messages/${sessionId}/broadcast`, {
+            const res = await fetch(apiUrl(`/api/messages/${sessionId}/broadcast`), {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({

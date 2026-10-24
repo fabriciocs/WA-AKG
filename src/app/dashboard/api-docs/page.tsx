@@ -1,4 +1,5 @@
 "use client";
+import { apiUrl } from "@/lib/api-url";
 
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
@@ -292,7 +293,7 @@ export default function ApiDocsPage() {
                             <ExternalLink className="w-5 h-5 text-gray-400" />
                         </a>
                         <a
-                            href="/api/docs"
+                            href={apiUrl("/api/docs")}
                             target="_blank"
                             className="flex items-center p-4 border rounded-lg hover:bg-gray-50 transition-colors group"
                         >

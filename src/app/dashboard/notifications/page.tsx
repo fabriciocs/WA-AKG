@@ -1,3 +1,4 @@
+import { apiUrl } from "@/lib/api-url";
 
 "use client";
 
@@ -33,7 +34,7 @@ export default function NotificationAdminPage() {
 
         setLoading(true);
         try {
-            const res = await fetch("/api/notifications", {
+            const res = await fetch(apiUrl("/api/notifications"), {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({

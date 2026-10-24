@@ -1,4 +1,5 @@
 "use client";
+import { apiUrl } from "@/lib/api-url";
 
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
@@ -19,7 +20,7 @@ export default function SystemMonitorPage() {
     // Fetch stats
     const fetchStats = async () => {
         try {
-            const res = await fetch("/api/system/monitor");
+            const res = await fetch(apiUrl("/api/system/monitor"));
             const result = await res.json();
             if (result.status) {
                 setData(result.data);

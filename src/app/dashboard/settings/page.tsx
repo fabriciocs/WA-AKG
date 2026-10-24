@@ -1,4 +1,5 @@
 "use client";
+import { apiUrl } from "@/lib/api-url";
 
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
@@ -41,7 +42,7 @@ export default function SettingsPage() {
     }, []);
 
     useEffect(() => {
-        fetch('/api/settings/system')
+        fetch(apiUrl('/api/settings/system'))
             .then(r => { if (!r.ok) throw new Error(); return r.json(); })
             .then(responseData => {
                 const data = responseData?.data;
@@ -62,7 +63,7 @@ export default function SettingsPage() {
     const handleSaveSystem = async () => {
         setSystemLoading(true);
         try {
-            const res = await fetch('/api/settings/system', {
+            const res = await fetch(apiUrl('/api/settings/system'), {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(systemConfig)
@@ -204,7 +205,7 @@ export default function SettingsPage() {
                         onClick={async () => {
                             setSystemLoading(true);
                             try {
-                                const res = await fetch("/api/system/check-updates", { method: "POST" });
+                                const res = await fetch(apiUrl("/api/system/check-updates"), { method: "POST" });
                                 const data = await res.json();
                                 if (data.status) {
                                     toast.success(data.message || "Check complete!");

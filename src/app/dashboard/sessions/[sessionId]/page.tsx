@@ -1,4 +1,5 @@
 "use client";
+import { apiUrl } from "@/lib/api-url";
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
@@ -56,7 +57,7 @@ export default function SessionDetailPage() {
 
     const fetchSession = async () => {
         try {
-            const res = await fetch(`/api/sessions/${sessionId}`);
+            const res = await fetch(apiUrl(`/api/sessions/${sessionId}`));
             if (!res.ok) {
                 if (res.status === 404) {
                     toast.error(t("notFound"));
@@ -82,7 +83,7 @@ export default function SessionDetailPage() {
 
     const fetchMetrics = async () => {
         try {
-            const res = await fetch(`/api/system/monitor/${sessionId}`);
+            const res = await fetch(apiUrl(`/api/system/monitor/${sessionId}`));
             const result = await res.json();
             if (result.status) {
                 setSystemMetrics(result.data);
@@ -96,7 +97,7 @@ export default function SessionDetailPage() {
         fetchSession();
 
         const socketInstance = io({
-            path: "/api/socket/io",
+            path: apiUrl("/api/socket/io"),
             addTrailingSlash: false,
         });
 
@@ -138,7 +139,7 @@ export default function SessionDetailPage() {
     const performAction = async (action: string, payload: any = {}) => {
         const loadingToast = toast.loading(t("performing", { action }));
         try {
-            const res = await fetch(`/api/sessions/${sessionId}/${action}`, {
+            const res = await fetch(apiUrl(`/api/sessions/${sessionId}/${action}`), {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(payload)
@@ -183,7 +184,7 @@ export default function SessionDetailPage() {
 
     const deleteSession = async () => {
         try {
-            const res = await fetch(`/api/sessions/${sessionId}/settings`, { method: 'DELETE' });
+            const res = await fetch(apiUrl(`/api/sessions/${sessionId}/settings`), { method: 'DELETE' });
             if (res.ok) {
                 toast.success(t("sessionDeleted"));
                 router.push("/dashboard/sessions");

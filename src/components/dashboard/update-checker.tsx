@@ -1,4 +1,5 @@
 "use client";
+import { apiUrl } from "@/lib/api-url";
 
 import { useEffect } from "react";
 
@@ -11,7 +12,7 @@ export function UpdateChecker() {
                 // Let's use sessionStorage to check once per browser tab session, or just fire it every time since backend handles deduplication.
                 // Backend deduplication is robust (checks DB). So firing every time is fine and meets requirements.
 
-                const res = await fetch('/api/system/check-updates', { method: 'POST' });
+                const res = await fetch(apiUrl('/api/system/check-updates'), { method: 'POST' });
                 const json = await res.json();
                 console.log("UpdateChecker: Result", json);
             } catch (error) {

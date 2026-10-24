@@ -15,6 +15,7 @@ import pkg from "../../package.json";
 const dev = process.env.NODE_ENV !== "production";
 const hostname = process.env.HOSTNAME || "localhost";
 const port = parseInt(process.env.PORT || "3030", 10);
+const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
 
 const INSECURE_AUTH_SECRETS = [
   "change-me",
@@ -56,7 +57,7 @@ app.prepare().then(async () => {
   if (process.env.WA_AKG_MCP_ENABLED === "true") {
     const mcpHttp = await import("../../mcp/wa-akg-mcp/src/http.mjs");
     handleMcpHttp = await mcpHttp.createMcpHttpHandler();
-    mcpEndpointPath = mcpHttp.endpointPath;
+    mcpEndpointPath = basePath + mcpHttp.endpointPath;
     logger.info("Server", `MCP HTTP endpoint enabled at ${mcpEndpointPath}`);
   }
 
@@ -78,7 +79,7 @@ app.prepare().then(async () => {
 
   const allowedOrigin = process.env.BASE_URL || `http://${hostname}:${port}`;
   const io = new Server(server, {
-    path: "/api/socket/io",
+    path: basePath + "/api/socket/io",
     addTrailingSlash: false,
     cors: {
       origin: (origin, callback) => {

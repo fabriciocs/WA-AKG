@@ -1,4 +1,5 @@
 "use client";
+import { apiUrl } from "@/lib/api-url";
 
 import { useState, useEffect } from "react";
 import { useTranslations } from "next-intl";
@@ -50,7 +51,7 @@ export default function StickerPage() {
             formData.append("quality", quality.toString());
             formData.append("type", type);
 
-            const res = await fetch(`/api/messages/${sessionId}/${encodedJid}/sticker`, {
+            const res = await fetch(apiUrl(`/api/messages/${sessionId}/${encodedJid}/sticker`), {
                 method: "POST",
                 body: formData
             });

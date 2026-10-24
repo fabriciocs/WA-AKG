@@ -1,4 +1,5 @@
 "use client";
+import { apiUrl } from "@/lib/api-url";
 
 import { useState } from "react";
 import {
@@ -174,7 +175,7 @@ export function InteractiveMessageDialog({
         setSendingPreset(preset.id);
         try {
             toast.info(t("sendingTo", { target: displayName }));
-            const res = await fetch(`/api/messages/${sessionId}/${encodeURIComponent(jid)}/interactive`, {
+            const res = await fetch(apiUrl(`/api/messages/${sessionId}/${encodeURIComponent(jid)}/interactive`), {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(preset.payload)
@@ -265,7 +266,7 @@ export function InteractiveMessageDialog({
                 }
             });
 
-            const res = await fetch(`/api/messages/${sessionId}/${encodeURIComponent(jid)}/interactive`, {
+            const res = await fetch(apiUrl(`/api/messages/${sessionId}/${encodeURIComponent(jid)}/interactive`), {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({

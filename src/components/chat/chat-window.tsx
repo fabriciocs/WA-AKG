@@ -1,4 +1,5 @@
 "use client";
+import { apiUrl } from "@/lib/api-url";
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -396,7 +397,7 @@ export function ChatWindow({ sessionId, jid, name, onBack }: ChatWindowProps) {
                             onClick={() => {
                                 const msg = deleteConfirmMsg;
                                 if (!msg) return;
-                                fetch(`/api/messages/${sessionId}/${jid}/${msg.keyId}`, { method: "DELETE" })
+                                fetch(apiUrl(`/api/messages/${sessionId}/${jid}/${msg.keyId}`), { method: "DELETE" })
                                     .then(() => { setMessages(p => p.filter(m => m.keyId !== msg.keyId)); toast.success(tCommon("deleted")); })
                                     .catch(() => toast.error(tCommon("error")));
                                 setDeleteConfirmMsg(null);

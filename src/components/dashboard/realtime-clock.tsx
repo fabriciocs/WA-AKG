@@ -1,4 +1,5 @@
 "use client";
+import { apiUrl } from "@/lib/api-url";
 
 import { useEffect, useState } from "react";
 import moment from "moment-timezone";
@@ -12,7 +13,7 @@ export function RealtimeClock() {
     useEffect(() => {
         setMounted(true);
         // Fetch global timezone
-        fetch('/api/settings/system')
+        fetch(apiUrl('/api/settings/system'))
             .then(r => r.json())
             .then(data => {
                 if (data && data.data && data.data.timezone) {

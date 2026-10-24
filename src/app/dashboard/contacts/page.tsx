@@ -1,3 +1,4 @@
+import { apiUrl } from "@/lib/api-url";
 
 "use client";
 
@@ -82,7 +83,7 @@ export default function ContactListPage() {
                 search: search
             });
 
-            const res = await fetch(`/api/contacts/${sessionId}?${params}`);
+            const res = await fetch(apiUrl(`/api/contacts/${sessionId}?${params}`));
             const data = await res.json();
 
             if (res.ok) {

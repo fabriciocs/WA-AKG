@@ -1,4 +1,5 @@
 "use client";
+import { apiUrl } from "@/lib/api-url";
 
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { getCookie, setCookie } from "@/lib/client-cookie";
@@ -30,7 +31,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
     const fetchSessions = async () => {
         try {
-            const res = await fetch('/api/sessions');
+            const res = await fetch(apiUrl('/api/sessions'));
             if (res.ok) {
                 const responseData = await res.json();
                 const data = responseData?.data || [];

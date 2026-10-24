@@ -1,4 +1,5 @@
 "use client";
+import { apiUrl } from "@/lib/api-url";
 
 import { useState, useEffect, useCallback } from "react";
 import { useSession } from "@/components/dashboard/session-provider";
@@ -102,7 +103,7 @@ export default function LabelsPage() {
         if (!sessionId) return;
         setLoading(true);
         try {
-            const res = await fetch(`/api/labels/${sessionId}`);
+            const res = await fetch(apiUrl(`/api/labels/${sessionId}`));
             const data = await res.json();
 
             if (res.ok && data.data?.labels) {
@@ -127,7 +128,7 @@ export default function LabelsPage() {
 
         setSubmitting(true);
         try {
-            const res = await fetch(`/api/labels/${sessionId}`, {
+            const res = await fetch(apiUrl(`/api/labels/${sessionId}`), {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ name: currentName.trim(), color: currentColor })
@@ -159,7 +160,7 @@ export default function LabelsPage() {
 
         setSubmitting(true);
         try {
-            const res = await fetch(`/api/labels/${sessionId}/${currentLabelId}`, {
+            const res = await fetch(apiUrl(`/api/labels/${sessionId}/${currentLabelId}`), {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ name: currentName.trim(), color: currentColor })
@@ -185,7 +186,7 @@ export default function LabelsPage() {
     const handleDelete = async (labelId: string) => {
         if (!sessionId) return;
         try {
-            const res = await fetch(`/api/labels/${sessionId}/${labelId}`, {
+            const res = await fetch(apiUrl(`/api/labels/${sessionId}/${labelId}`), {
                 method: "DELETE"
             });
             const data = await res.json();
@@ -232,7 +233,7 @@ export default function LabelsPage() {
         if (!sessionId) return;
         setChatLabelsLoading(true);
         try {
-            const res = await fetch(`/api/labels/${sessionId}/chats?labelId=${labelId}`);
+            const res = await fetch(apiUrl(`/api/labels/${sessionId}/chats?labelId=${labelId}`));
             const data = await res.json();
             if (res.ok) {
                 setChatLabels(data.data || []);
@@ -254,7 +255,7 @@ export default function LabelsPage() {
         }
         setContactsLoading(true);
         try {
-            const res = await fetch(`/api/contacts/${sessionId}?search=${encodeURIComponent(query)}&limit=20`);
+            const res = await fetch(apiUrl(`/api/contacts/${sessionId}?search=${encodeURIComponent(query)}&limit=20`));
             const data = await res.json();
             if (res.ok) {
                 setContacts(data.data || []);
@@ -276,7 +277,7 @@ export default function LabelsPage() {
     const assignChatToLabel = async (jid: string) => {
         if (!sessionId || !assignLabelId) return;
         try {
-            const res = await fetch(`/api/labels/${sessionId}/chat/${encodeURIComponent(jid)}/labels`, {
+            const res = await fetch(apiUrl(`/api/labels/${sessionId}/chat/${encodeURIComponent(jid)}/labels`), {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ labelIds: [assignLabelId], action: "add" })
@@ -300,7 +301,7 @@ export default function LabelsPage() {
     const removeChatFromLabel = async (labelId: string, jid: string) => {
         if (!sessionId) return;
         try {
-            const res = await fetch(`/api/labels/${sessionId}/chat/${encodeURIComponent(jid)}/labels`, {
+            const res = await fetch(apiUrl(`/api/labels/${sessionId}/chat/${encodeURIComponent(jid)}/labels`), {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ labelIds: [labelId], action: "remove" })

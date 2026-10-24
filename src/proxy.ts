@@ -5,6 +5,15 @@ import type { NextRequest } from "next/server";
 
 export async function proxy(request: NextRequest) {
     const { pathname } = request.nextUrl;
+    // Next.js strips the configured basePath from pathname in the proxy handler,
+    // but redirect URLs must include it because Caddy exposes the app under /wa-akg.
+    const basePath = request.nextUrl.basePath || process.env.NEXT_PUBLIC_BASE_PATH || "";
+    const withBasePath = (path: string) => {
+        const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+        return basePath && normalizedPath !== basePath && !normalizedPath.startsWith(`${basePath}/`)
+            ? `${basePath}${normalizedPath}`
+            : normalizedPath;
+    };
 
     // Public routes that don't require authentication
     const publicRoutes = ["/auth/login", "/auth/register", "/api/auth", "/terms", "/privacy"];
@@ -58,8 +67,8 @@ export async function proxy(request: NextRequest) {
         const session = await auth();
 
         if (!session?.user) {
-            const loginUrl = new URL("/auth/login", request.url);
-            loginUrl.searchParams.set("callbackUrl", pathname);
+            const loginUrl = new URL(withBasePath("/auth/login"), request.url);
+            loginUrl.searchParams.set("callbackUrl", withBasePath(pathname) + request.nextUrl.search);
             return NextResponse.redirect(loginUrl);
         }
 
@@ -70,7 +79,7 @@ export async function proxy(request: NextRequest) {
     if (pathname === "/") {
         const session = await auth();
         if (session?.user) {
-            return NextResponse.redirect(new URL("/dashboard", request.url));
+            return NextResponse.redirect(new URL(withBasePath("/dashboard"), request.url));
         }
         return NextResponse.next();
     }
@@ -79,7 +88,7 @@ export async function proxy(request: NextRequest) {
     if (isPublicRoute) {
         const session = await auth();
         if (session?.user && (pathname.startsWith("/auth/login") || pathname.startsWith("/auth/register"))) {
-            return NextResponse.redirect(new URL("/dashboard", request.url));
+            return NextResponse.redirect(new URL(withBasePath("/dashboard"), request.url));
         }
         return NextResponse.next();
     }
@@ -87,8 +96,8 @@ export async function proxy(request: NextRequest) {
     // Default: require auth for everything else
     const session = await auth();
     if (!session?.user) {
-        const loginUrl = new URL("/auth/login", request.url);
-        loginUrl.searchParams.set("callbackUrl", pathname);
+        const loginUrl = new URL(withBasePath("/auth/login"), request.url);
+        loginUrl.searchParams.set("callbackUrl", withBasePath(pathname) + request.nextUrl.search);
         return NextResponse.redirect(loginUrl);
     }
 

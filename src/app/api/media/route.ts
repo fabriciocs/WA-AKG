@@ -117,7 +117,7 @@ export async function GET(request: NextRequest) {
                     fromMe: msgInfo?.fromMe ?? false,
                     createdAt: fileStat.birthtime.toISOString(),
                     modifiedAt: fileStat.mtime.toISOString(),
-                    url: `/api/media/${encodeURIComponent(name)}`,
+                    url: (process.env.NEXT_PUBLIC_BASE_PATH || "") + `/api/media/${encodeURIComponent(name)}`,
                 };
             })
         );

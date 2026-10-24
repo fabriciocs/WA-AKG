@@ -1,4 +1,5 @@
 "use client";
+import { apiUrl } from "@/lib/api-url";
 
 import { useState, useEffect, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
@@ -75,7 +76,7 @@ export default function SessionAccessPage() {
 
     const fetchSessions = async () => {
         try {
-            const res = await fetch("/api/sessions");
+            const res = await fetch(apiUrl("/api/sessions"));
             if (res.ok) {
                 const data = await res.json();
                 const allSessions: SessionInfo[] = data?.data || [];
@@ -101,7 +102,7 @@ export default function SessionAccessPage() {
         if (!selectedSession) return;
         setAccessLoading(true);
         try {
-            const res = await fetch(`/api/sessions/${selectedSession}/access`);
+            const res = await fetch(apiUrl(`/api/sessions/${selectedSession}/access`));
             if (res.ok) {
                 const data = await res.json();
                 setAccessList(data?.data || []);
@@ -131,7 +132,7 @@ export default function SessionAccessPage() {
 
         setSubmitting(true);
         try {
-            const res = await fetch(`/api/sessions/${selectedSession}/access`, {
+            const res = await fetch(apiUrl(`/api/sessions/${selectedSession}/access`), {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ email: email.trim() })
@@ -157,7 +158,7 @@ export default function SessionAccessPage() {
         if (!revokeTarget || !selectedSession) return;
 
         try {
-            const res = await fetch(`/api/sessions/${selectedSession}/access`, {
+            const res = await fetch(apiUrl(`/api/sessions/${selectedSession}/access`), {
                 method: "DELETE",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ userId: revokeTarget.user.id })

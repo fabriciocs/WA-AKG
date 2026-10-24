@@ -1,4 +1,5 @@
 "use client";
+import { apiUrl } from "@/lib/api-url";
 
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
@@ -49,7 +50,7 @@ export default function ApiDocsPage() {
     useEffect(() => {
         let cancelled = false;
 
-        fetch("/api/swagger-auth", { cache: "no-store" })
+        fetch(apiUrl("/api/swagger-auth"), { cache: "no-store" })
             .then((response) => {
                 if (cancelled) return;
                 if (response.ok) {
@@ -79,7 +80,7 @@ export default function ApiDocsPage() {
         setError("");
 
         try {
-            const response = await fetch("/api/swagger-auth", {
+            const response = await fetch(apiUrl("/api/swagger-auth"), {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 cache: "no-store",
@@ -102,7 +103,7 @@ export default function ApiDocsPage() {
 
     const handleLogout = async () => {
         try {
-            await fetch("/api/swagger-auth", { method: "DELETE", cache: "no-store" });
+            await fetch(apiUrl("/api/swagger-auth"), { method: "DELETE", cache: "no-store" });
         } catch {
             // Clear the local UI state even if the server is temporarily unavailable.
         } finally {

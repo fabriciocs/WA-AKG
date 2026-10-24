@@ -1,4 +1,5 @@
 "use client";
+import { apiUrl } from "@/lib/api-url";
 
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -35,7 +36,7 @@ export default function GroupsPage() {
     const fetchGroups = async (sessId: string) => {
         setLoading(true);
         try {
-            const res = await fetch(`/api/groups/${sessId}`);
+            const res = await fetch(apiUrl(`/api/groups/${sessId}`));
             if (res.ok) {
                 const data = await res.json();
                 setGroups(data?.data || []);
@@ -60,7 +61,7 @@ export default function GroupsPage() {
     const handleCreateGroup = async () => {
         if (!sessionId || !newGroupName) return;
         try {
-            const res = await fetch(`/api/groups/${sessionId}/create`, {
+            const res = await fetch(apiUrl(`/api/groups/${sessionId}/create`), {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ sessionId, subject: newGroupName })

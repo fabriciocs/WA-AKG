@@ -31,7 +31,7 @@ function LoginForm() {
   }), [t]);
   const router = useRouter();
   const searchParams = useSearchParams();
-  const callbackUrl = searchParams.get('callbackUrl') || '/dashboard';
+  const callbackUrl = searchParams.get('callbackUrl') || (process.env.NEXT_PUBLIC_BASE_PATH || '') + '/dashboard';
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 

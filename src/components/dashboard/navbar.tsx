@@ -1,4 +1,5 @@
 "use client";
+import { apiUrl } from "@/lib/api-url";
 
 import { useState, useEffect } from "react";
 import { MobileNav } from "@/components/dashboard/mobile-nav";
@@ -41,7 +42,7 @@ export function Navbar({ appName }: NavbarProps) {
 
     const fetchNotifications = async () => {
         try {
-            const res = await fetch("/api/notifications");
+            const res = await fetch(apiUrl("/api/notifications"));
             if (res.ok) {
                 const responseData = await res.json();
                 const items = responseData?.data || [];
@@ -60,7 +61,7 @@ export function Navbar({ appName }: NavbarProps) {
         // Setup Socket.IO connection
         if (session?.user?.id) {
             const socketInstance = io({
-                path: "/api/socket/io",
+                path: apiUrl("/api/socket/io"),
             });
 
             socketInstance.on("connect", () => {
@@ -97,7 +98,7 @@ export function Navbar({ appName }: NavbarProps) {
     const markAsRead = async (id?: string) => {
         try {
             const ids = id ? [id] : []; // Empty array means mark all
-            const res = await fetch("/api/notifications/read", {
+            const res = await fetch(apiUrl("/api/notifications/read"), {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ ids })
@@ -118,7 +119,7 @@ export function Navbar({ appName }: NavbarProps) {
 
     const deleteNotification = async (id: string) => {
         try {
-            const res = await fetch(`/api/notifications/delete?id=${id}`, {
+            const res = await fetch(apiUrl(`/api/notifications/delete?id=${id}`), {
                 method: "DELETE"
             });
             if (res.ok) {

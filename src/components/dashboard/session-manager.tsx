@@ -1,4 +1,5 @@
 'use client';
+import { apiUrl } from "@/lib/api-url";
 
 import { useState, useEffect } from 'react';
 import { io, Socket } from 'socket.io-client';
@@ -47,7 +48,7 @@ export function SessionManager({ user }: { user: any }) {
 
         // Init Socket
         const socketInstance = io({
-            path: "/api/socket/io",
+            path: apiUrl("/api/socket/io"),
             addTrailingSlash: false,
         });
 
@@ -77,7 +78,7 @@ export function SessionManager({ user }: { user: any }) {
     }, []);
 
     const fetchSessions = () => {
-        fetch('/api/sessions').then(res => res.json()).then(responseData => {
+        fetch(apiUrl('/api/sessions')).then(res => res.json()).then(responseData => {
             const data = responseData?.data || [];
             if (Array.isArray(data)) setSessions(data);
         });
@@ -97,7 +98,7 @@ export function SessionManager({ user }: { user: any }) {
 
         setLoading(true);
         try {
-            const res = await fetch('/api/sessions', {
+            const res = await fetch(apiUrl('/api/sessions'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({

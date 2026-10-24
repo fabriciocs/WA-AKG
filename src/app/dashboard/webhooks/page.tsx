@@ -1,4 +1,5 @@
 "use client";
+import { apiUrl } from "@/lib/api-url";
 
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -126,7 +127,7 @@ export default function WebhooksPage() {
     const fetchWebhooks = async () => {
         setLoading(true);
         try {
-            const res = await fetch(`/api/webhooks/${sessionId}`);
+            const res = await fetch(apiUrl(`/api/webhooks/${sessionId}`));
             if (res.ok) {
                 const responseData = await res.json();
                 const data = responseData?.data || [];
@@ -149,7 +150,7 @@ export default function WebhooksPage() {
 
     const fetchApiKey = async () => {
         try {
-            const res = await fetch("/api/user/api-key");
+            const res = await fetch(apiUrl("/api/user/api-key"));
             if (res.ok) {
                 const data = await res.json();
                 setApiKey(data?.data?.apiKey);
@@ -161,7 +162,7 @@ export default function WebhooksPage() {
 
     const generateNewApiKey = async () => {
         try {
-            const res = await fetch("/api/user/api-key", { method: "POST" });
+            const res = await fetch(apiUrl("/api/user/api-key"), { method: "POST" });
             if (res.ok) {
                 const data = await res.json();
                 setApiKey(data?.data?.apiKey);
@@ -177,7 +178,7 @@ export default function WebhooksPage() {
         setTestResults(prev => ({ ...prev, [webhook.id]: { testing: true } }));
         try {
             const targetSessionId = webhook.sessionId || sessionId;
-            const res = await fetch(`/api/webhooks/${targetSessionId}/${webhook.id}/test`, { method: "POST" });
+            const res = await fetch(apiUrl(`/api/webhooks/${targetSessionId}/${webhook.id}/test`), { method: "POST" });
             const data = await res.json();
             setTestResults(prev => ({ ...prev, [webhook.id]: data?.data || { success: false, error: "No response" } }));
             if (data?.data?.success) {
@@ -237,7 +238,7 @@ export default function WebhooksPage() {
         try {
             const payload: any = { name: newName, url: newUrl, events: newEvents, filters: newFilters };
             if (newSecret) payload.secret = newSecret;
-            const res = await fetch(`/api/webhooks/${sessionId}`, {
+            const res = await fetch(apiUrl(`/api/webhooks/${sessionId}`), {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(payload)
@@ -270,7 +271,7 @@ export default function WebhooksPage() {
             const targetSessionId = webhook?.sessionId || sessionId;
             const payload: any = { name: editName, url: editUrl, events: editEvents, filters: editFilters };
             if (editSecret) payload.secret = editSecret;
-            const res = await fetch(`/api/webhooks/${targetSessionId}/${editingId}`, {
+            const res = await fetch(apiUrl(`/api/webhooks/${targetSessionId}/${editingId}`), {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(payload)
@@ -292,7 +293,7 @@ export default function WebhooksPage() {
         try {
             const webhook = webhooks.find(w => w.id === id);
             const targetSessionId = webhook?.sessionId || sessionId;
-            await fetch(`/api/webhooks/${targetSessionId}/${id}`, {
+            await fetch(apiUrl(`/api/webhooks/${targetSessionId}/${id}`), {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ isActive })
@@ -311,7 +312,7 @@ export default function WebhooksPage() {
             : [...webhook.events, eventId];
         const targetSessionId = webhook.sessionId || sessionId;
         try {
-            await fetch(`/api/webhooks/${targetSessionId}/${webhookId}`, {
+            await fetch(apiUrl(`/api/webhooks/${targetSessionId}/${webhookId}`), {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ events: newEvents })
@@ -333,7 +334,7 @@ export default function WebhooksPage() {
         try {
             const webhook = webhooks.find(w => w.id === deleteId);
             const targetSessionId = webhook?.sessionId || sessionId;
-            await fetch(`/api/webhooks/${targetSessionId}/${deleteId}`, { method: "DELETE" });
+            await fetch(apiUrl(`/api/webhooks/${targetSessionId}/${deleteId}`), { method: "DELETE" });
             setWebhooks(webhooks.filter(w => w.id !== deleteId));
             toast.success(t("toastDeleted"));
         } catch (error) {

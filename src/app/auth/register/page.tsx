@@ -1,4 +1,5 @@
 'use client';
+import { apiUrl } from "@/lib/api-url";
 
 import { useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
@@ -52,7 +53,7 @@ export default function RegisterPage() {
         setLoading(true);
         setError(null);
         try {
-            const response = await fetch('/api/auth/register', {
+            const response = await fetch(apiUrl('/api/auth/register'), {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
