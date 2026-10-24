@@ -1,0 +1,100 @@
+{
+    "sessionStatus":  "PARTIAL",
+    "build":  {
+                  "status":  "VERIFIED",
+                  "exitCode":  0,
+                  "compileSeconds":  44,
+                  "routeGeneration":  "completed",
+                  "stdout":  "raw/next-build.stdout.log",
+                  "stderr":  "raw/next-build.stderr.log",
+                  "limitation":  "Prisma systemConfig.findUnique metadata reads failed because 127.0.0.1:3307 is unavailable"
+              },
+    "tests":  {
+                  "status":  "VERIFIED",
+                  "exitCode":  0,
+                  "passed":  40,
+                  "failed":  0,
+                  "stdout":  "raw/npm-test.stdout.log",
+                  "stderr":  "raw/npm-test.stderr.log"
+              },
+    "typescript":  {
+                       "status":  "VERIFIED",
+                       "exitCode":  0,
+                       "command":  "npx tsc --noEmit --pretty false",
+                       "stdout":  "raw/tsc.stdout.log",
+                       "stderr":  "raw/tsc.stderr.log"
+                   },
+    "eslintFilterModules":  {
+                                "status":  "VERIFIED",
+                                "exitCode":  0,
+                                "files":  [
+                                              "src/lib/webhook-filters.ts",
+                                              "src/lib/webhook-filter-constants.ts",
+                                              "src/lib/__tests__/webhook-filters.test.ts"
+                                          ],
+                                "stdout":  "raw/eslint-targeted.stdout.log",
+                                "stderr":  "raw/eslint-targeted.stderr.log"
+                            },
+    "openApiAndLocales":  {
+                              "status":  "VERIFIED",
+                              "files":  [
+                                            "swagger.json",
+                                            "src/i18n/messages/en.json",
+                                            "src/i18n/messages/id.json",
+                                            "src/i18n/messages/pt-BR.json"
+                                        ],
+                              "result":  "All parsed successfully"
+                          },
+    "gitDiffCheck":  {
+                         "status":  "VERIFIED",
+                         "exitCode":  0,
+                         "warning":  "LF will be replaced by CRLF for src/lib/webhook.ts"
+                     },
+    "gitPreservation":  {
+                            "status":  "VERIFIED",
+                            "head":  "9d74cf262d632247d45fc08d3554e796c3febc2a",
+                            "branch":  "main",
+                            "stagedHashBaseline":  "84d7bf52862e074e9b3d2685fa1a49971557b8bc",
+                            "stagedHashFinal":  "84d7bf52862e074e9b3d2685fa1a49971557b8bc",
+                            "stagedCountBaseline":  99,
+                            "stagedCountFinal":  99,
+                            "unstagedCountFinal":  13,
+                            "untrackedCountBaseline":  62,
+                            "note":  "Untracked increase from 62 to 94 corresponds to task source/docs plus newly generated local session artifacts; no preexisting files were deleted or staged.",
+                            "untrackedNote":  "Untracked paths grew during the session. Eleven mcp/ files appeared with timestamps 16:22 and package-lock 16:26 while a pre-existing Codex PID 29140 -\u003e PowerShell PID 36112 -\u003e Node PID 26508 process tree was active. Possible relation inferred, exact writer unknown. These files were left untouched.",
+                            "untrackedCountFinal":  116,
+                            "stagedPathInventoryDiffCount":  0,
+                            "stagedIndexPreserved":  true
+                        },
+    "codexMultiAgent":  {
+                            "status":  "BLOCKED",
+                            "exitCode":  1,
+                            "runtimeSeconds":  172.96,
+                            "reconnectErrors":  5,
+                            "subagentsCompleted":  0,
+                            "note":  "auto-best-coding provider failed request sending; no subagent results"
+                        },
+    "database":  {
+                     "status":  "BLOCKED",
+                     "tcp3307":  false,
+                     "dockerEngine":  "unavailable: dockerDesktopLinuxEngine named pipe not found",
+                     "mutationsPerformed":  false
+                 },
+    "broaderEslint":  {
+                          "status":  "PARTIAL",
+                          "previousErrors":  34,
+                          "previousWarnings":  20,
+                          "newFilterModulesPassed":  true,
+                          "rerun":  "not performed"
+                      },
+    "integration":  {
+                        "status":  "DEFERRED",
+                        "reason":  "MySQL/Docker unavailable; no DB writes, migrations or external webhook delivery"
+                    },
+    "fullLint":  {
+                     "status":  "DEFERRED",
+                     "sessionExitCode":  1,
+                     "runtimeSeconds":  70.85,
+                     "reason":  "npm run lint emitted no findings within the observed window; it was stopped to avoid competing with a separate OmniRoute Node process using approximately 8.2 GB RAM. The separate process was left untouched."
+                 }
+}

@@ -7,6 +7,7 @@ import pino from "pino";
 import { resolveToPhoneJidBySessionId as resolveToPhoneJid, isLidJid } from "./jid-utils";
 import { logger } from "./logger";
 import { waManager } from "@/modules/whatsapp/manager";
+import { matchesWebhookFilters, type WebhookFilters } from "./webhook-filters";
 
 // Event types that can trigger webhooks
 export type WebhookEventType =
@@ -92,6 +93,7 @@ export async function dispatchWebhook(
             if (!events.includes(event) && !events.includes("*")) {
                 continue;
             }
+            if (!matchesWebhookFilters(webhook.filters as unknown as WebhookFilters | null, payload)) continue;
 
             // Send webhook in background
             sendWebhookRequest(webhook.url, payload, webhook.secret, webhook.id).catch(err => {
@@ -156,10 +158,17 @@ async function sendWebhookRequest(url: string, payload: WebhookPayload, secret?:
     let errorMessage: string | undefined;
 
     try {
+        const { validateSafeUrl } = await import("./security");
+        const safeCheck = await validateSafeUrl(url, { allowHttp: false });
+        if (!safeCheck.valid) {
+            throw new Error(`SSRF Blocked: ${safeCheck.error}`);
+        }
+
         response = await fetch(url, {
             method: "POST",
             headers,
             body,
+            redirect: "manual",
             signal: AbortSignal.timeout(10000) // 10 second timeout
         });
 
@@ -298,10 +307,17 @@ export async function testWebhook(webhookId: string, url: string, secret?: strin
     }
 
     try {
+        const { validateSafeUrl } = await import("./security");
+        const safeCheck = await validateSafeUrl(url, { allowHttp: false });
+        if (!safeCheck.valid) {
+            throw new Error(`SSRF Blocked: ${safeCheck.error}`);
+        }
+
         const response = await fetch(url, {
             method: "POST",
             headers,
             body,
+            redirect: "manual",
             signal: AbortSignal.timeout(15000)
         });
 
@@ -390,8 +406,9 @@ export async function downloadAndSaveMedia(message: WAMessage, sessionId: string
         let buffer: Buffer | null = null;
         const mediaObj = (messageContent as any)[messageType];
 
-        // Newsletter media is NOT encrypted — no mediaKey present
-        const isNewsletterMedia = !mediaObj.mediaKey && (mediaObj.directPath || mediaObj.thumbnailDirectPath);
+        // Newsletter media is NOT encrypted — strictly restricted to real @newsletter JIDs
+        const isNewsletterJid = message.key.remoteJid?.endsWith("@newsletter");
+        const isNewsletterMedia = Boolean(isNewsletterJid && !mediaObj.mediaKey && (mediaObj.directPath || mediaObj.thumbnailDirectPath));
 
         if (isNewsletterMedia) {
             logger.info("Media", "Downloading unencrypted media (newsletter) via direct fetch...");
@@ -400,20 +417,17 @@ export async function downloadAndSaveMedia(message: WAMessage, sessionId: string
             const downloadUrl = dp.startsWith('http') ? dp : `https://mmg.whatsapp.net${dp}`;
 
             try {
-                const res = await fetch(downloadUrl, {
-                    method: 'GET',
-                    headers: { 'Origin': 'https://web.whatsapp.com' }
+                const { safeFetchBuffer } = await import("./security");
+                const { buffer: fetchedBuf } = await safeFetchBuffer(downloadUrl, {
+                    allowedHostnames: ["whatsapp.net", "fbcdn.net"],
+                    maxBytes: 50 * 1024 * 1024, // 50MB max
+                    timeoutMs: 15000
                 });
 
-                if (!res.ok) {
-                    logger.error("Media", `Newsletter media HTTP ${res.status} ${res.statusText} for URL: ${downloadUrl}`);
-                    return null;
-                }
-
-                buffer = Buffer.from(await res.arrayBuffer());
+                buffer = fetchedBuf;
                 logger.success("Media", `Newsletter media downloaded: ${buffer.length} bytes`);
-            } catch (e) {
-                logger.error("Media", "Failed to download newsletter media:", e);
+            } catch (e: any) {
+                logger.error("Media", `Failed to download newsletter media: ${e.message}`);
                 return null;
             }
         } else {
@@ -448,18 +462,34 @@ export async function downloadAndSaveMedia(message: WAMessage, sessionId: string
 
         let ext = extMap[messageType] || 'bin';
 
-        // Try to get extension from mimetype if available
+        // Try to get extension from mimetype if available (with strict sanitization)
         const mime = (messageContent as any)[messageType]?.mimetype;
-        if (mime) {
-            const mimeExt = mime.split('/')[1]?.split(';')[0];
-            if (mimeExt) ext = mimeExt;
+        if (typeof mime === "string") {
+            const rawExt = mime.split('/')[1]?.split(';')[0]?.trim();
+            if (rawExt) {
+                // Strict sanitization: allow only alphanumeric characters, max 10 chars
+                const sanitizedExt = rawExt.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+                if (sanitizedExt && sanitizedExt.length <= 10) {
+                    ext = sanitizedExt;
+                }
+            }
         }
 
-        const filename = `${sessionId}-${message.key.id}.${ext}`;
-        const filePath = path.join(process.cwd(), "data", "media", filename);
+        const safeSessionId = sessionId.replace(/[^a-zA-Z0-9_-]/g, '');
+        const safeMessageId = (message.key.id || 'msg').replace(/[^a-zA-Z0-9_-]/g, '');
+        const filename = `${safeSessionId}-${safeMessageId}.${ext}`;
 
-        // Ensure directory exists (redundant if handled by OS, but safe)
-        await mkdir(path.dirname(filePath), { recursive: true });
+        const mediaDir = path.resolve(process.cwd(), "data", "media");
+        const filePath = path.resolve(mediaDir, filename);
+
+        // Security check: Ensure resolved path strictly stays within data/media
+        if (!filePath.startsWith(mediaDir + path.sep)) {
+            logger.error("Media", `Path traversal prevented for file: ${filename}`);
+            return null;
+        }
+
+        // Ensure directory exists
+        await mkdir(mediaDir, { recursive: true });
 
         await writeFile(filePath, buffer);
 
@@ -505,7 +535,7 @@ export async function onMessageReceived(sessionId: string, message: any, existin
     const normalizedFrom = await resolveToPhoneJid(remoteJid, sessionId, remoteJidAlt);
 
     // "sender" is who sent it. In DM: remoteJid. In Group: participant.
-    let senderJid: string = isGroup ? (participant || "") : remoteJid;
+    const senderJid: string = isGroup ? (participant || "") : remoteJid;
     const normalizedSender = await resolveToPhoneJid(senderJid, sessionId);
     let sender: any = normalizedSender;
 
@@ -571,6 +601,8 @@ export async function onMessageReceived(sessionId: string, message: any, existin
         from: normalizedFrom,       // Sender — who sent it (#O in DM), consistent: "from" = who sent it
         receiver: getOwnJid(sessionId), // WA-AKG's own number (#M)
         sender: sender,             // Who Sent It (normalized JID or enriched Object)
+        senderJid: senderJid || undefined, // Original sender JID before LID/phone normalization
+        chatJid: remoteJid || undefined,   // Original chat JID before normalization
         isGroup: isGroup,           // Boolean
         chatType: getChatType(remoteJid), // PERSONAL | GROUP | STATUS | NEWSLETTER
 
@@ -622,6 +654,8 @@ export async function onMessageSent(sessionId: string, message: any, existingFil
         from: getOwnJid(sessionId), // Sender — WA-AKG's own number (#M), consistent: "from" = who sent it
         receiver: normalizedFrom,   // Who the message was sent TO — other party (#O) in DM, group JID in group chat
         sender: sender,             // "ME" or normalized JID
+        senderJid: message.key?.fromMe ? (getOwnJid(sessionId) || undefined) : (typeof rawSender === "string" ? rawSender : undefined),
+        chatJid: remoteJid || undefined, // Original chat JID before normalization
         isGroup: isGroup,           // Boolean
         chatType: getChatType(remoteJid), // PERSONAL | GROUP | STATUS | NEWSLETTER
 
@@ -737,6 +771,28 @@ function extractMessageContent(msg: any): { type: string, content: string, capti
     } else if (messageContent.contactMessage) {
         messageType = "CONTACT";
         text = messageContent.contactMessage.displayName || "";
+    } else if (messageContent.interactiveResponseMessage) {
+        messageType = "INTERACTIVE_RESPONSE";
+        const nativeFlow = messageContent.interactiveResponseMessage.nativeFlowResponseMessage;
+        if (nativeFlow) {
+            try {
+                const params = JSON.parse(nativeFlow.paramsJson || "{}");
+                text = params.id || params.selected_id || params.display_text || nativeFlow.paramsJson || "";
+            } catch {
+                text = nativeFlow.paramsJson || "";
+            }
+        } else {
+            text = messageContent.interactiveResponseMessage.body?.text || "";
+        }
+    } else if (messageContent.buttonsResponseMessage) {
+        messageType = "BUTTON_RESPONSE";
+        text = messageContent.buttonsResponseMessage.selectedButtonId || messageContent.buttonsResponseMessage.selectedDisplayText || "";
+    } else if (messageContent.templateButtonReplyMessage) {
+        messageType = "BUTTON_RESPONSE";
+        text = messageContent.templateButtonReplyMessage.selectedId || messageContent.templateButtonReplyMessage.selectedDisplayText || "";
+    } else if (messageContent.listResponseMessage) {
+        messageType = "LIST_RESPONSE";
+        text = messageContent.listResponseMessage.singleSelectReply?.selectedRowId || messageContent.listResponseMessage.title || "";
     }
 
     return { type: messageType, content: text, caption };
@@ -770,6 +826,14 @@ async function extractQuotedMessageAsync(msg: any, sessionId: string): Promise<a
         contextInfo = messageContent.contactMessage.contextInfo;
     } else if (messageContent.locationMessage) {
         contextInfo = messageContent.locationMessage.contextInfo;
+    } else if (messageContent.interactiveResponseMessage) {
+        contextInfo = messageContent.interactiveResponseMessage.contextInfo;
+    } else if (messageContent.buttonsResponseMessage) {
+        contextInfo = messageContent.buttonsResponseMessage.contextInfo;
+    } else if (messageContent.templateButtonReplyMessage) {
+        contextInfo = messageContent.templateButtonReplyMessage.contextInfo;
+    } else if (messageContent.listResponseMessage) {
+        contextInfo = messageContent.listResponseMessage.contextInfo;
     }
 
     if (contextInfo && contextInfo.quotedMessage) {

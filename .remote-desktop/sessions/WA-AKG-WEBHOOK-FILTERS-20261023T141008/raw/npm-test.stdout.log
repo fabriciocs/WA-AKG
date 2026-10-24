@@ -1,0 +1,68 @@
+
+> wa-akg@1.7.0 test
+> tsx --test src/i18n/__tests__/*.test.ts src/lib/__tests__/*.test.ts
+
+▶ isLocale
+  ✔ accepts supported locales only (2.3902ms)
+✔ isLocale (4.9393ms)
+▶ matchLocale
+  ✔ matches exact locales case-insensitively (0.7534ms)
+  ✔ falls back to the base language (0.5386ms)
+  ✔ returns undefined for empty or unsupported values (0.3915ms)
+✔ matchLocale (2.3899ms)
+▶ resolveLocale
+  ✔ prefers the cookie over DEFAULT_LANGUAGE (0.618ms)
+  ✔ uses DEFAULT_LANGUAGE when the cookie is missing or invalid (0.426ms)
+  ✔ falls back to English (0.3755ms)
+  ✔ always returns a supported locale (1.257ms)
+✔ resolveLocale (3.5619ms)
+▶ localeNames
+  ✔ has a display name for every locale (3.3137ms)
+✔ localeNames (3.6446ms)
+▶ message catalogs
+  ✔ has exactly one catalog file per supported locale (3.4823ms)
+  ▶ en
+    ✔ has the same keys as en.json (1.6679ms)
+    ✔ has no empty messages (2.9541ms)
+    ✔ uses the same placeholders and tags as en.json (6.5792ms)
+    ✔ renders every message without ICU errors (292.9339ms)
+  ✔ en (307.8492ms)
+  ▶ id
+    ✔ has the same keys as en.json (1.2825ms)
+    ✔ has no empty messages (1.5749ms)
+    ✔ uses the same placeholders and tags as en.json (3.3944ms)
+    ✔ renders every message without ICU errors (92.0354ms)
+  ✔ id (99.3119ms)
+  ▶ pt-BR
+    ✔ has the same keys as en.json (1.4378ms)
+    ✔ has no empty messages (1.4398ms)
+    ✔ uses the same placeholders and tags as en.json (8.3589ms)
+    ✔ renders every message without ICU errors (97.0031ms)
+  ✔ pt-BR (108.9119ms)
+✔ message catalogs (524.7351ms)
+▶ plural messages
+  ✔ formats unread notification counts per locale (6.7701ms)
+✔ plural messages (7.0466ms)
+✔ empty, blank, null and omitted criteria preserve legacy delivery (3.5354ms)
+✔ false booleans are retained and matched (2.6091ms)
+✔ matches individual sessionId filter (0.3498ms)
+✔ matches individual senderJid filter (0.2366ms)
+✔ matches individual chatJid filter (0.4ms)
+✔ matches individual messageType filter (0.2926ms)
+✔ matches individual fromMe filter (0.3062ms)
+✔ matches individual isGroup filter (0.3414ms)
+✔ matches individual chatType filter (0.3485ms)
+✔ criteria combine with AND and missing event values fail closed (3.586ms)
+✔ senderJid uses the actual group participant and handles self-sent messages (0.9204ms)
+✔ filter validation rejects unknown keys, invalid types and enum values (6.9088ms)
+✔ browser-safe options cover Prisma and interactive message types (0.9459ms)
+✔ interactive webhook message types are valid filter values (6.9976ms)
+✔ POST normalization and PUT preserve/replace/clear semantics (5.5227ms)
+ℹ tests 38
+ℹ suites 9
+ℹ pass 38
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4265.6856

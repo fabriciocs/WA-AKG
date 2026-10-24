@@ -1,0 +1,16 @@
+b9a616ff784cabdf0aaab38f9f26985c3bcfed1927903e5aadd967eca71daa60  .remote-desktop\sessions\WA-AKG-WEBHOOK-FILTERS-20261023T141008\session.json
+67f819be20814ecd53bfc25e27039ac539f31521185d1a9d3f39e38f5e189532  .remote-desktop\sessions\WA-AKG-WEBHOOK-FILTERS-20261023T141008\evidence\environment.json
+f9843366ea2a5ef5dbcb9149cdd9a1264616ba2adf7830ccdba93cf142c0329d  .remote-desktop\sessions\WA-AKG-WEBHOOK-FILTERS-20261023T141008\evidence\git.json
+301be03ca4d89f3013ac0f8798458b6ed0963231141c5d42c0696d0d947430a6  .remote-desktop\sessions\WA-AKG-WEBHOOK-FILTERS-20261023T141008\evidence\validation.json
+a5618848f8cfc9236aa4390f9cd47dfc1448a068c2a279dd6b4af2743108d9d5  .remote-desktop\sessions\WA-AKG-WEBHOOK-FILTERS-20261023T141008\raw\commands.log
+e536a14a8fcb81619f914e5379af15c42d4de5d4c58e416a5a20532b86e3077e  .remote-desktop\sessions\WA-AKG-WEBHOOK-FILTERS-20261023T141008\raw\execution.log
+4fb50d97a7337dad200dd7c51df862643cd8c584d2f8d3ce324fa9cdd7b2392a  .remote-desktop\sessions\WA-AKG-WEBHOOK-FILTERS-20261023T141008\raw\stdout.log
+3486411d9b172cc435b150b80a9d16c771fa158fa775343a2731c9fc1021d58b  .remote-desktop\sessions\WA-AKG-WEBHOOK-FILTERS-20261023T141008\raw\stderr.log
+19deedaa72b6b31f89ea4147bb631f4c918ff951c286312601e3bcf5e4f4c9d8  .remote-desktop\sessions\WA-AKG-WEBHOOK-FILTERS-20261023T141008\raw\subprocess.log
+2af18c505e1f20304eeeef803033f8e0286fcfc11c0ff05f99d18a1a5218caa6  .remote-desktop\sessions\WA-AKG-WEBHOOK-FILTERS-20261023T141008\raw\events.jsonl
+80ac058536caf7c5d1ab0c89d494cd179ddb921dd90065e8f7bea75239ee92b6  .remote-desktop\sessions\WA-AKG-WEBHOOK-FILTERS-20261023T141008\reports\summary.md
+31f6cf66f960feb7920e4ad5efefd28760aaeb13249e16061ffc402737e1ba7f  .remote-desktop\sessions\WA-AKG-WEBHOOK-FILTERS-20261023T141008\reports\final-report.md
+1e209d242a145b8e40ee0be30b9ea0f4d5d12c14cc570fcb8b19cfa3068a0ce4  .remote-desktop\sessions\WA-AKG-WEBHOOK-FILTERS-20261023T141008\raw\npm-test-verified.stdout.log
+13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354  .remote-desktop\sessions\WA-AKG-WEBHOOK-FILTERS-20261023T141008\raw\tsc-final-exit.txt
+13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354  .remote-desktop\sessions\WA-AKG-WEBHOOK-FILTERS-20261023T141008\raw\eslint-new-verified-exit.txt
+13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354  .remote-desktop\sessions\WA-AKG-WEBHOOK-FILTERS-20261023T141008\raw\json-validation-exit.txt

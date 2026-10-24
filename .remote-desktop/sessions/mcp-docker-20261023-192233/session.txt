@@ -1,0 +1,5 @@
+Started=2026-10-23T19:22:33.9586099-03:00
+Host=DESKTOP-D9O4I01
+Project=C:\repos\WA-AKG
+Task=Build and validate WA-AKG MCP HTTP endpoint in Docker
+Risk=Local Docker build/start; no image push or deployment

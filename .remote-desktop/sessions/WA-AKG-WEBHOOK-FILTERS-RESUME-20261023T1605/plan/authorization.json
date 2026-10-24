@@ -1,0 +1,13 @@
+{
+    "scope":  "local build, tests, static validation, Codex read-only audit orchestration",
+    "authorizationRequired":  false,
+    "authorizationStatus":  "NOT_REQUIRED",
+    "excluded":  [
+                     "git staging/commit/push/merge/release/deploy",
+                     "database mutations/migrations",
+                     "external webhook delivery",
+                     "terminating unrelated processes",
+                     "discarding or overwriting preexisting changes"
+                 ],
+    "sessionId":  "WA-AKG-WEBHOOK-FILTERS-RESUME-20261023T1605"
+}

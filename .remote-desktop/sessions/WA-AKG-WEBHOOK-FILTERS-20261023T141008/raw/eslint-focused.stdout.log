@@ -1,0 +1,68 @@
+
+C:\repos\WA-AKG\src\app\api\webhooks\[sessionId]\[id]\route.ts
+  80:25  warning  '_secret' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+C:\repos\WA-AKG\src\app\api\webhooks\[sessionId]\route.ts
+   48:54  warning  '_secret' is defined but never used           @typescript-eslint/no-unused-vars
+  112:25  warning  '_secret' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+C:\repos\WA-AKG\src\app\dashboard\webhooks\page.tsx
+   10:10   warning  'ScrollArea' is defined but never used                                                                            @typescript-eslint/no-unused-vars
+   11:83   warning  'ChevronDown' is defined but never used                                                                           @typescript-eslint/no-unused-vars
+   11:96   warning  'ChevronUp' is defined but never used                                                                             @typescript-eslint/no-unused-vars
+   47:11   warning  'WebhookLog' is defined but never used                                                                            @typescript-eslint/no-unused-vars
+   53:22   error    Unexpected any. Specify a different type                                                                          @typescript-eslint/no-explicit-any
+   54:19   error    Unexpected any. Specify a different type                                                                          @typescript-eslint/no-explicit-any
+  112:67   error    Unexpected any. Specify a different type                                                                          @typescript-eslint/no-explicit-any
+  124:8    warning  React Hook useEffect has a missing dependency: 'fetchWebhooks'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  170:18   warning  'error' is defined but never used                                                                                 @typescript-eslint/no-unused-vars
+  188:25   error    Unexpected any. Specify a different type                                                                          @typescript-eslint/no-explicit-any
+  238:28   error    Unexpected any. Specify a different type                                                                          @typescript-eslint/no-explicit-any
+  257:18   warning  'error' is defined but never used                                                                                 @typescript-eslint/no-unused-vars
+  271:28   error    Unexpected any. Specify a different type                                                                          @typescript-eslint/no-explicit-any
+  286:18   warning  'error' is defined but never used                                                                                 @typescript-eslint/no-unused-vars
+  301:18   warning  'error' is defined but never used                                                                                 @typescript-eslint/no-unused-vars
+  320:18   warning  'error' is defined but never used                                                                                 @typescript-eslint/no-unused-vars
+  339:18   warning  'error' is defined but never used                                                                                 @typescript-eslint/no-unused-vars
+  352:11   warning  'formatJson' is assigned a value but never used                                                                   @typescript-eslint/no-unused-vars
+  352:30   error    Unexpected any. Specify a different type                                                                          @typescript-eslint/no-explicit-any
+  361:11   warning  'formatTime' is assigned a value but never used                                                                   @typescript-eslint/no-unused-vars
+  411:108  error    `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`                                                   react/no-unescaped-entities
+  411:145  error    `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`                                                   react/no-unescaped-entities
+
+C:\repos\WA-AKG\src\lib\swagger.ts
+  1:1  error  Do not use "@ts-nocheck" because it alters compilation errors  @typescript-eslint/ban-ts-comment
+
+C:\repos\WA-AKG\src\lib\webhook.ts
+    6:8   warning  'pino' is defined but never used                      @typescript-eslint/no-unused-vars
+    7:61  warning  'isLidJid' is defined but never used                  @typescript-eslint/no-unused-vars
+   30:11  error    Unexpected any. Specify a different type              @typescript-eslint/no-explicit-any
+   39:11  error    Unexpected any. Specify a different type              @typescript-eslint/no-explicit-any
+  111:62  error    Unexpected any. Specify a different type              @typescript-eslint/no-explicit-any
+  111:68  error    Unexpected any. Specify a different type              @typescript-eslint/no-explicit-any
+  127:43  error    Unexpected any. Specify a different type              @typescript-eslint/no-explicit-any
+  183:19  error    Unexpected any. Specify a different type              @typescript-eslint/no-explicit-any
+  222:22  error    Unexpected any. Specify a different type              @typescript-eslint/no-explicit-any
+  223:19  error    Unexpected any. Specify a different type              @typescript-eslint/no-explicit-any
+  360:19  error    Unexpected any. Specify a different type              @typescript-eslint/no-explicit-any
+  407:45  error    Unexpected any. Specify a different type              @typescript-eslint/no-explicit-any
+  429:25  error    Unexpected any. Specify a different type              @typescript-eslint/no-explicit-any
+  466:41  error    Unexpected any. Specify a different type              @typescript-eslint/no-explicit-any
+  523:69  error    Unexpected any. Specify a different type              @typescript-eslint/no-explicit-any
+  538:9   error    'senderJid' is never reassigned. Use 'const' instead  prefer-const
+  540:17  error    Unexpected any. Specify a different type              @typescript-eslint/no-explicit-any
+  543:28  error    Unexpected any. Specify a different type              @typescript-eslint/no-explicit-any
+  564:57  error    Unexpected any. Specify a different type              @typescript-eslint/no-explicit-any
+  622:65  error    Unexpected any. Specify a different type              @typescript-eslint/no-explicit-any
+  634:18  warning  'e' is defined but never used                         @typescript-eslint/no-unused-vars
+  680:17  error    Unexpected any. Specify a different type              @typescript-eslint/no-explicit-any
+  685:27  error    Unexpected any. Specify a different type              @typescript-eslint/no-explicit-any
+  708:14  warning  'e' is defined but never used                         @typescript-eslint/no-unused-vars
+  740:37  error    Unexpected any. Specify a different type              @typescript-eslint/no-explicit-any
+  806:47  error    Unexpected any. Specify a different type              @typescript-eslint/no-explicit-any
+  806:80  error    Unexpected any. Specify a different type              @typescript-eslint/no-explicit-any
+  811:22  error    Unexpected any. Specify a different type              @typescript-eslint/no-explicit-any
+
+✖ 54 problems (34 errors, 20 warnings)
+  1 error and 0 warnings potentially fixable with the `--fix` option.
+

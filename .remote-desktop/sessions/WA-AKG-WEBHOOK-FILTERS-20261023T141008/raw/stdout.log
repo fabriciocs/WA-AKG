@@ -1,0 +1,172 @@
+===== npm-ci.stdout.log =====
+
+added 1008 packages in 11m
+===== npm-test-verified.stdout.log =====
+
+> wa-akg@1.7.0 test
+> tsx --test src/i18n/__tests__/*.test.ts src/lib/__tests__/*.test.ts
+
+â–¶ isLocale
+  âœ” accepts supported locales only (1.3499ms)
+âœ” isLocale (3.1607ms)
+â–¶ matchLocale
+  âœ” matches exact locales case-insensitively (0.6194ms)
+  âœ” falls back to the base language (0.5938ms)
+  âœ” returns undefined for empty or unsupported values (0.3071ms)
+âœ” matchLocale (2.0767ms)
+â–¶ resolveLocale
+  âœ” prefers the cookie over DEFAULT_LANGUAGE (0.5969ms)
+  âœ” uses DEFAULT_LANGUAGE when the cookie is missing or invalid (0.335ms)
+  âœ” falls back to English (0.3957ms)
+  âœ” always returns a supported locale (0.5787ms)
+âœ” resolveLocale (2.7067ms)
+â–¶ localeNames
+  âœ” has a display name for every locale (1.9252ms)
+âœ” localeNames (2.2ms)
+â–¶ message catalogs
+  âœ” has exactly one catalog file per supported locale (2.6413ms)
+  â–¶ en
+    âœ” has the same keys as en.json (1.3402ms)
+    âœ” has no empty messages (1.6049ms)
+    âœ” uses the same placeholders and tags as en.json (4.2924ms)
+    âœ” renders every message without ICU errors (129.7916ms)
+  âœ” en (137.8821ms)
+  â–¶ id
+    âœ” has the same keys as en.json (0.8995ms)
+    âœ” has no empty messages (0.8329ms)
+    âœ” uses the same placeholders and tags as en.json (2.4767ms)
+    âœ” renders every message without ICU errors (58.1398ms)
+  âœ” id (63.1181ms)
+  â–¶ pt-BR
+    âœ” has the same keys as en.json (0.9236ms)
+    âœ” has no empty messages (0.745ms)
+    âœ” uses the same placeholders and tags as en.json (3.6503ms)
+    âœ” renders every message without ICU errors (56.3349ms)
+  âœ” pt-BR (62.0556ms)
+âœ” message catalogs (267.7905ms)
+â–¶ plural messages
+  âœ” formats unread notification counts per locale (5.2938ms)
+âœ” plural messages (5.5518ms)
+âœ” empty, blank, null and omitted criteria preserve legacy delivery (2.0226ms)
+âœ” false booleans are retained and matched (1.3918ms)
+âœ” matches individual sessionId filter (0.2113ms)
+âœ” matches individual senderJid filter (0.137ms)
+âœ” matches individual chatJid filter (0.2147ms)
+âœ” matches individual messageType filter (0.1531ms)
+âœ” matches individual fromMe filter (0.2523ms)
+âœ” matches individual isGroup filter (0.169ms)
+âœ” matches individual chatType filter (0.2732ms)
+âœ” criteria combine with AND and missing event values fail closed (0.4731ms)
+âœ” senderJid uses the actual group participant and handles self-sent messages (0.451ms)
+âœ” raw sender and chat JIDs take precedence over normalized compatibility fields (0.3089ms)
+âœ” filter strings enforce documented length limits (1.2514ms)
+âœ” filter validation rejects unknown keys, invalid types and enum values (0.5295ms)
+âœ” browser-safe options cover Prisma and interactive message types (0.3803ms)
+âœ” interactive webhook message types are valid filter values (0.3268ms)
+âœ” POST normalization and PUT preserve/replace/clear semantics (0.4614ms)
+â„¹ tests 40
+â„¹ suites 9
+â„¹ pass 40
+â„¹ fail 0
+â„¹ cancelled 0
+â„¹ skipped 0
+â„¹ todo 0
+â„¹ duration_ms 2722.2925
+===== prisma-validate.stdout.log =====
+Environment variables loaded from .env
+Prisma schema loaded from prisma\schema.prisma
+The schema at prisma\schema.prisma is valid ðŸš€
+===== prisma-generate.stdout.log =====
+Environment variables loaded from .env
+Prisma schema loaded from prisma\schema.prisma
+
+âœ” Generated Prisma Client (v5.22.0) to .\node_modules\@prisma\client in 1.10s
+
+Start by importing your Prisma Client (See: https://pris.ly/d/importing-client)
+
+Tip: Curious about the SQL queries Prisma ORM generates? Optimize helps you enhance your visibility: https://pris.ly/tip-2-optimize
+
+===== eslint-focused.stdout.log =====
+
+C:\repos\WA-AKG\src\app\api\webhooks\[sessionId]\[id]\route.ts
+  80:25  warning  '_secret' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+C:\repos\WA-AKG\src\app\api\webhooks\[sessionId]\route.ts
+   48:54  warning  '_secret' is defined but never used           @typescript-eslint/no-unused-vars
+  112:25  warning  '_secret' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+C:\repos\WA-AKG\src\app\dashboard\webhooks\page.tsx
+   10:10   warning  'ScrollArea' is defined but never used                                                                            @typescript-eslint/no-unused-vars
+   11:83   warning  'ChevronDown' is defined but never used                                                                           @typescript-eslint/no-unused-vars
+   11:96   warning  'ChevronUp' is defined but never used                                                                             @typescript-eslint/no-unused-vars
+   47:11   warning  'WebhookLog' is defined but never used                                                                            @typescript-eslint/no-unused-vars
+   53:22   error    Unexpected any. Specify a different type                                                                          @typescript-eslint/no-explicit-any
+   54:19   error    Unexpected any. Specify a different type                                                                          @typescript-eslint/no-explicit-any
+  112:67   error    Unexpected any. Specify a different type                                                                          @typescript-eslint/no-explicit-any
+  124:8    warning  React Hook useEffect has a missing dependency: 'fetchWebhooks'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  170:18   warning  'error' is defined but never used                                                                                 @typescript-eslint/no-unused-vars
+  188:25   error    Unexpected any. Specify a different type                                                                          @typescript-eslint/no-explicit-any
+  238:28   error    Unexpected any. Specify a different type                                                                          @typescript-eslint/no-explicit-any
+  257:18   warning  'error' is defined but never used                                                                                 @typescript-eslint/no-unused-vars
+  271:28   error    Unexpected any. Specify a different type                                                                          @typescript-eslint/no-explicit-any
+  286:18   warning  'error' is defined but never used                                                                                 @typescript-eslint/no-unused-vars
+  301:18   warning  'error' is defined but never used                                                                                 @typescript-eslint/no-unused-vars
+  320:18   warning  'error' is defined but never used                                                                                 @typescript-eslint/no-unused-vars
+  339:18   warning  'error' is defined but never used                                                                                 @typescript-eslint/no-unused-vars
+  352:11   warning  'formatJson' is assigned a value but never used                                                                   @typescript-eslint/no-unused-vars
+  352:30   error    Unexpected any. Specify a different type                                                                          @typescript-eslint/no-explicit-any
+  361:11   warning  'formatTime' is assigned a value but never used                                                                   @typescript-eslint/no-unused-vars
+  411:108  error    `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`                                                   react/no-unescaped-entities
+  411:145  error    `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`                                                   react/no-unescaped-entities
+
+C:\repos\WA-AKG\src\lib\swagger.ts
+  1:1  error  Do not use "@ts-nocheck" because it alters compilation errors  @typescript-eslint/ban-ts-comment
+
+C:\repos\WA-AKG\src\lib\webhook.ts
+    6:8   warning  'pino' is defined but never used                      @typescript-eslint/no-unused-vars
+    7:61  warning  'isLidJid' is defined but never used                  @typescript-eslint/no-unused-vars
+   30:11  error    Unexpected any. Specify a different type              @typescript-eslint/no-explicit-any
+   39:11  error    Unexpected any. Specify a different type              @typescript-eslint/no-explicit-any
+  111:62  error    Unexpected any. Specify a different type              @typescript-eslint/no-explicit-any
+  111:68  error    Unexpected any. Specify a different type              @typescript-eslint/no-explicit-any
+  127:43  error    Unexpected any. Specify a different type              @typescript-eslint/no-explicit-any
+  183:19  error    Unexpected any. Specify a different type              @typescript-eslint/no-explicit-any
+  222:22  error    Unexpected any. Specify a different type              @typescript-eslint/no-explicit-any
+  223:19  error    Unexpected any. Specify a different type              @typescript-eslint/no-explicit-any
+  360:19  error    Unexpected any. Specify a different type              @typescript-eslint/no-explicit-any
+  407:45  error    Unexpected any. Specify a different type              @typescript-eslint/no-explicit-any
+  429:25  error    Unexpected any. Specify a different type              @typescript-eslint/no-explicit-any
+  466:41  error    Unexpected any. Specify a different type              @typescript-eslint/no-explicit-any
+  523:69  error    Unexpected any. Specify a different type              @typescript-eslint/no-explicit-any
+  538:9   error    'senderJid' is never reassigned. Use 'const' instead  prefer-const
+  540:17  error    Unexpected any. Specify a different type              @typescript-eslint/no-explicit-any
+  543:28  error    Unexpected any. Specify a different type              @typescript-eslint/no-explicit-any
+  564:57  error    Unexpected any. Specify a different type              @typescript-eslint/no-explicit-any
+  622:65  error    Unexpected any. Specify a different type              @typescript-eslint/no-explicit-any
+  634:18  warning  'e' is defined but never used                         @typescript-eslint/no-unused-vars
+  680:17  error    Unexpected any. Specify a different type              @typescript-eslint/no-explicit-any
+  685:27  error    Unexpected any. Specify a different type              @typescript-eslint/no-explicit-any
+  708:14  warning  'e' is defined but never used                         @typescript-eslint/no-unused-vars
+  740:37  error    Unexpected any. Specify a different type              @typescript-eslint/no-explicit-any
+  806:47  error    Unexpected any. Specify a different type              @typescript-eslint/no-explicit-any
+  806:80  error    Unexpected any. Specify a different type              @typescript-eslint/no-explicit-any
+  811:22  error    Unexpected any. Specify a different type              @typescript-eslint/no-explicit-any
+
+âœ– 54 problems (34 errors, 20 warnings)
+  1 error and 0 warnings potentially fixable with the `--fix` option.
+
+===== json-validation.stdout.log =====
+JSON_OK swagger.json
+JSON_OK src/i18n/messages/en.json
+JSON_OK src/i18n/messages/id.json
+JSON_OK src/i18n/messages/pt-BR.json
+===== codex.jsonl =====
+{"type":"thread.started","thread_id":"01a169c0-27db-7690-823f-42e133ff7ea9"}
+{"type":"turn.started"}
+{"type":"error","message":"Reconnecting... waiting for network (Connection failed: error sending request)"}
+{"type":"error","message":"Reconnecting... waiting for network (Connection failed: error sending request)"}
+{"type":"error","message":"Reconnecting... waiting for network (Connection failed: error sending request)"}
+{"type":"error","message":"Reconnecting... waiting for network (Connection failed: error sending request)"}
+{"type":"error","message":"Reconnecting... waiting for network (Connection failed: error sending request)"}
+{"type":"error","message":"Reconnecting... waiting for network (Connection failed: error sending request)"}
+{"type":"error","message":"Reconnecting... waiting for network (Connection failed: error sending request)"}

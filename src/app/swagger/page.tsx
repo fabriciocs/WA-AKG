@@ -1,10 +1,45 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useSession } from "next-auth/react";
+import Link from "next/link";
 import SwaggerUI from "swagger-ui-react";
 import "swagger-ui-react/swagger-ui.css";
+import { ArrowLeft, BookOpen, ShieldCheck } from "lucide-react";
+
+// Suppress third-party legacy lifecycle warnings from swagger-ui-react (ModelCollapse)
+if (typeof window !== "undefined") {
+    const isModelCollapseWarning = (...args: unknown[]): boolean => {
+        const fullMessage = args
+            .map(arg => {
+                if (typeof arg === "string") return arg;
+                if (typeof arg === "object") {
+                    try { return JSON.stringify(arg); } catch { return String(arg); }
+                }
+                return String(arg);
+            })
+            .join(" ");
+        return (
+            fullMessage.includes("ModelCollapse") &&
+            (fullMessage.includes("UNSAFE_componentWillReceiveProps") || fullMessage.includes("unsafe-component-lifecycles"))
+        );
+    };
+
+    const originalError = console.error;
+    console.error = (...args: Parameters<typeof console.error>) => {
+        if (isModelCollapseWarning(...args)) return;
+        originalError.apply(console, args);
+    };
+
+    const originalWarn = console.warn;
+    console.warn = (...args: Parameters<typeof console.warn>) => {
+        if (isModelCollapseWarning(...args)) return;
+        originalWarn.apply(console, args);
+    };
+}
 
 export default function ApiDocsPage() {
+    const { data: session, status } = useSession();
     const [authorized, setAuthorized] = useState(false);
     const [loading, setLoading] = useState(true);
     const [username, setUsername] = useState("");
@@ -12,18 +47,8 @@ export default function ApiDocsPage() {
     const [error, setError] = useState("");
 
     useEffect(() => {
-        // Suppress Swagger UI legacy lifecycle warnings (ModelCollapse)
-        const originalWarn = console.warn;
-        console.warn = (...args) => {
-            if (typeof args[0] === 'string' &&
-                args[0].includes('UNSAFE_componentWillReceiveProps') &&
-                args[0].includes('ModelCollapse')) {
-                return;
-            }
-            originalWarn(...args);
-        };
-
         let cancelled = false;
+
         fetch("/api/swagger-auth", { cache: "no-store" })
             .then((response) => {
                 if (cancelled) return;
@@ -36,6 +61,7 @@ export default function ApiDocsPage() {
                 }
             })
             .catch(() => {
+                if (cancelled) return;
                 sessionStorage.removeItem("swagger_auth");
                 setAuthorized(false);
             })
@@ -45,12 +71,11 @@ export default function ApiDocsPage() {
 
         return () => {
             cancelled = true;
-            console.warn = originalWarn;
         };
     }, []);
 
-    const handleLogin = async (e: React.FormEvent) => {
-        e.preventDefault();
+    const handleLogin = async (event: React.FormEvent<HTMLFormElement>) => {
+        event.preventDefault();
         setError("");
 
         try {
@@ -88,15 +113,21 @@ export default function ApiDocsPage() {
         }
     };
 
-    if (loading) {
+    const sessionAuthenticated = status === "authenticated" && Boolean(session?.user);
+    const isAuthorized = authorized || sessionAuthenticated;
+
+    if (loading || status === "loading") {
         return (
             <div className="flex items-center justify-center min-h-screen bg-gray-50">
-                <div className="text-gray-600">Loading...</div>
+                <div className="flex flex-col items-center gap-3">
+                    <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+                    <div className="text-gray-600 text-sm font-medium">Loading API Documentation...</div>
+                </div>
             </div>
         );
     }
 
-    if (!authorized) {
+    if (!isAuthorized) {
         return (
             <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
                 <div className="bg-white p-8 rounded-lg shadow-xl w-full max-w-md">
@@ -117,7 +148,7 @@ export default function ApiDocsPage() {
                             <input
                                 type="text"
                                 value={username}
-                                onChange={(e) => setUsername(e.target.value)}
+                                onChange={(event) => setUsername(event.target.value)}
                                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
                                 placeholder="Enter username"
                                 required
@@ -131,7 +162,7 @@ export default function ApiDocsPage() {
                             <input
                                 type="password"
                                 value={password}
-                                onChange={(e) => setPassword(e.target.value)}
+                                onChange={(event) => setPassword(event.target.value)}
                                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
                                 placeholder="Enter password"
                                 required
@@ -162,26 +193,54 @@ export default function ApiDocsPage() {
 
     return (
         <div className="min-h-screen bg-white">
-            <div className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white p-4 shadow-lg">
+            <header className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white p-4 shadow-md">
                 <div className="container mx-auto flex justify-between items-center">
-                    <div>
-                        <h1 className="text-2xl font-bold">WA-AKG API Documentation</h1>
-                        <p className="text-blue-100 text-sm mt-1">
-                            Interactive API documentation with 58+ endpoints
-                        </p>
+                    <div className="flex items-center gap-3">
+                        <Link
+                            href="/dashboard"
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 transition-all text-xs font-semibold tracking-wide backdrop-blur-sm"
+                        >
+                            <ArrowLeft className="w-4 h-4" />
+                            Dashboard
+                        </Link>
+                        <div>
+                            <h1 className="text-xl font-bold flex items-center gap-2">
+                                <BookOpen className="w-5 h-5 text-blue-200" />
+                                WA-AKG API Documentation
+                            </h1>
+                            <p className="text-blue-100 text-xs mt-0.5">
+                                Interactive API specifications & testing playground
+                            </p>
+                        </div>
                     </div>
-                    <button
-                        onClick={handleLogout}
-                        className="bg-white/20 hover:bg-white/30 px-4 py-2 rounded-lg transition-colors text-sm font-medium"
-                    >
-                        Logout
-                    </button>
+                    <div className="flex items-center gap-3">
+                        {sessionAuthenticated && (
+                            <span className="hidden sm:inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-white/10 text-xs text-blue-100 border border-white/20">
+                                <ShieldCheck className="w-3.5 h-3.5 text-emerald-300" />
+                                {session.user.email} ({session.user.role || "USER"})
+                            </span>
+                        )}
+                        <Link
+                            href="/dashboard/api-docs"
+                            className="bg-white/20 hover:bg-white/30 px-3 py-1.5 rounded-lg transition-colors text-xs font-medium"
+                        >
+                            Overview
+                        </Link>
+                        {authorized && (
+                            <button
+                                onClick={handleLogout}
+                                className="bg-white/20 hover:bg-white/30 px-3 py-1.5 rounded-lg transition-colors text-xs font-medium"
+                            >
+                                Logout
+                            </button>
+                        )}
+                    </div>
                 </div>
-            </div>
+            </header>
 
-            <div className="container mx-auto">
+            <main className="container mx-auto py-6 px-4">
                 <SwaggerUI url="/api/docs" />
-            </div>
+            </main>
         </div>
     );
 }

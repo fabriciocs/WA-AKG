@@ -1,6 +1,7 @@
 import { NextResponse, NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAuthenticatedUser, canAccessSession } from "@/lib/api-auth";
+import { normalizeWebhookFilters } from "@/lib/webhook-filters";
 
 export async function GET(
     request: NextRequest,
@@ -44,7 +45,8 @@ export async function GET(
             orderBy: { createdAt: 'desc' }
         });
 
-        return NextResponse.json({ status: true, message: "Webhooks retrieved successfully", data: webhooks });
+        const safeWebhooks = webhooks.map(({ secret: _secret, ...webhook }) => webhook);
+        return NextResponse.json({ status: true, message: "Webhooks retrieved successfully", data: safeWebhooks });
     } catch (error) {
         console.error("Fetch webhooks error:", error);
         return NextResponse.json({ status: false, message: "Failed to fetch webhooks", error: "Failed to fetch webhooks" }, { status: 500 });
@@ -69,10 +71,20 @@ export async function POST(
 
     try {
         const body = await request.json();
+        if (!body || typeof body !== "object" || Array.isArray(body)) return NextResponse.json({ status: false, message: "Invalid request body" }, { status: 400 });
         const { name, url, secret, events } = body;
+        let filters;
+        try { filters = normalizeWebhookFilters(body.filters); }
+        catch (error) { return NextResponse.json({ status: false, message: (error as Error).message }, { status: 400 }); }
 
-        if (!name || !url || !events || events.length === 0) {
+        if (typeof name !== "string" || !name.trim() || typeof url !== "string" || !events || !Array.isArray(events) || events.length === 0 || !events.every((event: unknown) => typeof event === "string")) {
             return NextResponse.json({ status: false, message: "Name, URL, and at least one event are required", error: "Name, URL, and at least one event are required" }, { status: 400 });
+        }
+
+        const { validateSafeUrl } = await import("@/lib/security");
+        const urlValidation = await validateSafeUrl(url, { allowHttp: false });
+        if (!urlValidation.valid) {
+            return NextResponse.json({ status: false, message: `Invalid webhook URL: ${urlValidation.error}`, error: urlValidation.error }, { status: 400 });
         }
 
         const session = await prisma.session.findUnique({
@@ -92,13 +104,15 @@ export async function POST(
                 secret: secret || null,
                 sessionId: session.id, // Strictly link to this session
                 events,
+                filters: filters ?? undefined,
                 isActive: true
             }
         });
 
-        return NextResponse.json({ status: true, message: "Webhook created successfully", data: webhook });
-    } catch (error: any) {
+        const { secret: _secret, ...safeWebhook } = webhook;
+        return NextResponse.json({ status: true, message: "Webhook created successfully", data: safeWebhook });
+    } catch (error: unknown) {
         console.error("Create webhook error detailed:", error);
-        return NextResponse.json({ status: false, message: "Failed to create webhook", error: "Failed to create webhook", details: error.message }, { status: 500 });
+        return NextResponse.json({ status: false, message: "Failed to create webhook", error: "Failed to create webhook", details: error instanceof Error ? error.message : "Unknown error" }, { status: 500 });
     }
 }

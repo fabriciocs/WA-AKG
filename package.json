@@ -1,6 +1,6 @@
 {
   "name": "wa-akg",
-  "version": "1.6.4",
+  "version": "1.7.0",
   "private": false,
   "license": "MIT",
   "scripts": {
@@ -11,7 +11,11 @@
     "db:push": "prisma db push && prisma generate",
     "db:studio": "prisma studio",
     "make-admin": "node scripts/setup-admin.js",
-    "postinstall": "patch-package"
+    "test": "tsx --test src/i18n/__tests__/*.test.ts src/lib/__tests__/*.test.ts",
+    "mcp:install": "npm --prefix mcp/wa-akg-mcp install",
+    "mcp:start": "npm --prefix mcp/wa-akg-mcp start",
+    "mcp:check": "npm --prefix mcp/wa-akg-mcp run check",
+    "mcp:test": "npm --prefix mcp/wa-akg-mcp test"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
@@ -30,7 +34,7 @@
     "@radix-ui/react-tooltip": "^1.2.8",
     "@tailwindcss/typography": "^0.5.19",
     "@types/react-syntax-highlighter": "^15.5.13",
-    "@whiskeysockets/baileys": "^7.0.0-rc.9",
+    "@whiskeysockets/baileys": "7.0.0-rc14",
     "bcryptjs": "^3.0.3",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
@@ -42,6 +46,7 @@
     "moment-timezone": "^0.6.0",
     "next": "16.1.1",
     "next-auth": "^5.0.0-beta.30",
+    "next-intl": "^4.14.9",
     "nextjs-toploader": "^3.9.17",
     "node-cron": "^4.2.1",
     "pino": "^10.1.0",
@@ -77,8 +82,6 @@
     "eslint": "^9",
     "eslint-config-next": "16.1.1",
     "next-swagger-doc": "^0.4.1",
-    "patch-package": "^8.0.1",
-    "postinstall-postinstall": "^2.1.0",
     "prisma": "^5.22.0",
     "swagger-ui-react": "^5.31.0",
     "tailwindcss": "^4",
@@ -88,6 +91,7 @@
     "typescript": "^5.9.3"
   },
   "overrides": {
+    "whatsapp-rust-bridge": "0.5.5",
     "wa-sticker-formatter": {
       "sharp": "$sharp"
     }

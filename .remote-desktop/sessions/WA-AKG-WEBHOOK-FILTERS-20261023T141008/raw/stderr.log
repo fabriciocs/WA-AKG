@@ -1,0 +1,154 @@
+===== npm-ci.stderr.log =====
+npm warn ERESOLVE overriding peer dependency
+npm warn While resolving: react-copy-to-clipboard@5.1.0
+npm warn Found: react@19.2.3
+npm warn node_modules/react
+npm warn   react@"19.2.3" from the root project
+npm warn   84 more (@floating-ui/react-dom, ...)
+npm warn
+npm warn Could not resolve dependency:
+npm warn peer react@"^15.3.0 || 16 || 17 || 18" from react-copy-to-clipboard@5.1.0
+npm warn node_modules/swagger-ui-react/node_modules/react-copy-to-clipboard
+npm warn   react-copy-to-clipboard@"5.1.0" from swagger-ui-react@5.31.0
+npm warn   node_modules/swagger-ui-react
+npm warn
+npm warn Conflicting peer dependency: react@18.3.1
+npm warn node_modules/react
+npm warn   peer react@"^15.3.0 || 16 || 17 || 18" from react-copy-to-clipboard@5.1.0
+npm warn   node_modules/swagger-ui-react/node_modules/react-copy-to-clipboard
+npm warn     react-copy-to-clipboard@"5.1.0" from swagger-ui-react@5.31.0
+npm warn     node_modules/swagger-ui-react
+npm warn ERESOLVE overriding peer dependency
+npm warn While resolving: react-debounce-input@3.3.0
+npm warn Found: react@19.2.3
+npm warn node_modules/react
+npm warn   react@"19.2.3" from the root project
+npm warn   84 more (@floating-ui/react-dom, ...)
+npm warn
+npm warn Could not resolve dependency:
+npm warn peer react@"^15.3.0 || 16 || 17 || 18" from react-debounce-input@3.3.0
+npm warn node_modules/swagger-ui-react/node_modules/react-debounce-input
+npm warn   react-debounce-input@"=3.3.0" from swagger-ui-react@5.31.0
+npm warn   node_modules/swagger-ui-react
+npm warn
+npm warn Conflicting peer dependency: react@18.3.1
+npm warn node_modules/react
+npm warn   peer react@"^15.3.0 || 16 || 17 || 18" from react-debounce-input@3.3.0
+npm warn   node_modules/swagger-ui-react/node_modules/react-debounce-input
+npm warn     react-debounce-input@"=3.3.0" from swagger-ui-react@5.31.0
+npm warn     node_modules/swagger-ui-react
+npm warn ERESOLVE overriding peer dependency
+npm warn While resolving: react-inspector@6.0.2
+npm warn Found: react@19.2.3
+npm warn node_modules/react
+npm warn   react@"19.2.3" from the root project
+npm warn   84 more (@floating-ui/react-dom, ...)
+npm warn
+npm warn Could not resolve dependency:
+npm warn peer react@"^16.8.4 || ^17.0.0 || ^18.0.0" from react-inspector@6.0.2
+npm warn node_modules/swagger-ui-react/node_modules/react-inspector
+npm warn   react-inspector@"^6.0.1" from swagger-ui-react@5.31.0
+npm warn   node_modules/swagger-ui-react
+npm warn
+npm warn Conflicting peer dependency: react@18.3.1
+npm warn node_modules/react
+npm warn   peer react@"^16.8.4 || ^17.0.0 || ^18.0.0" from react-inspector@6.0.2
+npm warn   node_modules/swagger-ui-react/node_modules/react-inspector
+npm warn     react-inspector@"^6.0.1" from swagger-ui-react@5.31.0
+npm warn     node_modules/swagger-ui-react
+npm warn deprecated inflight@1.0.6: This module is not supported, and leaks memory. Do not use it. Check out lru-cache if you want a good and tested way to coalesce async requests by a key value, which is much more comprehensive and powerful.
+npm warn deprecated lodash.get@4.4.2: This package is deprecated. Use the optional chaining (?.) operator instead.
+npm warn deprecated lodash.isequal@4.5.0: This package is deprecated. Use require('node:util').isDeepStrictEqual instead.
+npm warn deprecated glob@7.1.6: Glob versions prior to v9 are no longer supported
+npm warn deprecated node-domexception@1.0.0: Use your platform's native DOMException instead
+npm warn deprecated fluent-ffmpeg@2.1.3: Package no longer supported. Contact Support at https://www.npmjs.com/support for more info.
+npm warn install-scripts 16 packages have install scripts not yet covered by allowScripts:
+npm warn install-scripts   @parcel/watcher@2.6.0 (install: node scripts/build-from-source.js)
+npm warn install-scripts   @prisma/client@5.22.0 (postinstall: node scripts/postinstall.js)
+npm warn install-scripts   @prisma/engines@5.22.0 (postinstall: node scripts/postinstall.js)
+npm warn install-scripts   @scarf/scarf@1.4.0 (postinstall: node ./report.js)
+npm warn install-scripts   tree-sitter@0.22.4 (install: node-gyp-build)
+npm warn install-scripts   @tree-sitter-grammars/tree-sitter-yaml@0.7.1 (install: node-gyp-build)
+npm warn install-scripts   tree-sitter@0.22.4 (install: node-gyp-build)
+npm warn install-scripts   @whiskeysockets/baileys@7.0.0-rc14 (preinstall: node ./engine-requirements.js)
+npm warn install-scripts   core-js-pure@3.47.0 (postinstall: node -e "try{require('./postinstall')}catch(e){}")
+npm warn install-scripts   esbuild@0.27.2 (postinstall: node install.js)
+npm warn install-scripts   @swc/core@1.16.18 (postinstall: node postinstall.js)
+npm warn install-scripts   prisma@5.22.0 (preinstall: node scripts/preinstall-entry.js)
+npm warn install-scripts   protobufjs@7.6.6 (postinstall: node scripts/postinstall)
+npm warn install-scripts   sharp@0.34.5 (install: node install/check.js || npm run build)
+npm warn install-scripts   tree-sitter-json@0.24.8 (install: node-gyp-build)
+npm warn install-scripts   unrs-resolver@1.11.1 (postinstall: napi-postinstall unrs-resolver 1.11.1 check)
+npm warn install-scripts
+npm warn install-scripts Run `npm install-scripts ls` to review, or `npm install-scripts approve <pkg>` to allow.
+===== eslint-focused.stdout.log =====
+
+C:\repos\WA-AKG\src\app\api\webhooks\[sessionId]\[id]\route.ts
+  80:25  warning  '_secret' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+C:\repos\WA-AKG\src\app\api\webhooks\[sessionId]\route.ts
+   48:54  warning  '_secret' is defined but never used           @typescript-eslint/no-unused-vars
+  112:25  warning  '_secret' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+C:\repos\WA-AKG\src\app\dashboard\webhooks\page.tsx
+   10:10   warning  'ScrollArea' is defined but never used                                                                            @typescript-eslint/no-unused-vars
+   11:83   warning  'ChevronDown' is defined but never used                                                                           @typescript-eslint/no-unused-vars
+   11:96   warning  'ChevronUp' is defined but never used                                                                             @typescript-eslint/no-unused-vars
+   47:11   warning  'WebhookLog' is defined but never used                                                                            @typescript-eslint/no-unused-vars
+   53:22   error    Unexpected any. Specify a different type                                                                          @typescript-eslint/no-explicit-any
+   54:19   error    Unexpected any. Specify a different type                                                                          @typescript-eslint/no-explicit-any
+  112:67   error    Unexpected any. Specify a different type                                                                          @typescript-eslint/no-explicit-any
+  124:8    warning  React Hook useEffect has a missing dependency: 'fetchWebhooks'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  170:18   warning  'error' is defined but never used                                                                                 @typescript-eslint/no-unused-vars
+  188:25   error    Unexpected any. Specify a different type                                                                          @typescript-eslint/no-explicit-any
+  238:28   error    Unexpected any. Specify a different type                                                                          @typescript-eslint/no-explicit-any
+  257:18   warning  'error' is defined but never used                                                                                 @typescript-eslint/no-unused-vars
+  271:28   error    Unexpected any. Specify a different type                                                                          @typescript-eslint/no-explicit-any
+  286:18   warning  'error' is defined but never used                                                                                 @typescript-eslint/no-unused-vars
+  301:18   warning  'error' is defined but never used                                                                                 @typescript-eslint/no-unused-vars
+  320:18   warning  'error' is defined but never used                                                                                 @typescript-eslint/no-unused-vars
+  339:18   warning  'error' is defined but never used                                                                                 @typescript-eslint/no-unused-vars
+  352:11   warning  'formatJson' is assigned a value but never used                                                                   @typescript-eslint/no-unused-vars
+  352:30   error    Unexpected any. Specify a different type                                                                          @typescript-eslint/no-explicit-any
+  361:11   warning  'formatTime' is assigned a value but never used                                                                   @typescript-eslint/no-unused-vars
+  411:108  error    `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`                                                   react/no-unescaped-entities
+  411:145  error    `"` can be escaped with `&quot;`, `&ldquo;`, `&#34;`, `&rdquo;`                                                   react/no-unescaped-entities
+
+C:\repos\WA-AKG\src\lib\swagger.ts
+  1:1  error  Do not use "@ts-nocheck" because it alters compilation errors  @typescript-eslint/ban-ts-comment
+
+C:\repos\WA-AKG\src\lib\webhook.ts
+    6:8   warning  'pino' is defined but never used                      @typescript-eslint/no-unused-vars
+    7:61  warning  'isLidJid' is defined but never used                  @typescript-eslint/no-unused-vars
+   30:11  error    Unexpected any. Specify a different type              @typescript-eslint/no-explicit-any
+   39:11  error    Unexpected any. Specify a different type              @typescript-eslint/no-explicit-any
+  111:62  error    Unexpected any. Specify a different type              @typescript-eslint/no-explicit-any
+  111:68  error    Unexpected any. Specify a different type              @typescript-eslint/no-explicit-any
+  127:43  error    Unexpected any. Specify a different type              @typescript-eslint/no-explicit-any
+  183:19  error    Unexpected any. Specify a different type              @typescript-eslint/no-explicit-any
+  222:22  error    Unexpected any. Specify a different type              @typescript-eslint/no-explicit-any
+  223:19  error    Unexpected any. Specify a different type              @typescript-eslint/no-explicit-any
+  360:19  error    Unexpected any. Specify a different type              @typescript-eslint/no-explicit-any
+  407:45  error    Unexpected any. Specify a different type              @typescript-eslint/no-explicit-any
+  429:25  error    Unexpected any. Specify a different type              @typescript-eslint/no-explicit-any
+  466:41  error    Unexpected any. Specify a different type              @typescript-eslint/no-explicit-any
+  523:69  error    Unexpected any. Specify a different type              @typescript-eslint/no-explicit-any
+  538:9   error    'senderJid' is never reassigned. Use 'const' instead  prefer-const
+  540:17  error    Unexpected any. Specify a different type              @typescript-eslint/no-explicit-any
+  543:28  error    Unexpected any. Specify a different type              @typescript-eslint/no-explicit-any
+  564:57  error    Unexpected any. Specify a different type              @typescript-eslint/no-explicit-any
+  622:65  error    Unexpected any. Specify a different type              @typescript-eslint/no-explicit-any
+  634:18  warning  'e' is defined but never used                         @typescript-eslint/no-unused-vars
+  680:17  error    Unexpected any. Specify a different type              @typescript-eslint/no-explicit-any
+  685:27  error    Unexpected any. Specify a different type              @typescript-eslint/no-explicit-any
+  708:14  warning  'e' is defined but never used                         @typescript-eslint/no-unused-vars
+  740:37  error    Unexpected any. Specify a different type              @typescript-eslint/no-explicit-any
+  806:47  error    Unexpected any. Specify a different type              @typescript-eslint/no-explicit-any
+  806:80  error    Unexpected any. Specify a different type              @typescript-eslint/no-explicit-any
+  811:22  error    Unexpected any. Specify a different type              @typescript-eslint/no-explicit-any
+
+âœ– 54 problems (34 errors, 20 warnings)
+  1 error and 0 warnings potentially fixable with the `--fix` option.
+
+===== codex-stderr.log =====
+2026-10-23T17:12:47.813717Z ERROR codex_skills_extension::loader::host: skills scan reached its traversal limit (root: file:///C:/Users/fabri/.agents/skills)

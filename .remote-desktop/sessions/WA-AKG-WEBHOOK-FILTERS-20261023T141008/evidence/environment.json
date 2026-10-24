@@ -1,0 +1,23 @@
+{
+    "host":  "DESKTOP-D9O4I01",
+    "workingDirectory":  "C:\\repos\\WA-AKG",
+    "powershellVersion":  "5.1.26100.9711",
+    "nodeVersion":  "v24.22.0",
+    "npmVersion":  "11.19.1",
+    "codexVersion":  "codex-cli 0.164.0",
+    "nextIntlVersion":  "4.14.9",
+    "totalPhysicalMemoryGB":  31.77,
+    "freePhysicalMemoryGB":  1.5,
+    "activeSeparateBuild":  {
+                                 "processId":  23584,
+                                 "processName":  "node",
+                                 "workingSetGB":  18.17,
+                                 "startedAt":  "2026-10-23T14:36:33.9362827-03:00",
+                                 "project":  "C:\\repos\\OmniRoute",
+                                 "termination":  "not touched"
+                             },
+    "codexProfile":  "auto-best-coding",
+    "codexMultiAgentEnabledRequested":  true,
+    "codexNetworkRetries":  7,
+    "omniRouteHealth":  "unavailable during session; startup attempt timed out"
+}

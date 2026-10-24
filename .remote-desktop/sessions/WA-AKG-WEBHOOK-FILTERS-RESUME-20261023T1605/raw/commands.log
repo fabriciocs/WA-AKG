@@ -1,0 +1,15 @@
+CMD-001 | READ_ONLY | Baseline captured in evidence/git-before.json | VERIFIED: main, HEAD 9d74cf262d632247d45fc08d3554e796c3febc2a, staged hash 84d7bf52862e074e9b3d2685fa1a49971557b8bc, 99 staged paths, 13 unstaged paths.
+CMD-002 | READ_ONLY | Memory/process snapshot | IN_PROGRESS.
+CMD-003 | LOW_RISK_WRITE | npm run build | PLANNED after memory gate.
+CMD-004 | LOW_RISK_WRITE | Codex parallel read-only audit | PLANNED; no repository mutations authorized.
+CMD-005 | READ_ONLY/LOW_RISK_WRITE | Repeat tests and Git invariants | PLANNED.CMD-002 | READ_ONLY | Resource check | VERIFIED: ~14.5 GB free RAM before build; build ran without memory pressure. Unrelated processes were not terminated.
+CMD-003 | LOW_RISK_WRITE | `npm run build` | VERIFIED exit 0; compilation 44s, routes generated. Runtime limitation: Prisma metadata reads failed to connect to MySQL 127.0.0.1:3307; captured in next-build logs.
+CMD-004 | LOW_RISK_WRITE | Codex read-only audit with `--profile auto-best-coding --sandbox read-only --enable multi_agent` | BLOCKED: exit 1 after 172.96s, repeated request-send reconnect errors, no subagent completion. Transcript excerpt: raw/codex-audit-observed.log.
+CMD-005a | READ_ONLY | `npm test` | VERIFIED exit 0; 40 passed, 0 failed; raw/npm-test.stdout.log.
+CMD-005b | READ_ONLY | `npx tsc --noEmit --pretty false` | VERIFIED exit 0; raw/tsc.stdout.log and raw/tsc.exit.txt.
+CMD-005c | READ_ONLY | Direct ESLint CLI on filter module/constants/tests | VERIFIED exit 0; raw/eslint-targeted.stdout.log and raw/eslint-targeted.exit.txt.
+CMD-005d | READ_ONLY | Parse OpenAPI and locale JSON | VERIFIED: all four files parsed.
+CMD-005e | READ_ONLY | `git diff --check` | VERIFIED exit 0; only LF/CRLF warning.
+CMD-006 | READ_ONLY | Check local DB port and Docker Engine | BLOCKED: TCP 127.0.0.1:3307 failed; Docker Linux Engine named pipe missing. No service was started.
+CMD-007 | READ_ONLY | Recheck Git invariant | VERIFIED: HEAD/branch unchanged, staged hash unchanged, 99 staged paths. 13 unstaged paths; untracked count grew only with additional session artifacts.
+CMD-008 | LOW_RISK_WRITE | `npm run lint` full-repository attempt | DEFERRED: emitted no findings within 70.85 seconds and was stopped by terminating only this session; a separate OmniRoute Node process using ~8.2 GB RAM was not touched. The earlier broad lint still reports 34 errors/20 warnings; new filter files pass targeted ESLint.

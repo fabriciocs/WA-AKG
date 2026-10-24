@@ -1,0 +1,16 @@
+# Command execution ledger
+
+- ENV-001 (read-only): inspect branch/HEAD, staged and unstaged changes, untracked files, manifest/lockfile, Codex profile and dependency presence. Baseline: main @ 9d74cf262d632247d45fc08d3554e796c3febc2a; 99 staged paths; staged hash 84d7bf52862e074e9b3d2685fa1a49971557b8bc.
+- CODEX-001 (attempted): `codex exec --skip-git-repo-check --json --profile auto-best-coding --enable multi_agent --approve-for-me -` with task prompt in `plan/codex-prompt.md`. BLOCKED: repeated network reconnect errors; no subagent completion events. Local OmniRoute health was unavailable. The session's stalled Codex process was stopped; separate processes were left untouched.
+- OMR-001 (local dependency attempt): `C:\repos\Start-OmniRoute.ps1 -Start -StartupScript dev -HealthTimeoutSeconds 120 -HealthIntervalSeconds 3`. BLOCKED: no health response after timeout. No database or external state changed.
+- DEP-001: `npm ci --no-audit --no-fund`. Installed 1008 packages in 11 minutes. package.json and package-lock were not edited by this command. npm v11 warned about peer/deprecated packages and skipped 16 dependency install scripts pending allowScripts approval.
+- TEST-001: `npm test`. VERIFIED: 40 passed, 0 failed, process exit 0; raw output in `raw/npm-test-verified.*`.
+- PRISMA-001: `node_modules\.bin\prisma.cmd validate`. VERIFIED: schema valid; no DB connection/mutation.
+- PRISMA-002: `node_modules\.bin\prisma.cmd generate`. VERIFIED: Prisma Client v5.22.0 generated locally.
+- TSC-001: `tsc --noEmit --pretty false`. VERIFIED: process exit 0, no diagnostics.
+- ESLINT-001: ESLint on the three new filter module/constants/test files. VERIFIED: exit 0, no diagnostics.
+- ESLINT-002: ESLint on the wider set of touched files. PARTIAL: output reported 34 errors/20 warnings in wider files; one prefer-const issue was corrected after the run; broad lint was not repeated.
+- JSON-001: parse `swagger.json` and en/id/pt-BR locale catalogs. VERIFIED: exit 0.
+- GIT-001: `git diff --check`. VERIFIED exit 0 (Git emitted a line-ending warning for `src/lib/webhook.ts`).
+- BUILD-001: Next build deferred because an separate active `C:\repos\OmniRoute` Next/Turbopack build uses ~21 GB RAM and free memory is under 3 GB. Process left untouched.
+- SAFETY-001: no database mutation, live webhook delivery, git staging, commit, push, merge, release or deploy.

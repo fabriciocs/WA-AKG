@@ -1,6 +1,8 @@
 import { NextResponse, NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
 import { getAuthenticatedUser, canAccessSession } from "@/lib/api-auth";
+import { getWebhookFilterUpdate } from "@/lib/webhook-filters";
 
 export async function PUT(
     request: NextRequest,
@@ -20,7 +22,11 @@ export async function PUT(
 
     try {
         const body = await request.json();
+        if (!body || typeof body !== "object" || Array.isArray(body)) return NextResponse.json({ status: false, message: "Invalid request body" }, { status: 400 });
         const { name, url, secret, events, isActive } = body;
+        let filterUpdate;
+        try { filterUpdate = getWebhookFilterUpdate(body); }
+        catch (error) { return NextResponse.json({ status: false, message: (error as Error).message }, { status: 400 }); }
 
         const session = await prisma.session.findFirst({
             where: {
@@ -51,6 +57,14 @@ export async function PUT(
             return NextResponse.json({ status: false, message: "Webhook not found", error: "Webhook not found" }, { status: 404 });
         }
 
+        if (url !== undefined) {
+            const { validateSafeUrl } = await import("@/lib/security");
+            const urlValidation = await validateSafeUrl(url, { allowHttp: false });
+            if (!urlValidation.valid) {
+                return NextResponse.json({ status: false, message: `Invalid webhook URL: ${urlValidation.error}`, error: urlValidation.error }, { status: 400 });
+            }
+        }
+
         const webhook = await prisma.webhook.update({
             where: { id },
             data: {
@@ -58,11 +72,13 @@ export async function PUT(
                 ...(url !== undefined && { url }),
                 ...(secret !== undefined && { secret }),
                 ...(events !== undefined && { events }),
+                ...(filterUpdate.supplied && { filters: filterUpdate.value ?? Prisma.DbNull }),
                 ...(isActive !== undefined && { isActive })
             }
         });
 
-        return NextResponse.json(webhook);
+        const { secret: _secret, ...safeWebhook } = webhook;
+        return NextResponse.json(safeWebhook);
     } catch (error) {
         console.error("Update webhook error:", error);
         return NextResponse.json({ status: false, message: "Failed to update webhook", error: "Failed to update webhook" }, { status: 500 });

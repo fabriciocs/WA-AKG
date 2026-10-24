@@ -1,0 +1,460 @@
+===== next-build.stdout.log =====
+
+> wa-akg@1.7.0 build
+> next build
+
+Ôû▓ Next.js 16.1.1 (Turbopack)
+- Environments: .env
+
+  Creating an optimized production build ...
+Ô£ô Compiled successfully in 44s
+  Running TypeScript ...
+  Collecting page data using 11 workers ...
+[90m16:09:46[0m [44m[37m[1m INFO [0m [1m[36m[Cron][0m Scheduler initialized
+[90m16:09:46[0m [44m[37m[1m INFO [0m [1m[36m[Cron][0m Scheduler initialized
+[90m16:09:46[0m [44m[37m[1m INFO [0m [1m[36m[Cron][0m Scheduler initialized
+[90m16:09:46[0m [44m[37m[1m INFO [0m [1m[36m[Cron][0m Scheduler initialized
+[90m16:09:46[0m [44m[37m[1m INFO [0m [1m[36m[Cron][0m Scheduler initialized
+[90m16:09:46[0m [44m[37m[1m INFO [0m [1m[36m[Cron][0m Scheduler initialized
+[90m16:09:46[0m [44m[37m[1m INFO [0m [1m[36m[Cron][0m Scheduler initialized
+[90m16:09:46[0m [44m[37m[1m INFO [0m [1m[36m[Cron][0m Scheduler initialized
+[90m16:09:46[0m [44m[37m[1m INFO [0m [1m[36m[Cron][0m Scheduler initialized
+[90m16:09:46[0m [44m[37m[1m INFO [0m [1m[36m[Cron][0m Scheduler initialized
+[90m16:09:46[0m [44m[37m[1m INFO [0m [1m[36m[Cron][0m Scheduler initialized
+  Generating static pages using 11 workers (0/43) ...
+prisma:error 
+Invalid `prisma.systemConfig.findUnique()` invocation:
+
+
+Can't reach database server at `127.0.0.1:3307`
+
+Please make sure your database server is running at `127.0.0.1:3307`.
+prisma:error 
+Invalid `prisma.systemConfig.findUnique()` invocation:
+
+
+Can't reach database server at `127.0.0.1:3307`
+
+Please make sure your database server is running at `127.0.0.1:3307`.
+prisma:error 
+Invalid `prisma.systemConfig.findUnique()` invocation:
+
+
+Can't reach database server at `127.0.0.1:3307`
+
+Please make sure your database server is running at `127.0.0.1:3307`.
+prisma:error 
+Invalid `prisma.systemConfig.findUnique()` invocation:
+
+
+Can't reach database server at `127.0.0.1:3307`
+
+Please make sure your database server is running at `127.0.0.1:3307`.
+prisma:error 
+Invalid `prisma.systemConfig.findUnique()` invocation:
+
+
+Can't reach database server at `127.0.0.1:3307`
+
+Please make sure your database server is running at `127.0.0.1:3307`.
+prisma:error 
+Invalid `prisma.systemConfig.findUnique()` invocation:
+
+
+Can't reach database server at `127.0.0.1:3307`
+
+Please make sure your database server is running at `127.0.0.1:3307`.
+prisma:error 
+Invalid `prisma.systemConfig.findUnique()` invocation:
+
+
+Can't reach database server at `127.0.0.1:3307`
+
+Please make sure your database server is running at `127.0.0.1:3307`.
+prisma:error 
+Invalid `prisma.systemConfig.findUnique()` invocation:
+
+
+Can't reach database server at `127.0.0.1:3307`
+
+Please make sure your database server is running at `127.0.0.1:3307`.
+prisma:error 
+Invalid `prisma.systemConfig.findUnique()` invocation:
+
+
+Can't reach database server at `127.0.0.1:3307`
+
+Please make sure your database server is running at `127.0.0.1:3307`.
+  Generating static pages using 11 workers (10/43) 
+prisma:error 
+Invalid `prisma.systemConfig.findUnique()` invocation:
+
+
+Can't reach database server at `127.0.0.1:3307`
+
+Please make sure your database server is running at `127.0.0.1:3307`.
+prisma:error 
+Invalid `prisma.systemConfig.findUnique()` invocation:
+
+
+Can't reach database server at `127.0.0.1:3307`
+
+Please make sure your database server is running at `127.0.0.1:3307`.
+prisma:error 
+Invalid `prisma.systemConfig.findUnique()` invocation:
+
+
+Can't reach database server at `127.0.0.1:3307`
+
+Please make sure your database server is running at `127.0.0.1:3307`.
+prisma:error 
+Invalid `prisma.systemConfig.findUnique()` invocation:
+
+
+Can't reach database server at `127.0.0.1:3307`
+
+Please make sure your database server is running at `127.0.0.1:3307`.
+prisma:error 
+Invalid `prisma.systemConfig.findUnique()` invocation:
+
+
+Can't reach database server at `127.0.0.1:3307`
+
+Please make sure your database server is running at `127.0.0.1:3307`.
+  Generating static pages using 11 workers (21/43) 
+prisma:error 
+Invalid `prisma.systemConfig.findUnique()` invocation:
+
+
+Can't reach database server at `127.0.0.1:3307`
+
+Please make sure your database server is running at `127.0.0.1:3307`.
+prisma:error 
+Invalid `prisma.systemConfig.findUnique()` invocation:
+
+
+Can't reach database server at `127.0.0.1:3307`
+
+Please make sure your database server is running at `127.0.0.1:3307`.
+prisma:error 
+Invalid `prisma.systemConfig.findUnique()` invocation:
+
+
+Can't reach database server at `127.0.0.1:3307`
+
+Please make sure your database server is running at `127.0.0.1:3307`.
+prisma:error 
+Invalid `prisma.systemConfig.findUnique()` invocation:
+
+
+Can't reach database server at `127.0.0.1:3307`
+
+Please make sure your database server is running at `127.0.0.1:3307`.
+prisma:error 
+Invalid `prisma.systemConfig.findUnique()` invocation:
+
+
+Can't reach database server at `127.0.0.1:3307`
+
+Please make sure your database server is running at `127.0.0.1:3307`.
+prisma:error 
+Invalid `prisma.systemConfig.findUnique()` invocation:
+
+
+Can't reach database server at `127.0.0.1:3307`
+
+Please make sure your database server is running at `127.0.0.1:3307`.
+prisma:error 
+Invalid `prisma.systemConfig.findUnique()` invocation:
+
+
+Can't reach database server at `127.0.0.1:3307`
+
+Please make sure your database server is running at `127.0.0.1:3307`.
+prisma:error 
+Invalid `prisma.systemConfig.findUnique()` invocation:
+
+
+Can't reach database server at `127.0.0.1:3307`
+
+Please make sure your database server is running at `127.0.0.1:3307`.
+  Generating static pages using 11 workers (32/43) 
+prisma:error 
+Invalid `prisma.systemConfig.findUnique()` invocation:
+
+
+Can't reach database server at `127.0.0.1:3307`
+
+Please make sure your database server is running at `127.0.0.1:3307`.
+prisma:error 
+Invalid `prisma.systemConfig.findUnique()` invocation:
+
+
+Can't reach database server at `127.0.0.1:3307`
+
+Please make sure your database server is running at `127.0.0.1:3307`.
+prisma:error 
+Invalid `prisma.systemConfig.findUnique()` invocation:
+
+
+Can't reach database server at `127.0.0.1:3307`
+
+Please make sure your database server is running at `127.0.0.1:3307`.
+prisma:error 
+Invalid `prisma.systemConfig.findUnique()` invocation:
+
+
+Can't reach database server at `127.0.0.1:3307`
+
+Please make sure your database server is running at `127.0.0.1:3307`.
+prisma:error 
+Invalid `prisma.systemConfig.findUnique()` invocation:
+
+
+Can't reach database server at `127.0.0.1:3307`
+
+Please make sure your database server is running at `127.0.0.1:3307`.
+prisma:error 
+Invalid `prisma.systemConfig.findUnique()` invocation:
+
+
+Can't reach database server at `127.0.0.1:3307`
+
+Please make sure your database server is running at `127.0.0.1:3307`.
+prisma:error 
+Invalid `prisma.systemConfig.findUnique()` invocation:
+
+
+Can't reach database server at `127.0.0.1:3307`
+
+Please make sure your database server is running at `127.0.0.1:3307`.
+prisma:error 
+Invalid `prisma.systemConfig.findUnique()` invocation:
+
+
+Can't reach database server at `127.0.0.1:3307`
+
+Please make sure your database server is running at `127.0.0.1:3307`.
+prisma:error 
+Invalid `prisma.systemConfig.findUnique()` invocation:
+
+
+Can't reach database server at `127.0.0.1:3307`
+
+Please make sure your database server is running at `127.0.0.1:3307`.
+Ô£ô Generating static pages using 11 workers (43/43) in 7.2s
+  Finalizing page optimization ...
+
+Route (app)
+Ôöî ãÆ /
+Ôö£ ãÆ /_not-found
+Ôö£ ãÆ /api/auth/[...nextauth]
+Ôö£ ãÆ /api/auth/register
+Ôö£ ãÆ /api/autoreplies/[sessionId]
+Ôö£ ãÆ /api/autoreplies/[sessionId]/[replyId]
+Ôö£ ãÆ /api/chat/[sessionId]
+Ôö£ ãÆ /api/chat/[sessionId]/[jid]
+Ôö£ ãÆ /api/chat/[sessionId]/[jid]/archive
+Ôö£ ãÆ /api/chat/[sessionId]/[jid]/mute
+Ôö£ ãÆ /api/chat/[sessionId]/[jid]/pin
+Ôö£ ãÆ /api/chat/[sessionId]/[jid]/presence
+Ôö£ ãÆ /api/chat/[sessionId]/[jid]/profile-picture
+Ôö£ ãÆ /api/chat/[sessionId]/[jid]/read
+Ôö£ ãÆ /api/chat/[sessionId]/check
+Ôö£ ãÆ /api/chats/[sessionId]/by-label/[labelId]
+Ôö£ ãÆ /api/contacts/[sessionId]
+Ôö£ ãÆ /api/contacts/[sessionId]/[jid]/block
+Ôö£ ãÆ /api/contacts/[sessionId]/[jid]/unblock
+Ôö£ ãÆ /api/docs
+Ôö£ ãÆ /api/groups/[sessionId]
+Ôö£ ãÆ /api/groups/[sessionId]/[jid]
+Ôö£ ãÆ /api/groups/[sessionId]/[jid]/description
+Ôö£ ãÆ /api/groups/[sessionId]/[jid]/ephemeral
+Ôö£ ãÆ /api/groups/[sessionId]/[jid]/invite
+Ôö£ ãÆ /api/groups/[sessionId]/[jid]/leave
+Ôö£ ãÆ /api/groups/[sessionId]/[jid]/members
+Ôö£ ãÆ /api/groups/[sessionId]/[jid]/picture
+Ôö£ ãÆ /api/groups/[sessionId]/[jid]/settings
+Ôö£ ãÆ /api/groups/[sessionId]/[jid]/subject
+Ôö£ ãÆ /api/groups/[sessionId]/create
+Ôö£ ãÆ /api/groups/[sessionId]/invite/accept
+Ôö£ ãÆ /api/labels/[sessionId]
+Ôö£ ãÆ /api/labels/[sessionId]/[labelId]
+Ôö£ ãÆ /api/labels/[sessionId]/chat/[jid]/labels
+Ôö£ ãÆ /api/labels/[sessionId]/chats
+Ôö£ ãÆ /api/media
+Ôö£ ãÆ /api/media/[filename]
+Ôö£ ãÆ /api/messages/[sessionId]/[jid]/[messageId]
+Ôö£ ãÆ /api/messages/[sessionId]/[jid]/[messageId]/react
+Ôö£ ãÆ /api/messages/[sessionId]/[jid]/[messageId]/reply
+Ôö£ ãÆ /api/messages/[sessionId]/[jid]/[messageId]/star
+Ôö£ ãÆ /api/messages/[sessionId]/[jid]/album
+Ôö£ ãÆ /api/messages/[sessionId]/[jid]/contact
+Ôö£ ãÆ /api/messages/[sessionId]/[jid]/interactive
+Ôö£ ãÆ /api/messages/[sessionId]/[jid]/list
+Ôö£ ãÆ /api/messages/[sessionId]/[jid]/location
+Ôö£ ãÆ /api/messages/[sessionId]/[jid]/media
+Ôö£ ãÆ /api/messages/[sessionId]/[jid]/poll
+Ôö£ ãÆ /api/messages/[sessionId]/[jid]/reply
+Ôö£ ãÆ /api/messages/[sessionId]/[jid]/send
+Ôö£ ãÆ /api/messages/[sessionId]/[jid]/spam
+Ôö£ ãÆ /api/messages/[sessionId]/[jid]/sticker
+Ôö£ ãÆ /api/messages/[sessionId]/broadcast
+Ôö£ ãÆ /api/messages/[sessionId]/broadcast/history
+Ôö£ ãÆ /api/messages/[sessionId]/broadcast/history/[logId]
+Ôö£ ãÆ /api/messages/[sessionId]/download/[messageId]/media
+Ôö£ ãÆ /api/messages/[sessionId]/forward
+Ôö£ ãÆ /api/messages/[sessionId]/search
+Ôö£ ãÆ /api/notifications
+Ôö£ ãÆ /api/notifications/delete
+Ôö£ ãÆ /api/notifications/read
+Ôö£ ãÆ /api/profile/[sessionId]
+Ôö£ ãÆ /api/profile/[sessionId]/name
+Ôö£ ãÆ /api/profile/[sessionId]/picture
+Ôö£ ãÆ /api/profile/[sessionId]/status
+Ôö£ ãÆ /api/scheduler/[sessionId]
+Ôö£ ãÆ /api/scheduler/[sessionId]/[scheduleId]
+Ôö£ ãÆ /api/sessions
+Ôö£ ãÆ /api/sessions/[sessionId]
+Ôö£ ãÆ /api/sessions/[sessionId]/[action]
+Ôö£ ãÆ /api/sessions/[sessionId]/access
+Ôö£ ãÆ /api/sessions/[sessionId]/bot-config
+Ôö£ ãÆ /api/sessions/[sessionId]/qr
+Ôö£ ãÆ /api/sessions/[sessionId]/settings
+Ôö£ ãÆ /api/settings/system
+Ôö£ ãÆ /api/swagger-auth
+Ôö£ ãÆ /api/system/check-updates
+Ôö£ ãÆ /api/system/monitor
+Ôö£ ãÆ /api/system/monitor/[sessionId]
+Ôö£ ãÆ /api/user/api-key
+Ôö£ ãÆ /api/users
+Ôö£ ãÆ /api/users/[id]
+Ôö£ ãÆ /api/webhooks/[sessionId]
+Ôö£ ãÆ /api/webhooks/[sessionId]/[id]
+Ôö£ ãÆ /api/webhooks/[sessionId]/[id]/logs
+Ôö£ ãÆ /api/webhooks/[sessionId]/[id]/test
+Ôö£ ãÆ /auth/login
+Ôö£ ãÆ /auth/register
+Ôö£ ãÆ /dashboard
+Ôö£ ãÆ /dashboard/api-docs
+Ôö£ ãÆ /dashboard/autoreply
+Ôö£ ãÆ /dashboard/bot-settings
+Ôö£ ãÆ /dashboard/broadcast
+Ôö£ ãÆ /dashboard/chat
+Ôö£ ãÆ /dashboard/chat/[jid]
+Ôö£ ãÆ /dashboard/contacts
+Ôö£ ãÆ /dashboard/groups
+Ôö£ ãÆ /dashboard/inbox
+Ôö£ ãÆ /dashboard/interactive
+Ôö£ ãÆ /dashboard/labels
+Ôö£ ãÆ /dashboard/media
+Ôö£ ãÆ /dashboard/notifications
+Ôö£ ãÆ /dashboard/profile
+Ôö£ ãÆ /dashboard/scheduler
+Ôö£ ãÆ /dashboard/sessions
+Ôö£ ãÆ /dashboard/sessions/[sessionId]
+Ôö£ ãÆ /dashboard/sessions/access
+Ôö£ ãÆ /dashboard/settings
+Ôö£ ãÆ /dashboard/sticker
+Ôö£ ãÆ /dashboard/system-monitor
+Ôö£ ãÆ /dashboard/users
+Ôö£ ãÆ /dashboard/webhooks
+Ôö£ ãÆ /docs
+Ôö£ ãÆ /error
+Ôö£ Ôùï /icon
+Ôö£ ãÆ /privacy
+Ôö£ Ôùï /robots.txt
+Ôö£ Ôùï /sitemap.xml
+Ôö£ ãÆ /swagger
+Ôöö ãÆ /terms
+
+
+ãÆ Proxy (Middleware)
+
+Ôùï  (Static)   prerendered as static content
+ãÆ  (Dynamic)  server-rendered on demand
+
+===== npm-test.stdout.log =====
+
+> wa-akg@1.7.0 test
+> tsx --test src/i18n/__tests__/*.test.ts src/lib/__tests__/*.test.ts
+
+ÔûÂ isLocale
+  Ô£ö accepts supported locales only (1.7547ms)
+Ô£ö isLocale (4.3378ms)
+ÔûÂ matchLocale
+  Ô£ö matches exact locales case-insensitively (0.8166ms)
+  Ô£ö falls back to the base language (0.5502ms)
+  Ô£ö returns undefined for empty or unsupported values (0.6344ms)
+Ô£ö matchLocale (4.274ms)
+ÔûÂ resolveLocale
+  Ô£ö prefers the cookie over DEFAULT_LANGUAGE (0.736ms)
+  Ô£ö uses DEFAULT_LANGUAGE when the cookie is missing or invalid (0.3899ms)
+  Ô£ö falls back to English (0.3944ms)
+  Ô£ö always returns a supported locale (0.5503ms)
+Ô£ö resolveLocale (3.0567ms)
+ÔûÂ localeNames
+  Ô£ö has a display name for every locale (2.4204ms)
+Ô£ö localeNames (2.8226ms)
+ÔûÂ message catalogs
+  Ô£ö has exactly one catalog file per supported locale (2.7361ms)
+  ÔûÂ en
+    Ô£ö has the same keys as en.json (1.1548ms)
+    Ô£ö has no empty messages (1.4783ms)
+    Ô£ö uses the same placeholders and tags as en.json (3.728ms)
+    Ô£ö renders every message without ICU errors (126.5607ms)
+  Ô£ö en (133.8979ms)
+  ÔûÂ id
+    Ô£ö has the same keys as en.json (1.8184ms)
+    Ô£ö has no empty messages (1.7722ms)
+    Ô£ö uses the same placeholders and tags as en.json (7.4085ms)
+    Ô£ö renders every message without ICU errors (64.0274ms)
+  Ô£ö id (76.1179ms)
+  ÔûÂ pt-BR
+    Ô£ö has the same keys as en.json (0.7635ms)
+    Ô£ö has no empty messages (0.6234ms)
+    Ô£ö uses the same placeholders and tags as en.json (1.8806ms)
+    Ô£ö renders every message without ICU errors (67.1846ms)
+  Ô£ö pt-BR (70.8896ms)
+Ô£ö message catalogs (286.1574ms)
+ÔûÂ plural messages
+  Ô£ö formats unread notification counts per locale (5.053ms)
+Ô£ö plural messages (5.3137ms)
+Ô£ö empty, blank, null and omitted criteria preserve legacy delivery (3.2368ms)
+Ô£ö false booleans are retained and matched (2.4332ms)
+Ô£ö matches individual sessionId filter (0.4143ms)
+Ô£ö matches individual senderJid filter (0.2705ms)
+Ô£ö matches individual chatJid filter (0.3344ms)
+Ô£ö matches individual messageType filter (0.2874ms)
+Ô£ö matches individual fromMe filter (0.3495ms)
+Ô£ö matches individual isGroup filter (0.2522ms)
+Ô£ö matches individual chatType filter (0.2769ms)
+Ô£ö criteria combine with AND and missing event values fail closed (0.6087ms)
+Ô£ö senderJid uses the actual group participant and handles self-sent messages (0.544ms)
+Ô£ö raw sender and chat JIDs take precedence over normalized compatibility fields (0.4027ms)
+Ô£ö filter strings enforce documented length limits (1.8121ms)
+Ô£ö filter validation rejects unknown keys, invalid types and enum values (0.7332ms)
+Ô£ö browser-safe options cover Prisma and interactive message types (0.514ms)
+Ô£ö interactive webhook message types are valid filter values (0.4676ms)
+Ô£ö POST normalization and PUT preserve/replace/clear semantics (0.7339ms)
+Ôä╣ tests 40
+Ôä╣ suites 9
+Ôä╣ pass 40
+Ôä╣ fail 0
+Ôä╣ cancelled 0
+Ôä╣ skipped 0
+Ôä╣ todo 0
+Ôä╣ duration_ms 2170.4701
+===== tsc.stdout.log =====
+===== eslint-targeted.stdout.log =====
+===== json-validation.stdout.log =====
+JSON_OK swagger.json
+JSON_OK src/i18n/messages/en.json
+JSON_OK src/i18n/messages/id.json
+JSON_OK src/i18n/messages/pt-BR.json
+===== git-diff-check.stdout.log =====
+===== lint-full.stdout.log =====
+
+> wa-akg@1.7.0 lint
+> eslint
+

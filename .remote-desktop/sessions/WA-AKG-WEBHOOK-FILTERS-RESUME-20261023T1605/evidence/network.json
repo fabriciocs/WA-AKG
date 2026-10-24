@@ -1,0 +1,11 @@
+{
+    "databaseHost":  "127.0.0.1",
+    "databasePort":  3307,
+    "tcpConnected":  false,
+    "dockerCliAvailable":  true,
+    "dockerEngineAvailable":  false,
+    "dockerError":  "failed to connect to docker API npipe:////./pipe/dockerDesktopLinuxEngine",
+    "codexProvider":  "auto-best-coding",
+    "codexNetworkStatus":  "repeated request-send reconnect failures",
+    "observedAt":  "2026-10-23T16:17:53.0444605-03:00"
+}

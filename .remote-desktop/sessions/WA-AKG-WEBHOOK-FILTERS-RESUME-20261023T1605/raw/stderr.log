@@ -1,0 +1,372 @@
+===== next-build.stderr.log =====
+node.exe : Failed to fetch system config for metadata: Error [PrismaClientInitializationError]: 
+No linha:1 caractere:1
++ & "C:\Program Files\nodejs/node.exe" "C:\Program Files\nodejs/node_mo ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Failed to fetch...izationError]: :String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+Invalid `prisma.systemConfig.findUnique()` invocation:
+
+
+Can't reach database server at `127.0.0.1:3307`
+
+Please make sure your database server is running at `127.0.0.1:3307`.
+    at async Module.w (C:\repos\WA-AKG\.next\server\chunks\ssr\[root-of-the-server]__90e771f2._.js:1:5185) {
+  clientVersion: '5.22.0',
+  errorCode: undefined
+}
+Failed to fetch system config for metadata: Error [PrismaClientInitializationError]: 
+Invalid `prisma.systemConfig.findUnique()` invocation:
+
+
+Can't reach database server at `127.0.0.1:3307`
+
+Please make sure your database server is running at `127.0.0.1:3307`.
+    at async Module.w (C:\repos\WA-AKG\.next\server\chunks\ssr\[root-of-the-server]__90e771f2._.js:1:5185) {
+  clientVersion: '5.22.0',
+  errorCode: undefined
+}
+Failed to fetch system config for metadata: Error [PrismaClientInitializationError]: 
+Invalid `prisma.systemConfig.findUnique()` invocation:
+
+
+Can't reach database server at `127.0.0.1:3307`
+
+Please make sure your database server is running at `127.0.0.1:3307`.
+    at async Module.w (C:\repos\WA-AKG\.next\server\chunks\ssr\[root-of-the-server]__90e771f2._.js:1:5185) {
+  clientVersion: '5.22.0',
+  errorCode: undefined
+}
+Failed to fetch system config for metadata: Error [PrismaClientInitializationError]: 
+Invalid `prisma.systemConfig.findUnique()` invocation:
+
+
+Can't reach database server at `127.0.0.1:3307`
+
+Please make sure your database server is running at `127.0.0.1:3307`.
+    at async Module.w (C:\repos\WA-AKG\.next\server\chunks\ssr\[root-of-the-server]__90e771f2._.js:1:5185) {
+  clientVersion: '5.22.0',
+  errorCode: undefined
+}
+Failed to fetch system config for metadata: Error [PrismaClientInitializationError]: 
+Invalid `prisma.systemConfig.findUnique()` invocation:
+
+
+Can't reach database server at `127.0.0.1:3307`
+
+Please make sure your database server is running at `127.0.0.1:3307`.
+    at async Module.w (C:\repos\WA-AKG\.next\server\chunks\ssr\[root-of-the-server]__90e771f2._.js:1:5185) {
+  clientVersion: '5.22.0',
+  errorCode: undefined
+}
+Failed to fetch system config for metadata: Error [PrismaClientInitializationError]: 
+Invalid `prisma.systemConfig.findUnique()` invocation:
+
+
+Can't reach database server at `127.0.0.1:3307`
+
+Please make sure your database server is running at `127.0.0.1:3307`.
+    at async Module.w (C:\repos\WA-AKG\.next\server\chunks\ssr\[root-of-the-server]__90e771f2._.js:1:5185) {
+  clientVersion: '5.22.0',
+  errorCode: undefined
+}
+Failed to fetch system config for metadata: Error [PrismaClientInitializationError]: 
+Invalid `prisma.systemConfig.findUnique()` invocation:
+
+
+Can't reach database server at `127.0.0.1:3307`
+
+Please make sure your database server is running at `127.0.0.1:3307`.
+    at async Module.w (C:\repos\WA-AKG\.next\server\chunks\ssr\[root-of-the-server]__90e771f2._.js:1:5185) {
+  clientVersion: '5.22.0',
+  errorCode: undefined
+}
+Failed to fetch system config for metadata: Error [PrismaClientInitializationError]: 
+Invalid `prisma.systemConfig.findUnique()` invocation:
+
+
+Can't reach database server at `127.0.0.1:3307`
+
+Please make sure your database server is running at `127.0.0.1:3307`.
+    at async Module.w (C:\repos\WA-AKG\.next\server\chunks\ssr\[root-of-the-server]__90e771f2._.js:1:5185) {
+  clientVersion: '5.22.0',
+  errorCode: undefined
+}
+Failed to fetch system config for metadata: Error [PrismaClientInitializationError]: 
+Invalid `prisma.systemConfig.findUnique()` invocation:
+
+
+Can't reach database server at `127.0.0.1:3307`
+
+Please make sure your database server is running at `127.0.0.1:3307`.
+    at async Module.w (C:\repos\WA-AKG\.next\server\chunks\ssr\[root-of-the-server]__90e771f2._.js:1:5185) {
+  clientVersion: '5.22.0',
+  errorCode: undefined
+}
+Failed to fetch system config for metadata: Error [PrismaClientInitializationError]: 
+Invalid `prisma.systemConfig.findUnique()` invocation:
+
+
+Can't reach database server at `127.0.0.1:3307`
+
+Please make sure your database server is running at `127.0.0.1:3307`.
+    at async Module.w (C:\repos\WA-AKG\.next\server\chunks\ssr\[root-of-the-server]__90e771f2._.js:1:5185) {
+  clientVersion: '5.22.0',
+  errorCode: undefined
+}
+Failed to fetch system config for metadata: Error [PrismaClientInitializationError]: 
+Invalid `prisma.systemConfig.findUnique()` invocation:
+
+
+Can't reach database server at `127.0.0.1:3307`
+
+Please make sure your database server is running at `127.0.0.1:3307`.
+    at async Module.w (C:\repos\WA-AKG\.next\server\chunks\ssr\[root-of-the-server]__90e771f2._.js:1:5185) {
+  clientVersion: '5.22.0',
+  errorCode: undefined
+}
+Failed to fetch system config for metadata: Error [PrismaClientInitializationError]: 
+Invalid `prisma.systemConfig.findUnique()` invocation:
+
+
+Can't reach database server at `127.0.0.1:3307`
+
+Please make sure your database server is running at `127.0.0.1:3307`.
+    at async Module.w (C:\repos\WA-AKG\.next\server\chunks\ssr\[root-of-the-server]__90e771f2._.js:1:5185) {
+  clientVersion: '5.22.0',
+  errorCode: undefined
+}
+Failed to fetch system config for metadata: Error [PrismaClientInitializationError]: 
+Invalid `prisma.systemConfig.findUnique()` invocation:
+
+
+Can't reach database server at `127.0.0.1:3307`
+
+Please make sure your database server is running at `127.0.0.1:3307`.
+    at async Module.w (C:\repos\WA-AKG\.next\server\chunks\ssr\[root-of-the-server]__90e771f2._.js:1:5185) {
+  clientVersion: '5.22.0',
+  errorCode: undefined
+}
+Failed to fetch system config for metadata: Error [PrismaClientInitializationError]: 
+Invalid `prisma.systemConfig.findUnique()` invocation:
+
+
+Can't reach database server at `127.0.0.1:3307`
+
+Please make sure your database server is running at `127.0.0.1:3307`.
+    at async Module.w (C:\repos\WA-AKG\.next\server\chunks\ssr\[root-of-the-server]__90e771f2._.js:1:5185) {
+  clientVersion: '5.22.0',
+  errorCode: undefined
+}
+Failed to fetch system config for metadata: Error [PrismaClientInitializationError]: 
+Invalid `prisma.systemConfig.findUnique()` invocation:
+
+
+Can't reach database server at `127.0.0.1:3307`
+
+Please make sure your database server is running at `127.0.0.1:3307`.
+    at async Module.w (C:\repos\WA-AKG\.next\server\chunks\ssr\[root-of-the-server]__90e771f2._.js:1:5185) {
+  clientVersion: '5.22.0',
+  errorCode: undefined
+}
+Failed to fetch system config for metadata: Error [PrismaClientInitializationError]: 
+Invalid `prisma.systemConfig.findUnique()` invocation:
+
+
+Can't reach database server at `127.0.0.1:3307`
+
+Please make sure your database server is running at `127.0.0.1:3307`.
+    at async Module.w (C:\repos\WA-AKG\.next\server\chunks\ssr\[root-of-the-server]__90e771f2._.js:1:5185) {
+  clientVersion: '5.22.0',
+  errorCode: undefined
+}
+Failed to fetch system config for metadata: Error [PrismaClientInitializationError]: 
+Invalid `prisma.systemConfig.findUnique()` invocation:
+
+
+Can't reach database server at `127.0.0.1:3307`
+
+Please make sure your database server is running at `127.0.0.1:3307`.
+    at async Module.w (C:\repos\WA-AKG\.next\server\chunks\ssr\[root-of-the-server]__90e771f2._.js:1:5185) {
+  clientVersion: '5.22.0',
+  errorCode: undefined
+}
+Failed to fetch system config for metadata: Error [PrismaClientInitializationError]: 
+Invalid `prisma.systemConfig.findUnique()` invocation:
+
+
+Can't reach database server at `127.0.0.1:3307`
+
+Please make sure your database server is running at `127.0.0.1:3307`.
+    at async Module.w (C:\repos\WA-AKG\.next\server\chunks\ssr\[root-of-the-server]__90e771f2._.js:1:5185) {
+  clientVersion: '5.22.0',
+  errorCode: undefined
+}
+Failed to fetch system config for metadata: Error [PrismaClientInitializationError]: 
+Invalid `prisma.systemConfig.findUnique()` invocation:
+
+
+Can't reach database server at `127.0.0.1:3307`
+
+Please make sure your database server is running at `127.0.0.1:3307`.
+    at async Module.w (C:\repos\WA-AKG\.next\server\chunks\ssr\[root-of-the-server]__90e771f2._.js:1:5185) {
+  clientVersion: '5.22.0',
+  errorCode: undefined
+}
+Failed to fetch system config for metadata: Error [PrismaClientInitializationError]: 
+Invalid `prisma.systemConfig.findUnique()` invocation:
+
+
+Can't reach database server at `127.0.0.1:3307`
+
+Please make sure your database server is running at `127.0.0.1:3307`.
+    at async Module.w (C:\repos\WA-AKG\.next\server\chunks\ssr\[root-of-the-server]__90e771f2._.js:1:5185) {
+  clientVersion: '5.22.0',
+  errorCode: undefined
+}
+Failed to fetch system config for metadata: Error [PrismaClientInitializationError]: 
+Invalid `prisma.systemConfig.findUnique()` invocation:
+
+
+Can't reach database server at `127.0.0.1:3307`
+
+Please make sure your database server is running at `127.0.0.1:3307`.
+    at async Module.w (C:\repos\WA-AKG\.next\server\chunks\ssr\[root-of-the-server]__90e771f2._.js:1:5185) {
+  clientVersion: '5.22.0',
+  errorCode: undefined
+}
+Failed to fetch favicon config Error [PrismaClientInitializationError]: 
+Invalid `prisma.systemConfig.findUnique()` invocation:
+
+
+Can't reach database server at `127.0.0.1:3307`
+
+Please make sure your database server is running at `127.0.0.1:3307`.
+    at async C (C:\repos\WA-AKG\.next\server\chunks\[root-of-the-server]__b436c08b._.js:1:2498) {
+  clientVersion: '5.22.0',
+  errorCode: undefined
+}
+Failed to fetch system config for metadata: Error [PrismaClientInitializationError]: 
+Invalid `prisma.systemConfig.findUnique()` invocation:
+
+
+Can't reach database server at `127.0.0.1:3307`
+
+Please make sure your database server is running at `127.0.0.1:3307`.
+    at async Module.w (C:\repos\WA-AKG\.next\server\chunks\ssr\[root-of-the-server]__90e771f2._.js:1:5185) {
+  clientVersion: '5.22.0',
+  errorCode: undefined
+}
+Failed to fetch system config for metadata: Error [PrismaClientInitializationError]: 
+Invalid `prisma.systemConfig.findUnique()` invocation:
+
+
+Can't reach database server at `127.0.0.1:3307`
+
+Please make sure your database server is running at `127.0.0.1:3307`.
+    at async Module.w (C:\repos\WA-AKG\.next\server\chunks\ssr\[root-of-the-server]__90e771f2._.js:1:5185) {
+  clientVersion: '5.22.0',
+  errorCode: undefined
+}
+Failed to fetch system config for metadata: Error [PrismaClientInitializationError]: 
+Invalid `prisma.systemConfig.findUnique()` invocation:
+
+
+Can't reach database server at `127.0.0.1:3307`
+
+Please make sure your database server is running at `127.0.0.1:3307`.
+    at async Module.w (C:\repos\WA-AKG\.next\server\chunks\ssr\[root-of-the-server]__90e771f2._.js:1:5185) {
+  clientVersion: '5.22.0',
+  errorCode: undefined
+}
+Failed to fetch system config for metadata: Error [PrismaClientInitializationError]: 
+Invalid `prisma.systemConfig.findUnique()` invocation:
+
+
+Can't reach database server at `127.0.0.1:3307`
+
+Please make sure your database server is running at `127.0.0.1:3307`.
+    at async Module.w (C:\repos\WA-AKG\.next\server\chunks\ssr\[root-of-the-server]__90e771f2._.js:1:5185) {
+  clientVersion: '5.22.0',
+  errorCode: undefined
+}
+Failed to fetch system config for metadata: Error [PrismaClientInitializationError]: 
+Invalid `prisma.systemConfig.findUnique()` invocation:
+
+
+Can't reach database server at `127.0.0.1:3307`
+
+Please make sure your database server is running at `127.0.0.1:3307`.
+    at async Module.w (C:\repos\WA-AKG\.next\server\chunks\ssr\[root-of-the-server]__90e771f2._.js:1:5185) {
+  clientVersion: '5.22.0',
+  errorCode: undefined
+}
+Failed to fetch system config for metadata: Error [PrismaClientInitializationError]: 
+Invalid `prisma.systemConfig.findUnique()` invocation:
+
+
+Can't reach database server at `127.0.0.1:3307`
+
+Please make sure your database server is running at `127.0.0.1:3307`.
+    at async Module.w (C:\repos\WA-AKG\.next\server\chunks\ssr\[root-of-the-server]__90e771f2._.js:1:5185) {
+  clientVersion: '5.22.0',
+  errorCode: undefined
+}
+Failed to fetch system config for metadata: Error [PrismaClientInitializationError]: 
+Invalid `prisma.systemConfig.findUnique()` invocation:
+
+
+Can't reach database server at `127.0.0.1:3307`
+
+Please make sure your database server is running at `127.0.0.1:3307`.
+    at async Module.w (C:\repos\WA-AKG\.next\server\chunks\ssr\[root-of-the-server]__90e771f2._.js:1:5185) {
+  clientVersion: '5.22.0',
+  errorCode: undefined
+}
+Failed to fetch system config for metadata: Error [PrismaClientInitializationError]: 
+Invalid `prisma.systemConfig.findUnique()` invocation:
+
+
+Can't reach database server at `127.0.0.1:3307`
+
+Please make sure your database server is running at `127.0.0.1:3307`.
+    at async Module.w (C:\repos\WA-AKG\.next\server\chunks\ssr\[root-of-the-server]__90e771f2._.js:1:5185) {
+  clientVersion: '5.22.0',
+  errorCode: undefined
+}
+Failed to fetch system config for metadata: Error [PrismaClientInitializationError]: 
+Invalid `prisma.systemConfig.findUnique()` invocation:
+
+
+Can't reach database server at `127.0.0.1:3307`
+
+Please make sure your database server is running at `127.0.0.1:3307`.
+    at async Module.w (C:\repos\WA-AKG\.next\server\chunks\ssr\[root-of-the-server]__90e771f2._.js:1:5185) {
+  clientVersion: '5.22.0',
+  errorCode: undefined
+}
+===== npm-test.stderr.log =====
+===== tsc.stderr.log =====
+===== eslint-targeted.stderr.log =====
+===== json-validation.stderr.log =====
+===== git-diff-check.stderr.log =====
+git : warning: in the working copy of 'src/lib/webhook.ts', LF will be replaced by CRLF the next time Git touches it
+No linha:1 caractere:128
++ ... T1605\raw'; git diff --check 1> (Join-Path $r 'git-diff-check.stdout. ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (warning: in the... Git touches it:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+===== lint-full.stderr.log =====
+===== codex-audit-observed.log =====
+2026-10-23T19:11:41.596176Z ERROR codex_skills_extension::loader::host: skills scan reached its traversal limit (root: file:///C:/Users/fabri/.agents/skills)
+{"type":"thread.started","thread_id":"01a16a2d-0797-7173-94f5-a2f2f4c6eeac"}
+2026-10-23T19:11:46.234707Z ERROR codex_skills_extension::loader::host: skills scan reached its traversal limit (root: file:///C:/Users/fabri/.agents/skills)
+{"type":"turn.started"}
+{"type":"error","message":"Reconnecting... waiting for network (Connection failed: error sending request)"}
+{"type":"error","message":"Reconnecting... waiting for network (Connection failed: error sending request)"}
+{"type":"error","message":"Reconnecting... waiting for network (Connection failed: error sending request)"}
+{"type":"error","message":"Reconnecting... waiting for network (Connection failed: error sending request)"}
+{"type":"error","message":"Reconnecting... waiting for network (Connection failed: error sending request)"}
+Process completed with exit code 1 (runtime: 172.96s)

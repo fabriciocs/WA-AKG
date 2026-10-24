@@ -1,0 +1,19 @@
+﻿{
+    "sessionId":  "20261023-192757-mcp-local",
+    "status":  "PARTIAL",
+    "startedAt":  "2026-10-23T19:27:57.5244034-03:00",
+    "finishedAt":  "2026-10-23T19:31:44.2941610-03:00",
+    "host":  "DESKTOP-D9O4I01",
+    "user":  "fabriwin",
+    "shell":  "Windows PowerShell 5.1",
+    "workingDirectory":  "C:\\repos\\WA-AKG",
+    "commandsTotal":  11,
+    "commandsSucceeded":  8,
+    "commandsFailed":  0,
+    "commandsBlocked":  3,
+    "authorizationRequired":  false,
+    "authorizationStatus":  "NOT_REQUIRED",
+    "rawLogRoot":  "C:\\repos\\WA-AKG\\.remote-desktop\\sessions\\20261023-192757-mcp-local\\raw",
+    "evidenceRoot":  "C:\\repos\\WA-AKG\\.remote-desktop\\sessions\\20261023-192757-mcp-local\\evidence",
+    "reportRoot":  "C:\\repos\\WA-AKG\\.remote-desktop\\sessions\\20261023-192757-mcp-local\\reports"
+}

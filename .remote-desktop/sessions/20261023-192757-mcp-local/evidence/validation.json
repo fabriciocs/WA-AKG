@@ -1,0 +1,79 @@
+﻿{
+    "sessionId":  "20261023-192757-mcp-local",
+    "checkedAt":  "2026-10-23T19:31:44.2941610-03:00",
+    "status":  "PARTIAL",
+    "runtime":  {
+                    "port":  43000,
+                    "host":  "127.0.0.1",
+                    "dockerUsed":  false,
+                    "telemetryDisabledForThisProcess":  true,
+                    "mcpPath":  "/mcp",
+                    "serverProcessId":  93176
+                },
+    "checks":  [
+                   {
+                       "status":  "PASS",
+                       "evidence":  "HTTP 200, 153228 bytes",
+                       "name":  "WA-AKG homepage"
+                   },
+                   {
+                       "status":  "PASS",
+                       "evidence":  "HTTP 401",
+                       "name":  "MCP unauthorized request"
+                   },
+                   {
+                       "status":  "PASS",
+                       "evidence":  "HTTP 200, MCP session ID returned",
+                       "name":  "MCP initialize"
+                   },
+                   {
+                       "status":  "PASS",
+                       "evidence":  "HTTP 202",
+                       "name":  "MCP initialized notification"
+                   },
+                   {
+                       "status":  "PASS",
+                       "evidence":  "HTTP 200, 24 tools; server info and get sessions present",
+                       "name":  "MCP tools/list"
+                   },
+                   {
+                       "status":  "PASS",
+                       "evidence":  "tools/call returned server metadata",
+                       "name":  "MCP server-info tool"
+                   },
+                   {
+                       "status":  "PASS",
+                       "evidence":  "No POST/PUT/PATCH/DELETE tools exposed",
+                       "name":  "MCP write tools default policy"
+                   },
+                   {
+                       "status":  "BLOCKED",
+                       "evidence":  "MCP transport responded HTTP 200 but underlying WA-AKG API returned HTTP 401 Unauthorized because WA_AKG_API_KEY is not configured",
+                       "name":  "WA-AKG API read tool"
+                   },
+                   {
+                       "status":  "BLOCKED",
+                       "evidence":  "Configured 127.0.0.1:3307 unreachable; local 3306 accepts TCP but DB authentication using current credentials fails",
+                       "name":  "Database"
+                   },
+                   {
+                       "status":  "PASS",
+                       "evidence":  "5 tests passed; 0 failed",
+                       "name":  "MCP automated tests"
+                   },
+                   {
+                       "status":  "PASS",
+                       "evidence":  "HTTP 200",
+                       "name":  "HTTP home page"
+                   }
+               ],
+    "notes":  [
+                  "No Docker commands or containers were used.",
+                  "No .env secrets were printed or changed.",
+                  "Local .env already had MCP enabled and a 64-character token; value remains hidden.",
+                  "WA_AKG_API_KEY is absent; real API tool calls cannot authenticate until a valid WA-AKG user API key is configured.",
+                  "Database unavailable prevents validating DB-backed API reads and the scheduler reports connection errors.",
+                  "Server auto-migration check was skipped by its own exception handler after database connection failure.",
+                  "No commit, push, merge, or deployment was performed."
+              ]
+}

@@ -6,13 +6,13 @@
 [![Next.js](https://img.shields.io/badge/Next.js-16-black?style=for-the-badge&logo=next.js&logoColor=white)](https://nextjs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![Prisma](https://img.shields.io/badge/Prisma-ORM-2D3748?style=for-the-badge&logo=prisma&logoColor=white)](https://www.prisma.io/)
-[![Version](https://img.shields.io/badge/Version-1.6.2-blue?style=for-the-badge)](https://github.com/mrifqidaffaaditya/WA-AKG/releases)
+[![Version](https://img.shields.io/badge/Version-1.7.0-blue?style=for-the-badge)](https://github.com/mrifqidaffaaditya/WA-AKG/releases)
 [![Main Branch](https://img.shields.io/badge/Branch-Main-green?style=for-the-badge&logo=git)](https://github.com/mrifqidaffaaditya/WA-AKG)
 
 [![Active Apps](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fapi-wa-akg.aikeigroup.net%2Fapi%2Factive-apps&query=%24.activeCount&style=flat-square&color=25D366&logo=whatsapp&logoColor=white&label=)](https://api-wa-akg.aikeigroup.net/)
 
 **A professional, multi-session WhatsApp Gateway, Dashboard, and Automation System.**  
-Built with **Next.js 15**, **React**, and **Baileys** for high-performance messaging automation and real-time WhatsApp Bot Gateway services.
+Built with **Next.js 16**, **React**, and **Baileys** for high-performance messaging automation and real-time WhatsApp Bot Gateway services.
 
 > [!TIP]
 > **Looking for the latest features?** Check out the [beta branch](https://github.com/mrifqidaffaaditya/WA-AKG/tree/beta) or our [pre-releases](https://github.com/mrifqidaffaaditya/WA-AKG/releases) for experimental sources.
@@ -31,6 +31,7 @@ WA-AKG comes with extensive documentation designed for both developers and users
 - **[API Documentation](docs/API_DOCUMENTATION.md)**: Comprehensive OpenAPI / Swagger guide for all **109+ endpoints**.
 - **[API Quick Reference](docs/API-QUICK-REFERENCE.md)**: Instantly jumpstart your integration with ready-to-use cURL/JavaScript snippets.
 - **[Environment Variables](docs/ENVIRONMENT_VARIABLES.md)**: Configuration and security guide.
+- **[Internationalization (i18n)](docs/I18N.md)**: How UI languages work and how to add or translate one.
 
 ---
 
@@ -61,6 +62,7 @@ graph LR
 - **📇 Advanced Contacts**: Rich contact management with LID, verified names, and profile pictures.
 - **🎨 Creative Tools**: Built-in Sticker Maker with background removal (`remove.bg` integration).
 - **📘 Open API Spec**: Fully documented via `swagger-ui-react` at `/docs`.
+- **🌐 Multi-Language UI**: Dashboard available in English, Bahasa Indonesia and Português (Brasil) with a built-in language switcher ([guide](docs/I18N.md)).
 
 <details>
 <summary>📂 <b>View Webhook Payload Example</b></summary>
@@ -232,7 +234,7 @@ curl -X POST http://localhost:3000/api/messages/session_01/62812345678@s.whatsap
 
 ## 🛡️ Security
 - **API Key Auth**: Secured endpoints using `X-API-Key` header.
-- **RBAC**: Multi-role support (`SUPERADMIN`, `OWNER`, `STAFF`).
+- **RBAC**: Multi-role support (`SUPERADMIN`, `STAFF`, `USER`).
 - **Encrypted Passwords**: All passwords hashed with bcrypt.
 - **JWT Encryption**: Session tokens signed with `AUTH_SECRET` (wajib diisi — tidak ada fallback).
 - **Input Validation**: Zod schemas on critical endpoints.
@@ -244,3 +246,24 @@ curl -X POST http://localhost:3000/api/messages/session_01/62812345678@s.whatsap
   Built with ❤️ by <a href="https://github.com/mrifqidaffaaditya">Aditya</a>  
   Licensed under <a href="LICENSE">MIT</a>
 </div>
+
+
+## Optional MCP integration
+
+WA-AKG includes an optional Model Context Protocol (MCP) add-on under `mcp/wa-akg-mcp`. The recommended HTTP transport is mounted on the same WA-AKG HTTP server at `/mcp`; it is disabled by default and does not replace the existing API or WhatsApp runtime. When `WA_AKG_MCP_ENABLED` is not exactly `true`, regular startup behavior is unchanged. Standalone stdio mode is also available.
+
+Install and validate the optional module:
+
+```powershell
+npm run mcp:install
+npm run mcp:check
+npm run mcp:test
+```
+
+Start the MCP server separately when an MCP client needs it:
+
+```powershell
+npm run mcp:start
+```
+
+To enable HTTP MCP, configure `WA_AKG_MCP_ENABLED=true` and `WA_AKG_MCP_HTTP_TOKEN` (a random secret of at least 32 characters) in the WA-AKG server environment, then restart WA-AKG. Clients must send `Authorization: Bearer <token>`. The endpoint is served by the same process and port as the app, normally `http://127.0.0.1:3030/mcp`. Configure `WA_AKG_API_BASE_URL` and, where required, `WA_AKG_API_KEY` for tool calls. Write operations remain disabled unless individually enabled with `WA_AKG_MCP_WRITE_ALLOWLIST`. See `mcp/wa-akg-mcp/README.md` for configuration and security details.

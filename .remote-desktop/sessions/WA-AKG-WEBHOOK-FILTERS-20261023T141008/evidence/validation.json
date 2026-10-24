@@ -1,0 +1,67 @@
+{
+    "npmCi":  {
+                  "status":  "VERIFIED",
+                  "result":  "added 1008 packages in 11m",
+                  "evidence":  "raw/npm-ci.stdout.log",
+                  "warnings":  "npm v11 skipped 16 dependency install scripts pending allowScripts approval; peer/deprecation warnings in stderr"
+              },
+    "targetedTests":  {
+                          "status":  "VERIFIED",
+                          "exitCode":  0,
+                          "tests":  40,
+                          "passed":  40,
+                          "failed":  0,
+                          "evidence":  "raw/npm-test-verified.stdout.log"
+                      },
+    "prismaValidate":  {
+                           "status":  "VERIFIED",
+                           "result":  "Prisma schema valid",
+                           "evidence":  "raw/prisma-validate.stdout.log"
+                       },
+    "prismaGenerate":  {
+                           "status":  "VERIFIED",
+                           "exitCode":  0,
+                           "result":  "Prisma Client v5.22.0 generated",
+                           "evidence":  "raw/prisma-generate.stdout.log"
+                       },
+    "typeScript":  {
+                       "status":  "VERIFIED",
+                       "exitCode":  0,
+                       "evidence":  "raw/tsc-final-exit.txt"
+                   },
+    "eslintNewFiles":  {
+                           "status":  "VERIFIED",
+                           "exitCode":  0,
+                           "evidence":  "raw/eslint-new-verified-exit.txt"
+                       },
+    "eslintBroad":  {
+                        "status":  "PARTIAL",
+                        "result":  "The broader lint run reported 34 errors and 20 warnings across touched files; one prefer-const issue was corrected afterward; broad run not repeated.",
+                        "evidence":  "raw/eslint-focused.stdout.log"
+                    },
+    "jsonOpenApiLocales":  {
+                               "status":  "VERIFIED",
+                               "exitCode":  0,
+                               "evidence":  "raw/json-validation.stdout.log"
+                           },
+    "gitDiffCheck":  {
+                         "status":  "VERIFIED",
+                         "exitCode":  0,
+                         "evidence":  "raw/git-final.stdout.log",
+                         "note":  "Previously executed successfully; Git emitted a line-ending warning for src/lib/webhook.ts"
+                     },
+    "build":  {
+                  "status":  "DEFERRED",
+                  "reason":  "An separate active Next/Turbopack build in C:\\repos\\OmniRoute consumed approximately 18.17 GB RAM; free physical memory was 1.5 GB. Build not started to avoid memory exhaustion or interfering with another process."
+              },
+    "codexOrchestration":  {
+                               "status":  "BLOCKED",
+                               "networkRetryEvents":  7,
+                               "result":  "Codex emitted repeated network reconnection errors; no agent work/completion events were observed. Local OmniRoute health endpoint unavailable after a 120-second startup attempt.",
+                               "evidence":  "raw/codex.jsonl"
+                           },
+    "databaseIntegration":  {
+                                "status":  "DEFERRED",
+                                "reason":  "No DB mutation, migration, db push, live HTTP endpoint or external webhook delivery was performed."
+                            }
+}

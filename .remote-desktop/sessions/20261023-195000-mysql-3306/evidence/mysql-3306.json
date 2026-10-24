@@ -1,0 +1,18 @@
+﻿{
+    "checkedAt":  "2026-10-23T19:53:49.8911950-03:00",
+    "status":  "BLOCKED",
+    "configFile":  ".env",
+    "databaseHost":  "127.0.0.1",
+    "databasePort":  3306,
+    "databaseName":  "wa_akg",
+    "mysqlService":  "MySQL80",
+    "mysqlServiceState":  "Running",
+    "tcp3306":  "PASS",
+    "credentials":  "FAIL",
+    "databaseCreated":  false,
+    "schemaChanged":  false,
+    "dockerUsed":  false,
+    "backupPath":  "C:\\repos\\WA-AKG\\.remote-desktop\\sessions\\20261023-195000-mysql-3306\\raw\\.env.before.backup",
+    "appListener43000":  "NOT_LISTENING",
+    "nextStep":  "Obtain valid local MySQL administrative credentials, then create/verify database and least-privilege application user."
+}

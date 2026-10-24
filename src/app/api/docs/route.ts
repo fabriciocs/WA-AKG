@@ -1,14 +1,18 @@
 import { cookies } from "next/headers";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getApiDocs } from "@/lib/swagger";
 import { isValidSwaggerAuthToken, SWAGGER_AUTH_COOKIE } from "@/lib/swagger-auth";
+import { getAuthenticatedUser } from "@/lib/api-auth";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   const cookieStore = await cookies();
   const token = cookieStore.get(SWAGGER_AUTH_COOKIE)?.value;
-  if (!isValidSwaggerAuthToken(token)) {
+  const swaggerAuthenticated = isValidSwaggerAuthToken(token);
+  const user = swaggerAuthenticated ? null : await getAuthenticatedUser(request);
+
+  if (!swaggerAuthenticated && !user) {
     return NextResponse.json(
       { success: false, error: "Unauthorized" },
       { status: 401, headers: { "Cache-Control": "no-store, max-age=0" } },

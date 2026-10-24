@@ -3,18 +3,35 @@ import { normalizeJid } from "@/lib/jid-utils";
 import { waManager } from "@/modules/whatsapp/manager";
 import { onMessageSent } from "@/lib/webhook";
 import Sticker from "wa-sticker-formatter";
+import type { InteractiveMessagePayload, AlbumItem } from "./interactive";
+
+/**
+ * Chat list filter:
+ * - "all": every chat except status/broadcast lists
+ * - "private": only 1:1 chats (no groups, broadcasts or newsletters)
+ * - "groups": only group chats (@g.us)
+ */
+export type ChatListFilter = "all" | "private" | "groups";
+
+const CHAT_FILTER_SQL: Record<ChatListFilter, string> = {
+    all: "AND m1.remoteJid NOT LIKE '%@broadcast'",
+    private: "AND m1.remoteJid NOT LIKE '%@g.us' AND m1.remoteJid NOT LIKE '%@broadcast' AND m1.remoteJid NOT LIKE '%@newsletter'",
+    groups: "AND m1.remoteJid LIKE '%@g.us'",
+};
 
 export class ChatService {
     /**
      * Get active chats list for a session with last message preview.
      * Cursor-based pagination — `before` is ISO timestamp of last seen chat.
      * Returns chats with last message timestamp < before (older).
+     * `filter` is optional; when omitted no JID filtering is applied (API behavior).
      */
     static async getChatsList(
         dbSessionId: string,
         limit = 50,
         before?: string,
-        search?: string
+        search?: string,
+        filter?: ChatListFilter
     ) {
         // 1. Get latest message per remoteJid with cursor pagination
         // Uses m1.timestamp < before (when provided) to load older chats
@@ -39,6 +56,7 @@ export class ChatService {
             ) m2 ON m1.remoteJid = m2.remoteJid AND m1.timestamp = m2.max_ts
             WHERE m1.sessionId = ?
             ${before ? 'AND m1.timestamp < ?' : ''}
+            ${filter && Object.hasOwn(CHAT_FILTER_SQL, filter) ? CHAT_FILTER_SQL[filter] : ''}
             ORDER BY m1.timestamp DESC
             LIMIT ?
         `, ...qParams);
@@ -247,13 +265,13 @@ export class ChatService {
             delete msgPayload.text;
         }
 
+        const { safeFetchBuffer } = await import("@/lib/security");
+
         if (msgPayload.sticker && (msgPayload.sticker.url || typeof msgPayload.sticker === 'string')) {
             const url = msgPayload.sticker.url || msgPayload.sticker;
             try {
-                const res = await fetch(url);
-                if (!res.ok) throw new Error(`Failed to fetch sticker media`);
-                const buffer = await res.arrayBuffer();
-                const sticker = new Sticker(Buffer.from(buffer), {
+                const { buffer } = await safeFetchBuffer(url, { maxBytes: 10 * 1024 * 1024 });
+                const sticker = new Sticker(buffer, {
                     pack: msgPayload.sticker.pack || "WA-AKG Bot",
                     author: msgPayload.sticker.author || "WA-AKG",
                     type: "full",
@@ -267,10 +285,8 @@ export class ChatService {
 
         if (msgPayload.image && typeof msgPayload.image === 'object' && msgPayload.image.url) {
             try {
-                const res = await fetch(msgPayload.image.url);
-                if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
-                const buffer = await res.arrayBuffer();
-                msgPayload.image = Buffer.from(buffer);
+                const { buffer } = await safeFetchBuffer(msgPayload.image.url, { maxBytes: 25 * 1024 * 1024 });
+                msgPayload.image = buffer;
             } catch (e: any) {
                 throw new Error(`Failed to fetch image from URL: ${e.message}`);
             }
@@ -278,10 +294,8 @@ export class ChatService {
 
         if (msgPayload.video && typeof msgPayload.video === 'object' && msgPayload.video.url) {
             try {
-                const res = await fetch(msgPayload.video.url);
-                if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
-                const buffer = await res.arrayBuffer();
-                msgPayload.video = Buffer.from(buffer);
+                const { buffer } = await safeFetchBuffer(msgPayload.video.url, { maxBytes: 100 * 1024 * 1024 });
+                msgPayload.video = buffer;
             } catch (e: any) {
                 throw new Error(`Failed to fetch video from URL: ${e.message}`);
             }
@@ -289,10 +303,8 @@ export class ChatService {
 
         if (msgPayload.document && typeof msgPayload.document === 'object' && msgPayload.document.url) {
             try {
-                const res = await fetch(msgPayload.document.url);
-                if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
-                const buffer = await res.arrayBuffer();
-                msgPayload.document = Buffer.from(buffer);
+                const { buffer } = await safeFetchBuffer(msgPayload.document.url, { maxBytes: 100 * 1024 * 1024 });
+                msgPayload.document = buffer;
             } catch (e: any) {
                 throw new Error(`Failed to fetch document from URL: ${e.message}`);
             }
@@ -300,10 +312,8 @@ export class ChatService {
 
         if (msgPayload.audio && typeof msgPayload.audio === 'object' && msgPayload.audio.url) {
             try {
-                const res = await fetch(msgPayload.audio.url);
-                if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
-                const buffer = await res.arrayBuffer();
-                msgPayload.audio = Buffer.from(buffer);
+                const { buffer } = await safeFetchBuffer(msgPayload.audio.url, { maxBytes: 50 * 1024 * 1024 });
+                msgPayload.audio = buffer;
             } catch (e: any) {
                 throw new Error(`Failed to fetch audio from URL: ${e.message}`);
             }
@@ -431,6 +441,75 @@ export class ChatService {
                 webhookMsg.message = { stickerMessage: {} };
             }
 
+            onMessageSent(sessionId, webhookMsg).catch(e => console.error("Webhook error:", e));
+        } catch (e) {
+            // Non-blocking
+        }
+
+        return sendResult;
+    }
+
+    /**
+     * Send rich interactive message (Native Flow buttons, single_select list, etc.)
+     */
+    static async sendInteractiveMessage(
+        sessionId: string,
+        jid: string,
+        payload: InteractiveMessagePayload,
+        options: any = {}
+    ) {
+        const instance = waManager.getInstance(sessionId);
+        if (!instance || !instance.socket) {
+            throw new Error("WhatsApp session is disconnected or not found");
+        }
+
+        const sendResult = await instance.socket.sendMessage(jid, {
+            interactiveMessage: payload
+        } as any, options);
+
+        // Fire webhook for sent interactive message
+        try {
+            const webhookMsg: any = {
+                key: sendResult?.key || {},
+                message: {
+                    conversation: payload.body || payload.title || "Interactive Message"
+                },
+                messageTimestamp: Math.floor(Date.now() / 1000)
+            };
+            onMessageSent(sessionId, webhookMsg).catch(e => console.error("Webhook error:", e));
+        } catch (e) {
+            // Non-blocking
+        }
+
+        return sendResult;
+    }
+
+    /**
+     * Send Album message with multiple images/videos
+     */
+    static async sendAlbumMessage(
+        sessionId: string,
+        jid: string,
+        items: AlbumItem[],
+        options: { caption?: string; quoted?: any } = {}
+    ) {
+        const instance = waManager.getInstance(sessionId);
+        if (!instance || !instance.socket) {
+            throw new Error("WhatsApp session is disconnected or not found");
+        }
+
+        const sendResult = await instance.socket.sendMessage(jid, {
+            albumMessage: items
+        } as any, options);
+
+        try {
+            const webhookMsg: any = {
+                key: sendResult?.key || {},
+                message: {
+                    conversation: options.caption || "Album Message"
+                },
+                messageTimestamp: Math.floor(Date.now() / 1000)
+            };
             onMessageSent(sessionId, webhookMsg).catch(e => console.error("Webhook error:", e));
         } catch (e) {
             // Non-blocking

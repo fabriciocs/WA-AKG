@@ -1,0 +1,15 @@
+{
+    "host":  "DESKTOP-D9O4I01",
+    "user":  "fabriwin",
+    "shell":  "Windows PowerShell 5.1",
+    "workingDirectory":  "C:\\repos\\WA-AKG",
+    "nodeVersion":  "v24.21.0",
+    "npmVersion":  "from npm ci/session, not re-probed this cycle",
+    "codexVersion":  "codex-cli 0.164.0",
+    "memoryAtLastCheckGB":  {
+                                "total":  31.77,
+                                "free":  14.47
+                            },
+    "buildMemoryObserved":  "two node processes around 0.9 GB each; free RAM remained above 14 GB",
+    "secretsIncluded":  false
+}

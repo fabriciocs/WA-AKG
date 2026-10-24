@@ -1,0 +1,18 @@
+﻿{
+    "authorizationRequired":  false,
+    "authorizationStatus":  "NOT_REQUIRED",
+    "authorizedScope":  "Mudanças locais na implementação dos filtros de webhook, dependências locais necessárias e testes/documentação relacionados",
+    "exclusions":  [
+                       "git add/staging",
+                       "commit",
+                       "push",
+                       "merge",
+                       "release",
+                       "deploy",
+                       "migração ou mutação de banco",
+                       "webhooks reais/endpoints externos",
+                       "operações destrutivas",
+                       "Playwright",
+                       "alterar/eliminar mudanças staged ou unstaged preexistentes"
+                   ]
+}

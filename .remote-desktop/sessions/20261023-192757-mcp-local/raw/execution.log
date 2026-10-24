@@ -1,0 +1,60 @@
+﻿**********************
+Início da transcrição do Windows PowerShell
+Hora de início: 20261023192757
+Nome de Usuário: DESKTOP-D9O4I01\fabriwin
+Executar como Usuário: DESKTOP-D9O4I01\fabriwin
+Nome da Configuração: 
+Computador: DESKTOP-D9O4I01 (Microsoft Windows NT 10.0.26200.0)
+Aplicativo Host: C:\Windows\System32\WindowsPowerShell\v1.0\powershell.EXE -Command $ErrorActionPreference='Continue'; $root='C:\repos\WA-AKG'; Set-Location $root; $sid=(Get-Date -Format 'yyyyMMdd-HHmmss')+'-mcp-local'; $session=Join-Path $root ('.remote-desktop\sessions\'+$sid); New-Item -ItemType Directory -Force -Path (Join-Path $session 'raw'),(Join-Path $session 'evidence'),(Join-Path $session 'plan'),(Join-Path $session 'reports') | Out-Null; $start=Get-Date; $log=Join-Path $session 'raw\execution.log'; Start-Transcript -Path $log -Force | Out-Null; Write-Output "SESSION_ID=$sid START=$($start.ToString('o')) HOST=$env:COMPUTERNAME USER=$env:USERNAME ROOT=$root"; Write-Output '=== GIT ==='; git branch --show-current; git rev-parse --short HEAD; git status --short; Write-Output '=== NODE/NPM ==='; node --version; npm --version; Write-Output '=== PORTS 3030,3000 ==='; Get-NetTCPConnection -State Listen -ErrorAction SilentlyContinue | Where-Object {$_.LocalPort -in 3030,3000} | Select-Object LocalAddress,LocalPort,OwningProcess; Write-Output '=== ENV FILE EXISTENCE AND MCP KEY NAMES (VALUES HIDDEN) ==='; foreach($f in @('.env','.env.local','.env.example')) { if(Test-Path $f) { Write-Output "FILE=$f"; Select-String -Path $f -Pattern '^\s*(WA_AKG_MCP_ENABLED|WA_AKG_MCP_HTTP_PATH|WA_AKG_MCP_HTTP_TOKEN|WA_AKG_API_BASE_URL|WA_AKG_API_KEY|WA_AKG_MCP_WRITE_ALLOWLIST|PORT|DATABASE_URL)\s*=' | ForEach-Object { ($_.Line -replace '=.*','= <configured>') } } }; Write-Output '=== SERVER PORT CONFIG ==='; Select-String -Path 'src\server\index.ts','package.json' -Pattern '3030|process\.env\.PORT|server\.listen|next dev|server/index' | Select-Object Path,LineNumber,Line; Write-Output '=== MCP DEPENDENCIES ==='; if(Test-Path 'mcp\wa-akg-mcp\node_modules\@modelcontextprotocol\sdk') { 'MCP_SDK_INSTALLED=true' } else { 'MCP_SDK_INSTALLED=false' }; Stop-Transcript | Out-Null; Get-Content $log -Tail 150; Write-Output "LOG_ROOT=$session"
+ID do Processo: 92136
+PSVersion: 5.1.26100.9711
+PSEdition: Desktop
+PSCompatibleVersions: 1.0, 2.0, 3.0, 4.0, 5.0, 5.1.26100.9711
+BuildVersion: 10.0.26100.9711
+CLRVersion: 4.0.30319.42000
+WSManStackVersion: 3.0
+PSRemotingProtocolVersion: 2.3
+SerializationVersion: 1.1.0.1
+**********************
+SESSION_ID=20261023-192757-mcp-local START=2026-10-23T19:27:57.5244034-03:00 HOST=DESKTOP-D9O4I01 USER=fabriwin ROOT=C:\repos\WA-AKG
+=== GIT ===
+
+
+
+=== NODE/NPM ===
+
+
+=== PORTS 3030,3000 ===
+=== ENV FILE EXISTENCE AND MCP KEY NAMES (VALUES HIDDEN) ===
+FILE=.env
+PORT= <configured>
+DATABASE_URL= <configured>
+WA_AKG_MCP_ENABLED= <configured>
+WA_AKG_MCP_HTTP_PATH= <configured>
+WA_AKG_MCP_HTTP_TOKEN= <configured>
+WA_AKG_API_BASE_URL= <configured>
+WA_AKG_MCP_WRITE_ALLOWLIST= <configured>
+WA_AKG_API_KEY= <configured>
+FILE=.env.example
+PORT= <configured>
+DATABASE_URL= <configured>
+WA_AKG_MCP_ENABLED= <configured>
+WA_AKG_MCP_HTTP_PATH= <configured>
+WA_AKG_MCP_HTTP_TOKEN= <configured>
+WA_AKG_API_BASE_URL= <configured>
+WA_AKG_API_KEY= <configured>
+WA_AKG_MCP_WRITE_ALLOWLIST= <configured>
+=== SERVER PORT CONFIG ===
+
+**********************
+Fim da transcrição do Windows PowerShell
+Hora de término: 20261023192802
+**********************
+
+VALIDATION_COMPLETED=2026-10-23T19:31:44.2941610-03:00
+MCP_HTTP=PASS
+WA_AKG_HOME=HTTP_200
+API_READ=BLOCKED_401
+DATABASE=BLOCKED_3307_UNREACHABLE
+DOCKER_USED=false
+SERVER_PID=93176
