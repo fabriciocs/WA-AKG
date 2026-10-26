@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
-import { createMcpServer, initializeMcpServer } from "./server.mjs";
+import { addNgrokSkipWarningHeader, createMcpServer, initializeMcpServer } from "./server.mjs";
 import { appOrigin, normalizeBasePath, protectedResourceMetadataUrl, requestOriginFromNodeRequest } from "../../../src/lib/oauth/discovery.mjs";
 
 export const endpointPath = process.env.WA_AKG_MCP_HTTP_PATH || "/mcp";
@@ -36,12 +36,13 @@ function apiBaseUrl() {
 async function authenticate(req) {
   const token = /^Bearer\s+([^\s]+)$/i.exec(req.headers.authorization ?? "")?.[1];
   if (!token) return null;
-  const userInfoUrl = `${apiBaseUrl().toString().replace(/\/$/, "")}/oauth/userinfo`;
+  const baseUrl = apiBaseUrl();
+  const userInfoUrl = `${baseUrl.toString().replace(/\/$/, "")}/oauth/userinfo`;
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 5000);
   try {
     const response = await fetch(userInfoUrl, {
-      headers: { Accept: "application/json", Authorization: `Bearer ${token}` },
+      headers: addNgrokSkipWarningHeader({ Accept: "application/json", Authorization: `Bearer ${token}` }, baseUrl),
       signal: controller.signal,
       redirect: "error",
     });

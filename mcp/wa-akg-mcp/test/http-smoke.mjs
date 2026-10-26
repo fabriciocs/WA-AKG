@@ -7,10 +7,10 @@ process.env.WA_AKG_MCP_ENABLED = "true";
 process.env.WA_AKG_MCP_HTTP_PATH = "/mcp";
 process.env.NEXT_PUBLIC_BASE_PATH = "/wa-akg";
 process.env.BASE_URL = "https://wa-akg.example.test";
-process.env.WA_AKG_API_BASE_URL = "http://127.0.0.1:3030/api";
+process.env.WA_AKG_API_BASE_URL = "https://wa-akg.example.ngrok-free.dev/wa-akg/api";
 process.env.WA_AKG_API_KEY = "";
 process.env.WA_AKG_MCP_WRITE_ALLOWLIST = "POST /messages/{sessionId}/{jid}/send";
-process.env.WA_AKG_MCP_ALLOW_REMOTE_API = "false";
+process.env.WA_AKG_MCP_ALLOW_REMOTE_API = "true";
 
 const { createMcpHttpHandler } = await import("../src/http.mjs");
 
@@ -19,7 +19,9 @@ test("HTTP MCP endpoint enforces bearer auth and supports MCP initialization/too
   let tokenScopes = ["mcp:read", "api:read", "sessions:read"];
   globalThis.fetch = async (input, init) => {
     if (String(input).endsWith("/oauth/userinfo")) {
-      const authorization = new Headers(init?.headers).get("authorization");
+      const headers = new Headers(init?.headers);
+      assert.equal(headers.get("ngrok-skip-browser-warning"), "true");
+      const authorization = headers.get("authorization");
       if (authorization !== `Bearer ${token}`) return new Response(JSON.stringify({ error: "invalid_token" }), { status: 401 });
       return new Response(JSON.stringify({ sub: "test-user", wa_akg: { client_id: "test-client", scope: tokenScopes } }), { status: 200, headers: { "Content-Type": "application/json" } });
     }

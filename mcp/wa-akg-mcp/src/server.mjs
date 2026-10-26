@@ -42,6 +42,11 @@ function isLoopbackHost(host) {
   return normalized === "localhost" || normalized === "127.0.0.1" || normalized === "::1";
 }
 function operationKey(method, route) { return `${method.toUpperCase()} ${route}`; }
+export function addNgrokSkipWarningHeader(headers, target) {
+  const url = target instanceof URL ? target : new URL(target);
+  if (url.hostname.endsWith(".ngrok-free.dev")) headers["ngrok-skip-browser-warning"] = "true";
+  return headers;
+}
 function toolName(method, route) {
   const slug = route.replace(/\{([^}]+)\}/g, "$1").split("/").filter(Boolean).join("_")
     .replace(/[^a-zA-Z0-9_]/g, "_").replace(/_+/g, "_").replace(/^_|_$/g, "").toLowerCase();
@@ -107,7 +112,7 @@ function buildUrl(baseUrl, route, operation, args) {
 async function callApi(method, route, operation, args, authContext) {
   const baseUrl = safeBaseUrl();
   const url = buildUrl(baseUrl, route, operation, args);
-  const headers = { Accept: "application/json" };
+  const headers = addNgrokSkipWarningHeader({ Accept: "application/json" }, url);
   if (authContext?.accessToken) headers.Authorization = `Bearer ${authContext.accessToken}`;
   else if (apiKey) headers["X-API-Key"] = apiKey;
   let body;
