@@ -562,3 +562,32 @@ model WhatsAppSendThrottle {
 
   @@index([leaseUntil])
 }
+
+
+// Durable receipt and outbox record for idempotent text sends.
+model OutboundMessageOperation {
+  id                    String   @id @default(cuid()) @db.VarChar(191)
+  userId                String   @db.VarChar(191)
+  sessionDbId           String   @db.VarChar(191)
+  whatsappSessionId     String   @db.VarChar(191)
+  jid                   String   @db.VarChar(255)
+  idempotencyKeyHash    String   @db.Char(64)
+  requestHash           String   @db.Char(64)
+  payload               Json
+  status                String   @default("QUEUED") @db.VarChar(32)
+  attempts              Int      @default(0)
+  availableAt           DateTime @default(now())
+  claimToken            String?  @db.VarChar(191)
+  claimedAt             DateTime?
+  claimExpiresAt        DateTime?
+  resultMessageKey      String?  @db.VarChar(191)
+  failureCode           String?  @db.VarChar(128)
+  completedAt           DateTime?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@unique([userId, sessionDbId, idempotencyKeyHash], map: "outbound_op_idempotency_uq")
+  @@index([status, availableAt], map: "outbound_op_queue_idx")
+  @@index([sessionDbId, createdAt], map: "outbound_op_session_idx")
+  @@index([userId, sessionDbId, createdAt], map: "outbound_op_user_session_idx")
+}

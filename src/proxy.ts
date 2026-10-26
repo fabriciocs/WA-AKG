@@ -39,8 +39,10 @@ export async function proxy(request: NextRequest) {
 
     // API routes: Check for valid API key or session
     if (pathname.startsWith("/api/")) {
-        // Skip auth endpoints
-        if (pathname.startsWith("/api/auth")) {
+        // OAuth protocol endpoints enforce their own client, token, or user-session
+        // checks. They must reach their route handlers before an end-user session
+        // exists (for example, during authorization-code and token exchange).
+        if (pathname.startsWith("/api/auth") || pathname.startsWith("/api/oauth/")) {
             return NextResponse.next();
         }
 

@@ -945,11 +945,28 @@ All endpoints require authentication via:
 
                 // ==================== MESSAGING ====================
 
+                "/messages/{sessionId}/operations/{operationId}": {
+                    get: {
+                        tags: ["Messaging"],
+                        summary: "Get outbound message operation status",
+                        description: "Returns the durable receipt for an idempotent text send.",
+                        parameters: [
+                            { name: "sessionId", in: "path", required: true, schema: { type: "string" } },
+                            { name: "operationId", in: "path", required: true, schema: { type: "string" } }
+                        ],
+                        responses: {
+                            200: { description: "Operation receipt", content: { "application/json": { schema: { $ref: "#/components/schemas/Success" } } } },
+                            401: { $ref: "#/components/responses/Unauthorized" },
+                            403: { description: "Forbidden" },
+                            404: { description: "Operation not found" }
+                        }
+                    }
+                },
                 "/messages/{sessionId}/{jid}/send": {
                     post: {
                         tags: ["Messaging"],
                         summary: "Send message (text/media/sticker)",
-                        description: "Universal endpoint for sending text, images, videos, documents, and stickers. Supports mentions and all WhatsApp message types.",
+                        description: "Universal endpoint for sending text, images, videos, documents, and stickers. Supports mentions and all WhatsApp message types. For text-only requests, an optional Idempotency-Key header creates a durable operation receipt; GET /messages/{sessionId}/operations/{operationId} returns its status.",
                         parameters: [
                             {
                                 name: "sessionId",
@@ -1090,6 +1107,8 @@ All endpoints require authentication via:
                                     }
                                 }
                             },
+                            202: { description: "Idempotent message queued; response includes operationId and status" },
+                            409: { description: "Idempotency-Key was already used with a different request" },
                             400: { description: "Invalid request - jid and message are required" },
                             401: { $ref: "#/components/responses/Unauthorized" },
                             403: { $ref: "#/components/responses/Forbidden" },

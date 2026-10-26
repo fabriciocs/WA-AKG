@@ -2,6 +2,7 @@ export function normalizeBasePath(value?: string): string;
 export function normalizeEndpointPath(value?: string): string;
 export function withBasePath(basePath?: string, routePath?: string): string;
 export function appOrigin(options: { configuredOrigin?: string; requestOrigin?: string }): string;
+export function resourceMatchesPublicOrigin(resource: string, options: { configuredIssuer?: string; configuredOrigin?: string; requestOrigin?: string }): boolean;
 export function requestOriginFromNodeRequest(req: { headers: Record<string, string | string[] | undefined> }): string;
 export function oauthIssuer(options: { configuredIssuer?: string; configuredOrigin?: string; requestOrigin?: string; basePath?: string }): string;
 export function authorizationRedirectWithIssuer(redirectUri: string, issuer: string): URL;

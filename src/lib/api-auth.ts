@@ -5,6 +5,7 @@ import { auth } from "./auth";
 import { logger } from "./logger";
 import { authenticateAccessToken } from "./oauth";
 import { hasRequiredOAuthScope, normalizeApiPathname, requiredOAuthScopes } from "./oauth/api-policy";
+import { resourceMatchesPublicOrigin } from "./oauth/discovery.mjs";
 
 /**
  * Validate API key from request header
@@ -39,9 +40,11 @@ export async function getAuthenticatedUser(request?: NextRequest) {
         const principal = token ? await authenticateAccessToken(token) : null;
         if (!principal?.userId) return null;
         if (principal.resource) {
-            try {
-                if (new URL(principal.resource).origin !== request!.nextUrl.origin) return null;
-            } catch { return null; }
+            if (!resourceMatchesPublicOrigin(principal.resource, {
+                configuredIssuer: process.env.OAUTH_ISSUER_URL,
+                configuredOrigin: process.env.BASE_URL,
+                requestOrigin: request!.nextUrl.origin,
+            })) return null;
         }
 
         const pathname = normalizeApiPathname(request!.nextUrl.pathname, process.env.NEXT_PUBLIC_BASE_PATH || "");

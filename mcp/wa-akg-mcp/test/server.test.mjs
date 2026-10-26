@@ -5,7 +5,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-process.env.WA_AKG_MCP_WRITE_ALLOWLIST = "POST /messages/{sessionId}/{jid}/send";
+process.env.WA_AKG_MCP_WRITE_ALLOWLIST = "*";
 const { addNgrokSkipWarningHeader, isAllowedOperation } = await import("../src/server.mjs");
 
 test("server contains protocol, allowlist and network safeguards", async () => {
@@ -16,10 +16,20 @@ test("server contains protocol, allowlist and network safeguards", async () => {
   assert.match(source, /isLoopbackHost/);
 });
 
-test("write operations require exact explicit method/path allowlist", async () => {
+test("write operations support explicit endpoint and wildcard allowlists", async () => {
   const source = await readFile(path.join(root, "src", "server.mjs"), "utf8");
-  assert.match(source, /if \(!writeAllowlist\.has\(operationKey\(method, route\)\)\) return false/);
-  assert.match(source, /scopes\.includes\("mcp:write"\) && scopes\.includes\("api:write"\)/);
+  assert.match(source, /writeAllowlist\.has\("\*"\)/);
+  assert.match(source, /scopes\.includes\("mcp:write"\) \|\| !scopes\.includes\("api:write"\)/);
+  const previous = process.env.WA_AKG_MCP_WRITE_ALLOWLIST;
+  try {
+    process.env.WA_AKG_MCP_WRITE_ALLOWLIST = "POST /messages/{sessionId}/{jid}/send";
+    assert.equal(isAllowedOperation("post", "/messages/{sessionId}/{jid}/send", undefined), true);
+    assert.equal(isAllowedOperation("post", "/groups/{sessionId}/create", undefined), false);
+    process.env.WA_AKG_MCP_WRITE_ALLOWLIST = "*";
+    assert.equal(isAllowedOperation("post", "/groups/{sessionId}/create", undefined), true);
+  } finally {
+    process.env.WA_AKG_MCP_WRITE_ALLOWLIST = previous;
+  }
 });
 
 test("default OpenAPI path points to the repository swagger file", async () => {
@@ -42,5 +52,13 @@ test("OAuth MCP tools require read scope and writes require both MCP and API wri
   assert.equal(isAllowedOperation("post", "/messages/{sessionId}/{jid}/send", { scopes: ["mcp:read"] }), false);
   assert.equal(isAllowedOperation("post", "/messages/{sessionId}/{jid}/send", { scopes: ["mcp:read", "mcp:write"] }), false);
   assert.equal(isAllowedOperation("post", "/messages/{sessionId}/{jid}/send", { scopes: ["mcp:read", "mcp:write", "api:write"] }), true);
+  const scopedWrite = { scopes: ["mcp:read", "api:read", "mcp:write", "api:write"], sessionScope: ["session-db-id"] };
+  assert.equal(isAllowedOperation("post", "/messages/{sessionId}/{jid}/spam", scopedWrite), true);
+  assert.equal(isAllowedOperation("delete", "/sessions/{id}/settings", scopedWrite), true);
+  assert.equal(isAllowedOperation("get", "/messages/{sessionId}/download/{messageId}/media", scopedWrite), true);
+  assert.equal(isAllowedOperation("get", "/sessions/{id}/qr", scopedWrite), false);
+  assert.equal(isAllowedOperation("post", "/auth/register", scopedWrite), false);
+  assert.equal(isAllowedOperation("post", "/users", scopedWrite), false);
+  assert.equal(isAllowedOperation("post", "/groups/{jid}/leave", scopedWrite), false);
   assert.equal(isAllowedOperation("post", "/messages/{sessionId}/{jid}/send", undefined), true);
 });

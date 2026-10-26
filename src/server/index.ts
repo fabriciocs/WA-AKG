@@ -8,6 +8,7 @@ import next from "next";
 import { Server } from "socket.io";
 import { setupSocket } from "./socket";
 import { waManager } from "../modules/whatsapp/manager";
+import { startOutboundMessageWorker, stopOutboundMessageWorker } from "../modules/messaging/outbound-message.service";
 import { prisma } from "../lib/prisma";
 import { logger } from "../lib/logger";
 import { withBasePath } from "../lib/oauth/discovery.mjs";
@@ -108,7 +109,12 @@ app.prepare().then(async () => {
 
   // Initialize WhatsApp Manager
   waManager.setup(io);
-  waManager.loadSessions();
+  void waManager.loadSessions().then(() => {
+    startOutboundMessageWorker();
+  }).catch(error => {
+    logger.error("Server", "Unable to initialize outbound message worker", error);
+  });
+  server.on("close", stopOutboundMessageWorker);
 
   // Start Scheduler
   import("../modules/whatsapp/scheduler").then(m => m.startScheduler());

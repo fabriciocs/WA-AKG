@@ -9,7 +9,7 @@ process.env.NEXT_PUBLIC_BASE_PATH = "/wa-akg";
 process.env.BASE_URL = "https://wa-akg.example.test";
 process.env.WA_AKG_API_BASE_URL = "https://wa-akg.example.ngrok-free.dev/wa-akg/api";
 process.env.WA_AKG_API_KEY = "";
-process.env.WA_AKG_MCP_WRITE_ALLOWLIST = "POST /messages/{sessionId}/{jid}/send";
+process.env.WA_AKG_MCP_WRITE_ALLOWLIST = "*";
 process.env.WA_AKG_MCP_ALLOW_REMOTE_API = "true";
 
 const { createMcpHttpHandler } = await import("../src/http.mjs");
@@ -17,13 +17,24 @@ const { createMcpHttpHandler } = await import("../src/http.mjs");
 test("HTTP MCP endpoint enforces bearer auth and supports MCP initialization/tool discovery", async () => {
   const originalFetch = globalThis.fetch;
   let tokenScopes = ["mcp:read", "api:read", "sessions:read"];
+  const tokenSessionScope = ["test-session-db-id"];
   globalThis.fetch = async (input, init) => {
     if (String(input).endsWith("/oauth/userinfo")) {
       const headers = new Headers(init?.headers);
       assert.equal(headers.get("ngrok-skip-browser-warning"), "true");
       const authorization = headers.get("authorization");
       if (authorization !== `Bearer ${token}`) return new Response(JSON.stringify({ error: "invalid_token" }), { status: 401 });
-      return new Response(JSON.stringify({ sub: "test-user", wa_akg: { client_id: "test-client", scope: tokenScopes } }), { status: 200, headers: { "Content-Type": "application/json" } });
+      return new Response(JSON.stringify({ sub: "test-user", wa_akg: { client_id: "test-client", scope: tokenScopes, session_scope: tokenSessionScope } }), { status: 200, headers: { "Content-Type": "application/json" } });
+    }
+    if (new URL(String(input)).pathname.endsWith("/api/sessions")) {
+      const headers = new Headers(init?.headers);
+      assert.equal(headers.get("authorization"), `Bearer ${token}`);
+      assert.equal(headers.get("ngrok-skip-browser-warning"), "true");
+      return new Response(JSON.stringify({
+        status: true,
+        message: "Sessions retrieved successfully",
+        data: [{ id: "test-session", sessionId: "wa-test", name: "Mock session" }],
+      }), { status: 200, headers: { "Content-Type": "application/json" } });
     }
     return originalFetch(input, init);
   };
@@ -86,6 +97,15 @@ test("HTTP MCP endpoint enforces bearer auth and supports MCP initialization/too
     assert.match(listText, /wa_akg_get_sessions/);
     assert.doesNotMatch(listText, /wa_akg_post_/);
 
+    const sessionsCall = await fetch(url, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Mcp-Session-Id": sessionId, "Content-Type": "application/json", Accept: "application/json, text/event-stream" },
+      body: JSON.stringify({ jsonrpc: "2.0", id: 6, method: "tools/call", params: { name: "wa_akg_get_sessions", arguments: {} } })
+    });
+    const sessionsText = await sessionsCall.text();
+    assert.equal(sessionsCall.status, 200, sessionsText);
+    assert.match(sessionsText, /Mock session/);
+
     tokenScopes = ["mcp:read", "api:read", "sessions:read", "mcp:write", "api:write"];
     const writeInitialized = await fetch(url, {
       method: "POST",
@@ -103,7 +123,7 @@ test("HTTP MCP endpoint enforces bearer auth and supports MCP initialization/too
     assert.equal(writeListed.status, 200);
     const writeListText = await writeListed.text();
     assert.match(writeListText, /wa_akg_post_messages_sessionid_jid_send/);
-    assert.doesNotMatch(writeListText, /wa_akg_post_groups/);
+    assert.match(writeListText, /wa_akg_post_groups_sessionid_create/);
 
     tokenScopes = ["mcp:read", "api:read", "api:write"];
     const revokedWrite = await fetch(url, {

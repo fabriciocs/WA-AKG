@@ -50,7 +50,8 @@ async function authenticate(req) {
     const info = await response.json();
     const scopes = info?.wa_akg?.scope;
     if (typeof info?.sub !== "string" || !Array.isArray(scopes) || !scopes.includes("mcp:read")) return null;
-    return { accessToken: token, userId: info.sub, clientId: info.wa_akg.client_id, scopes };
+    const sessionScope = info?.wa_akg?.session_scope;
+    return { accessToken: token, userId: info.sub, clientId: info.wa_akg.client_id, scopes, ...(Array.isArray(sessionScope) ? { sessionScope } : {}) };
   } catch {
     return null;
   } finally {
@@ -117,6 +118,7 @@ export async function createMcpHttpHandler({ basePath = process.env.NEXT_PUBLIC_
       if (entry) {
         credential.accessToken = authContext.accessToken;
         credential.scopes = authContext.scopes;
+        credential.sessionScope = authContext.sessionScope;
         entry.lastSeenAt = Date.now();
       }
 

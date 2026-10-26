@@ -12,7 +12,9 @@ const apiKey = process.env.WA_AKG_API_KEY?.trim();
 const timeoutMs = boundedInteger(process.env.WA_AKG_TIMEOUT_MS, 15000, 1000, 120000);
 const maxResponseBytes = boundedInteger(process.env.WA_AKG_MAX_RESPONSE_BYTES, 1000000, 1024, 10000000);
 const remoteApiAllowed = process.env.WA_AKG_MCP_ALLOW_REMOTE_API === "true";
-const writeAllowlist = new Set((process.env.WA_AKG_MCP_WRITE_ALLOWLIST ?? "").split(",").map((entry) => entry.trim()).filter(Boolean));
+function getWriteAllowlist() {
+  return new Set((process.env.WA_AKG_MCP_WRITE_ALLOWLIST ?? "").split(",").map((entry) => entry.trim()).filter(Boolean));
+}
 export const server = new McpServer({ name: "wa-akg-mcp", version: "0.1.0" });
 const initializedServers = new WeakSet();
 const registeredCounts = new WeakMap();
@@ -75,21 +77,44 @@ function createInputSchema(operation) {
   return shape;
 }
 export function isAllowedOperation(method, route, authContext) {
+  const verb = method.toLowerCase();
   const scopes = Array.isArray(authContext?.scopes) ? authContext.scopes : null;
   if (scopes && !scopes.includes("mcp:read")) return false;
-  if (method === "get") {
-    // Avoid automatically exposing credential, pairing-secret, media, authentication, and broad admin reads.
-    if (/^\/(user\/api-key|sessions\/[^/]+\/qr|users(?:\/|$)|settings\/system|auth(?:\/|$)|oauth(?:\/|$)|media(?:\/|$)|messages\/[^/]+\/download\/)/.test(route)) return false;
+  // Authentication, API credentials, pairing secrets and global administration
+  // are not delegated through OAuth. The API rejects these paths independently.
+  if (/^\/(?:auth(?:\/|$)|oauth(?:\/|$)|swagger-auth(?:\/|$)|user\/api-key(?:\/|$)|users(?:\/|$)|settings\/system(?:\/|$)|sessions\/[^/]+\/qr(?:\/|$))/.test(route)) return false;
+  // These endpoints are cookie-only or aggregate resources that cannot be
+  // restricted to a single OAuth session by the current API contract.
+  if (/^\/(?:media(?:\/|$)|notifications(?:\/|$))/.test(route)) return false;
+  if (route === "/docs" || route === "/system/monitor" || route === "/system/check-updates") return false;
+  if (route === "/scheduler" || /^\/(?:groups\/\{jid\}|webhooks\/\{id\})(?:\/|$)/.test(route)) return false;
+
+  const readRoots = new Set(["sessions", "messages", "contacts", "groups", "webhooks", "autoreplies", "scheduler", "chat", "chats", "profile", "labels", "status", "notifications", "media", "system"]);
+  const writeRoots = new Set(["sessions", "messages", "contacts", "groups", "webhooks", "autoreplies", "scheduler", "chat", "chats", "profile", "labels", "notifications"]);
+  const root = route.split("/").filter(Boolean)[0];
+  if (verb === "get") {
+    if (!readRoots.has(root)) return false;
     if (scopes) {
       const sessionRead = /^\/sessions(?:\/[^/]+)?$/.test(route) && scopes.includes("sessions:read");
       if (!sessionRead && !scopes.includes("api:read")) return false;
     }
-    return true;
+  } else {
+    if (!["post", "put", "patch", "delete"].includes(verb) || !writeRoots.has(root)) return false;
+    const writeAllowlist = getWriteAllowlist();
+    if (!writeAllowlist.has("*") && !writeAllowlist.has(operationKey(verb, route))) return false;
+    // HTTP API writes also require api:write. mcp:write alone is not a bearer
+    // permission for direct API writes, and the MCP server must not bypass that.
+    if (scopes && (!scopes.includes("mcp:write") || !scopes.includes("api:write"))) return false;
   }
-  if (!writeAllowlist.has(operationKey(method, route))) return false;
-  // HTTP API writes also require api:write. mcp:write alone is not a bearer
-  // permission for direct API writes, and the MCP server must not bypass that.
-  return !scopes || (scopes.includes("mcp:write") && scopes.includes("api:write"));
+
+  // A session-limited grant can only see operations whose first resource
+  // parameter identifies that session. The API repeats this check per call.
+  if (Array.isArray(authContext?.sessionScope)) {
+    if (verb === "get" && route === "/sessions") return scopes?.includes("sessions:read") || scopes?.includes("api:read") || !scopes;
+    const sessionRoute = /^\/(?:sessions\/\{(?:id|sessionId)\}|messages\/\{sessionId\}|contacts\/\{sessionId\}|groups\/\{sessionId\}|webhooks\/\{sessionId\}|autoreplies\/\{sessionId\}|scheduler\/\{sessionId\}|chat\/\{sessionId\}|chats\/\{sessionId\}|profile\/\{sessionId\}|labels\/\{sessionId\}|status\/\{sessionId\}|system\/monitor\/\{sessionId\})(?:\/|$)/;
+    if (!sessionRoute.test(route)) return false;
+  }
+  return true;
 }
 function pathForRoute(route, args) {
   return route.replace(/\{([^}]+)\}/g, (_match, name) => {
@@ -158,7 +183,7 @@ function registerApiTools(spec, targetServer = server, authContext) {
       const description = [
         operation.summary ?? `${methodLabel} ${route}`,
         `WA-AKG API operation: ${methodLabel} ${route}.`,
-        method === "get" ? "Read operation." : "Write operation explicitly enabled through WA_AKG_MCP_WRITE_ALLOWLIST."
+        method === "get" ? "Read operation. Session ownership and OAuth scopes are enforced by WA-AKG." : "Write operation. This changes WA-AKG data or may trigger external WhatsApp/webhook effects; OAuth write scopes, session ownership and WA-AKG role checks are enforced by the API."
       ].join(" ");
       targetServer.registerTool(name, {
         title: operation.summary ?? name,
@@ -192,18 +217,14 @@ export async function initializeMcpServer(targetServer = server, authContext) {
     annotations: { readOnlyHint: true, openWorldHint: false }
   }, async () => {
     const baseUrl = safeBaseUrl();
-    const availableWriteTools = authContext?.scopes
-      ? [...writeAllowlist].filter((entry) => {
-          const separator = entry.indexOf(" ");
-          return separator > 0 && isAllowedOperation(entry.slice(0, separator).toLowerCase(), entry.slice(separator + 1), authContext);
-        }).length
-      : writeAllowlist.size;
+    const configuredWrites = getWriteAllowlist();
+    const availableWriteTools = Object.entries(spec.paths ?? {}).reduce((count, [route, item]) => count + Object.keys(item ?? {}).filter((method) => ["post", "put", "patch", "delete"].includes(method) && isAllowedOperation(method, route, authContext)).length, 0);
     return { content: [{ type: "text", text: JSON.stringify({
       server: "wa-akg-mcp", version: "0.1.0", openapiVersion: spec.openapi,
       apiTitle: spec.info?.title ?? "WA-AKG API", apiVersion: spec.info?.version ?? "unknown",
       apiBaseUrl: baseUrl.origin + baseUrl.pathname, apiKeyConfigured: Boolean(apiKey),
       authentication: authContext ? "oauth-user-delegation" : (apiKey ? "local-api-key" : "none"),
-      writeToolsEnabled: availableWriteTools > 0, writeAllowlistCount: availableWriteTools, registeredApiTools: count
+      writeToolsEnabled: availableWriteTools > 0, writeAllowlistMode: configuredWrites.has("*") ? "all" : (configuredWrites.size ? "explicit" : "disabled"), writeAllowlistCount: availableWriteTools, registeredApiTools: count
     }, null, 2) }] };
   });
   initializedServers.add(targetServer);

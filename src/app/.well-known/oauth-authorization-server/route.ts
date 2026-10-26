@@ -13,6 +13,7 @@ export function GET(request: NextRequest) {
   return oauthJson({
     issuer,
     authorization_endpoint: `${issuer}/api/oauth/authorize`,
+    registration_endpoint: `${issuer}/api/oauth/register`,
     token_endpoint: `${issuer}/api/oauth/token`,
     revocation_endpoint: `${issuer}/api/oauth/revoke`,
     introspection_endpoint: `${issuer}/api/oauth/introspect`,

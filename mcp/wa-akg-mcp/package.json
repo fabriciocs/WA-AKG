@@ -8,8 +8,9 @@
   "engines": { "node": ">=20" },
   "scripts": {
     "start": "node src/server.mjs",
-    "check": "node --check src/server.mjs && node --check src/http.mjs",
-    "test": "node --test"
+    "check": "node --check src/server.mjs && node --check src/http.mjs && node --check scripts/production-sessions-check.mjs",
+    "test": "node --test",
+    "test:production-sessions": "node scripts/production-sessions-check.mjs"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.25.2",

@@ -32,6 +32,19 @@ export function appOrigin({ configuredOrigin, requestOrigin }) {
   return url.origin;
 }
 
+export function resourceMatchesPublicOrigin(resource, { configuredIssuer, configuredOrigin, requestOrigin }) {
+  try {
+    const target = new URL(resource);
+    const publicOrigin = appOrigin({
+      configuredOrigin: configuredIssuer?.trim() || configuredOrigin,
+      requestOrigin,
+    });
+    return HTTP_PROTOCOLS.has(target.protocol) && !target.username && !target.password && target.origin === publicOrigin;
+  } catch {
+    return false;
+  }
+}
+
 export function requestOriginFromNodeRequest(req) {
   const rawHost = req.headers.host;
   if (typeof rawHost !== "string" || !rawHost || /[\s/@?#\\,%;]/.test(rawHost)) {

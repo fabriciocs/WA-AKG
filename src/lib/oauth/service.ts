@@ -101,7 +101,7 @@ export async function createClient(input: {
   allowedScopes: string[];
   grantTypes: OAuthGrantType[];
   isConfidential: boolean;
-  createdById: string;
+  createdById: string | null;
 }) {
   const clientId = generateRandomString(24);
   const clientSecret = input.isConfidential ? generateRandomString(48) : undefined;

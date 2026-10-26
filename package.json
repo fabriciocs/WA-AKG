@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "npx tsx src/server/index.ts",
     "build": "next build",
-    "start": "NODE_ENV=production npx tsx src/server/index.ts",
+    "start": "tsx scripts/start-production.mjs",
     "lint": "eslint",
     "db:push": "prisma db push && prisma generate",
     "db:studio": "prisma studio",
@@ -15,7 +15,8 @@
     "mcp:install": "npm --prefix mcp/wa-akg-mcp install",
     "mcp:start": "npm --prefix mcp/wa-akg-mcp start",
     "mcp:check": "npm --prefix mcp/wa-akg-mcp run check",
-    "mcp:test": "npm --prefix mcp/wa-akg-mcp test"
+    "mcp:test": "npm --prefix mcp/wa-akg-mcp test",
+    "mcp:test:production-sessions": "npm --prefix mcp/wa-akg-mcp run test:production-sessions"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
