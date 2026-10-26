@@ -52,7 +52,7 @@ export async function POST(req: Request) {
                 name,
                 email,
                 password: hashedPassword,
-                role: assignedRole as any,
+                role: assignedRole,
             },
         });
 
@@ -61,7 +61,7 @@ export async function POST(req: Request) {
             message: "User registered successfully",
             user: { id: newUser.id, name: newUser.name, email: newUser.email },
         });
-    } catch (error: any) {
+    } catch (error: unknown) {
         if (error instanceof z.ZodError) {
             return NextResponse.json(
                 { error: "Invalid registration data provided" },

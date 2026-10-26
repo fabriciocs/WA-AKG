@@ -29,6 +29,7 @@ Settings that manage OAuth flow, reverse proxies, and public-facing URL compilat
 | Variable | Type | Default | Description |
 | :--- | :--- | :--- | :--- |
 | `NEXTAUTH_URL` | string | `${BASE_URL}` | The URL pointing to the NextAuth authentication handler. Should match `BASE_URL`. |
+| `OAUTH_ISSUER_URL` | URL | `${BASE_URL origin}${NEXT_PUBLIC_BASE_PATH}` or request origin + base path | Optional canonical OAuth issuer URL; preserve an explicit path when supplied. `NEXTAUTH_URL` is only for NextAuth and is not used as the OAuth issuer. Use HTTPS in production. |
 | `AUTH_TRUST_HOST` | boolean | `true` | Set to `true` if your application is deployed behind a reverse proxy (e.g. Nginx, Cloudflare, Apache). |
 | `NEXT_PUBLIC_APP_URL` | string | `${BASE_URL}` | Public facing client URL. |
 | `NEXT_PUBLIC_API_URL` | string | `${BASE_URL}/api` | Public facing API endpoint URL. |
@@ -56,8 +57,8 @@ Interactive OpenAPI / Swagger documentation page settings.
 | Variable | Type | Default | Description |
 | :--- | :--- | :--- | :--- |
 | `NEXT_PUBLIC_SWAGGER_ENABLED` | boolean | `true` | Toggle public access to the interactive API documentation at `/docs`. |
-| `NEXT_PUBLIC_SWAGGER_USERNAME` | string | `admin` | Basic auth username required to view the `/docs` page. |
-| `NEXT_PUBLIC_SWAGGER_PASSWORD` | string | `admin123` | Basic auth password. **Wajib diubah di server production!** |
+| `SWAGGER_USERNAME` | string | — | Server-only username for Swagger authentication. |
+| `SWAGGER_PASSWORD` | string | — | Server-only Swagger password. Never use a `NEXT_PUBLIC_*` name for credentials. |
 
 ---
 
@@ -115,10 +116,15 @@ Required ONLY if utilizing the `docker-compose.yml` stack deployment.
 
 | Variable | Required | Default | Description |
 | :--- | :--- | :--- | :--- |
-| `MYSQL_ROOT_PASSWORD` | **Yes** | — | Root access password for the MySQL container. |
+| `MYSQL_ROOT_PASSWORD` | **Yes** | — | Root access password for MySQL administration and its health check; the app does not use this account. |
 | `MYSQL_DATABASE` | No | `wa_akg` | Target schema database name. |
-| `ADMIN_EMAIL` | **Yes** | — | Email of the default SuperAdmin generated on first boot. |
-| `ADMIN_PASSWORD` | **Yes** | — | Password of the default SuperAdmin generated on first boot. |
+| `MYSQL_APP_USER` | No | `wa_akg_app` | Least-privilege application account created for `MYSQL_DATABASE`. |
+| `MYSQL_APP_PASSWORD` | **Yes** | — | Password for the application account; use a strong unique value. |
+| `ADMIN_EMAIL` | No | — | Used only by the explicit one-time admin setup command; it is not run on app startup. |
+| `ADMIN_PASSWORD` | No | — | Used only by the explicit one-time admin setup command; it is not run on app startup. |
+| `PORT` | No | `43000` | Published on `127.0.0.1` by default; put a reverse proxy in front for remote access. |
+
+The app container does not mutate the schema or create an administrator on startup. A new database applies the checked-in migration chain using `docker compose --profile ops run --rm migrate`. For an existing database, compare its schema first, then set `PRISMA_BASELINE_MIGRATION` to the exact matching migration ID and run `docker compose --profile ops run --rm baseline`. Baseline only migrations already reflected in that database; after baselining the original migration, run `migrate` to apply the additive OAuth/worker changes. Create or promote an administrator separately with `docker compose --profile ops run --rm admin-setup`; these credentials are not passed to the app container.
 
 ---
 

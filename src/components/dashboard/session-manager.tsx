@@ -2,15 +2,14 @@
 import { apiUrl } from "@/lib/api-url";
 
 import { useState, useEffect } from 'react';
-import { io, Socket } from 'socket.io-client';
-import QRCode from 'qrcode';
+import { io } from 'socket.io-client';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useRouter } from 'next/navigation';
 import { toast } from "sonner";
 import { Label } from '@/components/ui/label';
-import { Smartphone, Plus, Trash2, Settings, RefreshCw, Power, UserPlus } from 'lucide-react';
+import { Plus, Settings, UserPlus } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useTranslations } from "next-intl";
 import {
@@ -34,13 +33,12 @@ type Session = {
     } | null;
 };
 
-export function SessionManager({ user }: { user: any }) {
+export function SessionManager({ user }: { user?: { id: string } | null }) {
     const t = useTranslations("sessions");
     const [sessions, setSessions] = useState<Session[]>([]);
     const [newSessionName, setNewSessionName] = useState("");
     const [newSessionId, setNewSessionId] = useState("");
     const [loading, setLoading] = useState(false);
-    const [socket, setSocket] = useState<Socket | null>(null);
     const router = useRouter();
 
     useEffect(() => {
@@ -70,8 +68,6 @@ export function SessionManager({ user }: { user: any }) {
             }
         });
 
-        setSocket(socketInstance);
-
         return () => {
             socketInstance.disconnect();
         };
@@ -85,6 +81,10 @@ export function SessionManager({ user }: { user: any }) {
     }
 
     const createSession = async () => {
+        if (!user?.id) {
+            toast.error(t("createdFailed"));
+            return;
+        }
         if (!newSessionName) {
             toast.error(t("nameRequired"));
             return;
@@ -119,9 +119,9 @@ export function SessionManager({ user }: { user: any }) {
 
             // Optionally redirect immediately or let user choose
             // router.push(`/dashboard/sessions/${session.sessionId}`);
-        } catch (e: any) {
+        } catch (e) {
             console.error(e);
-            toast.error(e.message || t("createdFailed"));
+            toast.error(e instanceof Error ? e.message : t("createdFailed"));
         } finally {
             setLoading(false);
         }

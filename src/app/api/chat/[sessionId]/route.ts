@@ -31,7 +31,6 @@ export async function GET(
             return NextResponse.json({ status: false, message: "Session not found", error: 'Session not found' }, { status: 404 });
         }
 
-        const dbSessionId = session.id;
 
         // Fetch chats using the new ChatService
         const chatList = await ChatService.getChatsList(session.id);

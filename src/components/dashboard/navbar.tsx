@@ -13,7 +13,7 @@ import { useRouter } from "next/navigation";
 import { useFormatter, useNow, useTranslations } from "next-intl";
 import { useSession } from "next-auth/react";
 import { toast } from "sonner";
-import { io, Socket } from "socket.io-client";
+import { io } from "socket.io-client";
 
 interface NavbarProps {
     appName?: string;
@@ -38,7 +38,6 @@ export function Navbar({ appName }: NavbarProps) {
     const [notifications, setNotifications] = useState<Notification[]>([]);
     const [unreadCount, setUnreadCount] = useState(0);
     const [isOpen, setIsOpen] = useState(false);
-    const [socket, setSocket] = useState<Socket | null>(null);
 
     const fetchNotifications = async () => {
         try {
@@ -49,14 +48,16 @@ export function Navbar({ appName }: NavbarProps) {
                 setNotifications(items);
                 setUnreadCount(items.filter((n: Notification) => !n.read).length);
             }
-        } catch (e) {
+        } catch {
             console.error("Failed to fetch notifications");
         }
     };
 
     useEffect(() => {
         // Initial fetch
-        fetchNotifications();
+        const notificationFetchTimer = window.setTimeout(() => {
+            void fetchNotifications();
+        }, 0);
 
         // Setup Socket.IO connection
         if (session?.user?.id) {
@@ -87,13 +88,13 @@ export function Navbar({ appName }: NavbarProps) {
                 });
             });
 
-            setSocket(socketInstance);
-
             return () => {
+                window.clearTimeout(notificationFetchTimer);
                 socketInstance.disconnect();
             };
         }
-    }, [session?.user?.id]);
+        return () => window.clearTimeout(notificationFetchTimer);
+    }, [session?.user?.id, router, t]);
 
     const markAsRead = async (id?: string) => {
         try {
@@ -112,7 +113,7 @@ export function Navbar({ appName }: NavbarProps) {
                     setUnreadCount(0);
                 }
             }
-        } catch (e) {
+        } catch {
             console.error("Failed to mark read");
         }
     };
@@ -130,7 +131,7 @@ export function Navbar({ appName }: NavbarProps) {
                 });
                 toast.success(t("deleted"));
             }
-        } catch (e) {
+        } catch {
             console.error("Failed to delete notification");
             toast.error(t("deleteFailed"));
         }

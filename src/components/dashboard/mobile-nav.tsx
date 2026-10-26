@@ -17,7 +17,6 @@ export function MobileNav({ appName = "WA-AKG" }: { appName?: string }) {
     const pathname = usePathname();
     const { data: session } = useSession();
     const t = useTranslations();
-    // @ts-ignore
     const userRole = session?.user?.role;
 
     const isActive = (href: string) => {

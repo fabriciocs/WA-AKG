@@ -1,6 +1,7 @@
 import { NextResponse, NextRequest } from "next/server";
 import { waManager } from "@/modules/whatsapp/manager";
 import { getAuthenticatedUser, canAccessSession } from "@/lib/api-auth";
+import { errorMessage } from "@/lib/error-message";
 
 // DELETE: Delete message for everyone
 export async function DELETE(
@@ -38,10 +39,10 @@ export async function DELETE(
 
         return NextResponse.json({ status: true, message: "Message deleted for everyone" });
 
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error("Delete message error:", error);
-        
-        if (error.message?.includes("too old") || error.message?.includes("time limit")) {
+        const message = errorMessage(error, "");
+        if (message.includes("too old") || message.includes("time limit")) {
             return NextResponse.json({ status: false, message: "Cannot delete message older than 7 minutes", error: "Cannot delete message older than 7 minutes" }, { status: 400 });
         }
         
@@ -90,8 +91,8 @@ export async function PATCH(
         });
 
         return NextResponse.json({ status: true, message: "Message edited successfully" });
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error("Edit message error:", error);
-        return NextResponse.json({ status: false, message: "Failed to edit message", error: error.message || "Failed to edit message" }, { status: 500 });
+        return NextResponse.json({ status: false, message: "Failed to edit message", error: errorMessage(error, "Failed to edit message") }, { status: 500 });
     }
 }

@@ -1,14 +1,14 @@
 "use client";
 import { apiUrl } from "@/lib/api-url";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Slider } from "@/components/ui/slider";
 import { Progress } from "@/components/ui/progress";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { RefreshCw, Send, CheckCircle2, XCircle, Radio, Clock, AlertTriangle, History, Eye, Calendar } from "lucide-react";
 import { toast } from "sonner";
 import { useSession } from "@/components/dashboard/session-provider";
@@ -54,7 +54,6 @@ interface BroadcastRecipient {
 
 export default function BroadcastPage() {
     const t = useTranslations("broadcast");
-    const tCommon = useTranslations("common");
     const { sessionId } = useSession();
     const [contacts, setContacts] = useState("");
     const [message, setMessage] = useState("");
@@ -72,33 +71,6 @@ export default function BroadcastPage() {
 
     const { getSocket, joinSession } = useSocket();
 
-    // Socket for progress updates
-    useEffect(() => {
-        const socket = getSocket();
-        if (!socket || !sessionId) return;
-
-        const onConnect = () => joinSession(sessionId);
-        if (socket.connected) joinSession(sessionId);
-        socket.on("connect", onConnect);
-
-        const handler = (data: BroadcastProgress) => {
-            setBroadcastProgress(data);
-            if (data.status === "completed") {
-                setLoading(false);
-                // Refresh history after completion
-                fetchHistory();
-                if (data.failed === 0) {
-                    toast.success(t("completeSuccess", { sent: data.sent }));
-                } else {
-                    toast.warning(t("completeWarning", { sent: data.sent, failed: data.failed }));
-                }
-            }
-        };
-
-        socket.on("broadcast.progress", handler);
-        return () => { socket.off("connect", onConnect); socket.off("broadcast.progress", handler); };
-    }, [sessionId, getSocket, joinSession]);
-
     // Fetch history
     const fetchHistory = useCallback(async () => {
         if (!sessionId) return;
@@ -115,6 +87,32 @@ export default function BroadcastPage() {
             setHistoryLoading(false);
         }
     }, [sessionId]);
+
+    // Socket for progress updates
+    useEffect(() => {
+        const socket = getSocket();
+        if (!socket || !sessionId) return;
+
+        const onConnect = () => joinSession(sessionId);
+        if (socket.connected) joinSession(sessionId);
+        socket.on("connect", onConnect);
+
+        const handler = (data: BroadcastProgress) => {
+            setBroadcastProgress(data);
+            if (data.status === "completed") {
+                setLoading(false);
+                fetchHistory();
+                if (data.failed === 0) {
+                    toast.success(t("completeSuccess", { sent: data.sent }));
+                } else {
+                    toast.warning(t("completeWarning", { sent: data.sent, failed: data.failed }));
+                }
+            }
+        };
+
+        socket.on("broadcast.progress", handler);
+        return () => { socket.off("connect", onConnect); socket.off("broadcast.progress", handler); };
+    }, [sessionId, getSocket, joinSession, fetchHistory, t]);
 
     // Load history on mount & tab switch
     useEffect(() => {

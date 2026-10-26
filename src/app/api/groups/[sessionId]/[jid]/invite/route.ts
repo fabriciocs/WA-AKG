@@ -1,6 +1,7 @@
 import { NextResponse, NextRequest } from "next/server";
 import { waManager } from "@/modules/whatsapp/manager";
 import { getAuthenticatedUser, canAccessSession } from "@/lib/api-auth";
+import { errorMessage } from "@/lib/error-message";
 
 // GET: Fetch group invite code
 export async function GET(
@@ -36,10 +37,10 @@ export async function GET(
             inviteUrl: `https://chat.whatsapp.com/${inviteCode}`
         });
 
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error("Fetch invite code error:", error);
-        
-        if (error.message?.includes("not-admin") || error.message?.includes("forbidden")) {
+        const message = errorMessage(error, "");
+        if (message.includes("not-admin") || message.includes("forbidden")) {
             return NextResponse.json({ status: false, message: "Bot must be admin to fetch invite code", error: "Bot must be admin to fetch invite code" }, { status: 403 });
         }
         
@@ -82,10 +83,10 @@ export async function PUT(
             inviteUrl: `https://chat.whatsapp.com/${newInviteCode}`
         });
 
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error("Revoke invite code error:", error);
-        
-        if (error.message?.includes("not-admin") || error.message?.includes("forbidden")) {
+        const message = errorMessage(error, "");
+        if (message.includes("not-admin") || message.includes("forbidden")) {
             return NextResponse.json({ status: false, message: "Bot must be admin to revoke invite code", error: "Bot must be admin to revoke invite code" }, { status: 403 });
         }
         

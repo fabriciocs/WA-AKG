@@ -17,7 +17,7 @@ export async function GET() {
         });
 
         return NextResponse.json({ status: true, message: "API key fetched", data: { apiKey: user?.apiKey || null } }, { headers: NO_STORE_HEADERS });
-    } catch (error) {
+    } catch {
         return NextResponse.json({ status: false, message: "Failed to fetch API key", error: "Failed to fetch API key" }, { status: 500 });
     }
 }
@@ -54,7 +54,7 @@ export async function DELETE() {
         });
 
         return NextResponse.json({ status: true, message: "API key revoked" });
-    } catch (error) {
+    } catch {
         return NextResponse.json({ status: false, message: "Failed to revoke API key", error: "Failed to revoke API key" }, { status: 500 });
     }
 }

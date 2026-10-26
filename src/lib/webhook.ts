@@ -1,13 +1,15 @@
 import { prisma } from "./prisma";
 import crypto from "crypto";
-import { normalizeMessageContent, downloadMediaMessage, WAMessage } from "@whiskeysockets/baileys";
+import { normalizeMessageContent, downloadMediaMessage, type WAMessage, type WAMessageContent, type WAMessageKey } from "@whiskeysockets/baileys";
+import type { Prisma } from "@prisma/client";
 import { writeFile, mkdir } from "fs/promises";
 import path from "path";
-import pino from "pino";
-import { resolveToPhoneJidBySessionId as resolveToPhoneJid, isLidJid } from "./jid-utils";
+import { resolveToPhoneJidBySessionId as resolveToPhoneJid } from "./jid-utils";
 import { logger } from "./logger";
 import { waManager } from "@/modules/whatsapp/manager";
 import { matchesWebhookFilters, type WebhookFilters } from "./webhook-filters";
+import { safeRequest, type SafeHttpResponse } from "./security";
+import { sanitizeWebhookLog } from "./webhook-redaction";
 
 // Event types that can trigger webhooks
 export type WebhookEventType =
@@ -27,7 +29,42 @@ interface WebhookPayload {
     event: WebhookEventType;
     sessionId: string;
     timestamp: string;
-    data: any;
+    data: unknown;
+}
+
+type WebhookMessageInput = Pick<WAMessage, "key"> & {
+    message?: WAMessageContent | Record<string, unknown> | null;
+    messageTimestamp?: WAMessage["messageTimestamp"];
+    pushName?: WAMessage["pushName"];
+    participant?: WAMessage["participant"];
+};
+
+interface QuotedWebhookMessage {
+    key: {
+        remoteJid: string | null;
+        participant: string | null;
+        fromMe: boolean;
+        id: string | null;
+    };
+    type: string;
+    content: string;
+    caption?: string;
+    fileUrl: string | null;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+    return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function readString(value: unknown): string | undefined {
+    return typeof value === "string" ? value : undefined;
+}
+
+function normalizedWebhookContent(message: WebhookMessageInput["message"]): WAMessageContent | undefined {
+    if (!message || !isRecord(message)) return undefined;
+    // The store supplies Baileys message content, while outbound helpers construct
+    // the same wire shape as a plain record. normalizeMessageContent accepts both.
+    return normalizeMessageContent(message as WAMessageContent);
 }
 
 /**
@@ -36,7 +73,7 @@ interface WebhookPayload {
 export async function dispatchWebhook(
     sessionId: string,
     event: WebhookEventType,
-    data: any
+    data: unknown
 ) {
     try {
         // Get the session to find the userId
@@ -108,10 +145,10 @@ export async function dispatchWebhook(
 /**
  * Normalize payload data to match API format and avoid Circular/BigInt errors
  */
-function normalizePayloadData(event: WebhookEventType, data: any): any {
+function normalizePayloadData(event: WebhookEventType, data: unknown): unknown {
     if (event === "message.received" || event === "message.sent") {
         // If data is already simplified, return it
-        if (data.type && data.content) return data;
+        if (isRecord(data) && data.type && data.content) return data;
 
         // If data is raw Baileys message (which we shouldn't be passing raw anymore, but just in case)
         // Ideally the caller (onMessageReceived) should have already simplified it.
@@ -124,7 +161,7 @@ function normalizePayloadData(event: WebhookEventType, data: any): any {
 /**
  * JSON Replacer to handle BigInt
  */
-function jsonReplacer(key: string, value: any) {
+function jsonReplacer(_key: string, value: unknown): unknown {
     if (typeof value === 'bigint') {
         return value.toString();
     }
@@ -153,36 +190,27 @@ async function sendWebhookRequest(url: string, payload: WebhookPayload, secret?:
         headers["X-Webhook-Signature"] = `sha256=${signature}`;
     }
 
-    let response: Response;
+    let response: SafeHttpResponse;
     let responseBody: string | undefined;
     let errorMessage: string | undefined;
 
     try {
-        const { validateSafeUrl } = await import("./security");
-        const safeCheck = await validateSafeUrl(url, { allowHttp: false });
-        if (!safeCheck.valid) {
-            throw new Error(`SSRF Blocked: ${safeCheck.error}`);
-        }
-
-        response = await fetch(url, {
+        response = await safeRequest(url, {
             method: "POST",
             headers,
             body,
-            redirect: "manual",
-            signal: AbortSignal.timeout(10000) // 10 second timeout
+            timeoutMs: 10000,
+            maxBytes: 1024 * 1024
         });
 
-        responseBody = await response.text().catch(() => undefined);
-        if (responseBody && responseBody.length > 1024) {
-            responseBody = responseBody.substring(0, 1024);
-        }
+        responseBody = response.body.toString("utf8").slice(0, 1024) || undefined;
 
-        if (!response.ok) {
+        if (response.status < 200 || response.status >= 300) {
             errorMessage = `Webhook returned ${response.status}: ${response.statusText}`;
         }
-    } catch (err: any) {
-        errorMessage = err.message || "Webhook request failed";
-        response = null as unknown as Response;
+    } catch (err: unknown) {
+        errorMessage = err instanceof Error ? err.message : "Webhook request failed";
+        response = null as unknown as SafeHttpResponse;
     }
 
     // Calculate response time
@@ -196,7 +224,7 @@ async function sendWebhookRequest(url: string, payload: WebhookPayload, secret?:
             status: errorMessage ? "FAILED" : "SUCCESS",
             requestUrl: url,
             requestHeaders: headers,
-            requestBody: payload,
+            requestBody: { ...payload } as Prisma.InputJsonObject,
             responseStatusCode: response?.status ?? null,
             responseBody: responseBody ?? null,
             responseTimeMs,
@@ -219,20 +247,25 @@ async function recordWebhookLog(data: {
     event: string;
     status: string;
     requestUrl: string;
-    requestHeaders?: any;
-    requestBody?: any;
+    requestHeaders?: Record<string, string>;
+    requestBody?: Prisma.InputJsonValue;
     responseStatusCode?: number | null;
     responseBody?: string | null;
     responseTimeMs?: number | null;
     errorMessage?: string | null;
 }) {
+    const safeLog = sanitizeWebhookLog({
+        requestUrl: data.requestUrl,
+        requestHeaders: data.requestHeaders || undefined,
+    });
+
     await prisma.webhookLog.create({
         data: {
             webhookId: data.webhookId,
             event: data.event,
             status: data.status,
-            requestUrl: data.requestUrl,
-            requestHeaders: data.requestHeaders || undefined,
+            requestUrl: safeLog.requestUrl,
+            requestHeaders: safeLog.requestHeaders,
             requestBody: data.requestBody || undefined,
             responseStatusCode: data.responseStatusCode ?? null,
             responseBody: data.responseBody || null,
@@ -307,41 +340,32 @@ export async function testWebhook(webhookId: string, url: string, secret?: strin
     }
 
     try {
-        const { validateSafeUrl } = await import("./security");
-        const safeCheck = await validateSafeUrl(url, { allowHttp: false });
-        if (!safeCheck.valid) {
-            throw new Error(`SSRF Blocked: ${safeCheck.error}`);
-        }
-
-        const response = await fetch(url, {
+        const response = await safeRequest(url, {
             method: "POST",
             headers,
             body,
-            redirect: "manual",
-            signal: AbortSignal.timeout(15000)
+            timeoutMs: 15000,
+            maxBytes: 1024 * 1024
         });
 
         const responseTimeMs = Date.now() - startedAt;
-        let responseBody = await response.text().catch(() => undefined);
-        if (responseBody && responseBody.length > 1024) {
-            responseBody = responseBody.substring(0, 1024);
-        }
+        const responseBody = response.body.toString("utf8").slice(0, 1024) || undefined;
 
         // Record test log
         await recordWebhookLog({
             webhookId,
             event: "test",
-            status: response.ok ? "SUCCESS" : "FAILED",
+            status: response.status >= 200 && response.status < 300 ? "SUCCESS" : "FAILED",
             requestUrl: url,
             requestHeaders: headers,
-            requestBody: testPayload,
+            requestBody: { ...testPayload } as Prisma.InputJsonObject,
             responseStatusCode: response.status,
             responseBody: responseBody || null,
             responseTimeMs,
-            errorMessage: response.ok ? null : `Webhook returned ${response.status}: ${response.statusText}`
+            errorMessage: response.status >= 200 && response.status < 300 ? null : `Webhook returned ${response.status}: ${response.statusText}`
         });
 
-        if (!response.ok) {
+        if (response.status < 200 || response.status >= 300) {
             return {
                 success: false,
                 statusCode: response.status,
@@ -357,9 +381,9 @@ export async function testWebhook(webhookId: string, url: string, secret?: strin
             responseBody,
             responseTimeMs
         };
-    } catch (err: any) {
+    } catch (err: unknown) {
         const responseTimeMs = Date.now() - startedAt;
-        const errorMsg = err.message || "Request failed";
+        const errorMsg = err instanceof Error ? err.message : "Request failed";
 
         // Record failed test log
         await recordWebhookLog({
@@ -368,7 +392,7 @@ export async function testWebhook(webhookId: string, url: string, secret?: strin
             status: "FAILED",
             requestUrl: url,
             requestHeaders: headers,
-            requestBody: testPayload,
+            requestBody: { ...testPayload } as Prisma.InputJsonObject,
             responseStatusCode: null,
             responseBody: null,
             responseTimeMs,
@@ -395,8 +419,9 @@ export async function downloadAndSaveMedia(message: WAMessage, sessionId: string
         }
 
         const messageType = Object.keys(messageContent)[0];
+        const mediaMessageTypes = ["imageMessage", "videoMessage", "audioMessage", "documentMessage", "stickerMessage"] as const;
 
-        if (!['imageMessage', 'videoMessage', 'audioMessage', 'documentMessage', 'stickerMessage'].includes(messageType)) {
+        if (!(mediaMessageTypes as readonly string[]).includes(messageType)) {
             logger.debug("Media", `Message type ${messageType} is not a downloadable media.`);
             return null;
         }
@@ -404,16 +429,20 @@ export async function downloadAndSaveMedia(message: WAMessage, sessionId: string
         logger.info("Media", `Attempting to download ${messageType}...`);
 
         let buffer: Buffer | null = null;
-        const mediaObj = (messageContent as any)[messageType];
+        const mediaValue = messageContent[messageType as typeof mediaMessageTypes[number]];
+        if (!isRecord(mediaValue)) return null;
+        const mediaObj = mediaValue;
 
         // Newsletter media is NOT encrypted — strictly restricted to real @newsletter JIDs
         const isNewsletterJid = message.key.remoteJid?.endsWith("@newsletter");
-        const isNewsletterMedia = Boolean(isNewsletterJid && !mediaObj.mediaKey && (mediaObj.directPath || mediaObj.thumbnailDirectPath));
+        const directPath = readString(mediaObj.directPath) || readString(mediaObj.thumbnailDirectPath);
+        const isNewsletterMedia = Boolean(isNewsletterJid && !mediaObj.mediaKey && directPath);
 
         if (isNewsletterMedia) {
             logger.info("Media", "Downloading unencrypted media (newsletter) via direct fetch...");
 
-            const dp = mediaObj.directPath || mediaObj.thumbnailDirectPath;
+            const dp = directPath;
+            if (!dp) return null;
             const downloadUrl = dp.startsWith('http') ? dp : `https://mmg.whatsapp.net${dp}`;
 
             try {
@@ -426,8 +455,8 @@ export async function downloadAndSaveMedia(message: WAMessage, sessionId: string
 
                 buffer = fetchedBuf;
                 logger.success("Media", `Newsletter media downloaded: ${buffer.length} bytes`);
-            } catch (e: any) {
-                logger.error("Media", `Failed to download newsletter media: ${e.message}`);
+            } catch (e: unknown) {
+                logger.error("Media", `Failed to download newsletter media: ${e instanceof Error ? e.message : String(e)}`);
                 return null;
             }
         } else {
@@ -463,7 +492,7 @@ export async function downloadAndSaveMedia(message: WAMessage, sessionId: string
         let ext = extMap[messageType] || 'bin';
 
         // Try to get extension from mimetype if available (with strict sanitization)
-        const mime = (messageContent as any)[messageType]?.mimetype;
+        const mime = readString(mediaObj.mimetype);
         if (typeof mime === "string") {
             const rawExt = mime.split('/')[1]?.split(';')[0]?.trim();
             if (rawExt) {
@@ -520,7 +549,7 @@ function getOwnJid(sessionId: string): string | null {
     }
 }
 
-export async function onMessageReceived(sessionId: string, message: any, existingFileUrl?: string | null) {
+export async function onMessageReceived(sessionId: string, message: WebhookMessageInput, existingFileUrl?: string | null) {
     // Re-calculate fields to match store logic EXACTLY
     const remoteJid = message.key?.remoteJid || "";
     const fromMe = message.key?.fromMe || false;
@@ -537,10 +566,10 @@ export async function onMessageReceived(sessionId: string, message: any, existin
     // "sender" is who sent it. In DM: remoteJid. In Group: participant.
     const senderJid: string = isGroup ? (participant || "") : remoteJid;
     const normalizedSender = await resolveToPhoneJid(senderJid, sessionId);
-    let sender: any = normalizedSender;
+    let sender: string | Prisma.JsonObject = normalizedSender;
 
     // Enrich Participant Data if Group
-    let participantDetail: any = await resolveToPhoneJid(participant || "", sessionId);
+    let participantDetail: string | Prisma.JsonObject | null = await resolveToPhoneJid(participant || "", sessionId);
 
     if (isGroup && typeof sender === 'string') {
         try {
@@ -561,8 +590,11 @@ export async function onMessageReceived(sessionId: string, message: any, existin
                 });
 
                 if (group && group.participants) {
-                    const parts = group.participants as any[];
-                    const found = parts.find(p => p.id === senderJid || p.id === participant || p.id === normalizedSender);
+                    const parts = Array.isArray(group.participants) ? group.participants : [];
+                    const found = parts.find((value): value is Prisma.JsonObject =>
+                        isRecord(value) &&
+                        (value.id === senderJid || value.id === participant || value.id === normalizedSender)
+                    );
                     if (found) {
                         sender = found;
                         participantDetail = found;
@@ -584,7 +616,7 @@ export async function onMessageReceived(sessionId: string, message: any, existin
         }
     }
 
-    const normalized = extractMessageContent(message);
+    const normalized = extractMessageContent(message.message);
     const quoted = await extractQuotedMessageAsync(message, sessionId);
 
     dispatchWebhook(sessionId, "message.received", {
@@ -619,8 +651,8 @@ export async function onMessageReceived(sessionId: string, message: any, existin
 /**
  * Helper to dispatch message sent event
  */
-export async function onMessageSent(sessionId: string, message: any, existingFileUrl?: string | null) {
-    const normalized = extractMessageContent(message);
+export async function onMessageSent(sessionId: string, message: WebhookMessageInput, existingFileUrl?: string | null) {
+    const normalized = extractMessageContent(message.message);
     const quoted = await extractQuotedMessageAsync(message, sessionId);
     const remoteJid = message.key?.remoteJid || "";
     const isGroup = remoteJid.endsWith("@g.us");
@@ -631,7 +663,7 @@ export async function onMessageSent(sessionId: string, message: any, existingFil
     if (!fileUrl) {
         try {
             fileUrl = await downloadAndSaveMedia(message, sessionId);
-        } catch (e) { /* ignore */ }
+        } catch { /* ignore */ }
     }
 
     // --- Consistent JID Normalization (same as onMessageReceived) ---
@@ -677,15 +709,16 @@ export async function fireSentWebhook(
     sessionId: string,
     jid: string,
     payload: { type?: string; text?: string; caption?: string; fileName?: string; mimetype?: string; ptt?: boolean },
-    sendResult: any
+    sendResult: WAMessage | WAMessageKey | null | undefined
 ) {
     try {
         // Handle WAMessage vs MessageKey — Baileys can return either
-        const key = sendResult?.key || sendResult || {};
-        const webhookMsg: any = {
+        const sentRecord = isRecord(sendResult) ? sendResult : {};
+        const key = isRecord(sentRecord.key) ? sentRecord.key : sentRecord;
+        const webhookMsg: WebhookMessageInput = {
             key: {
-                id: key.id || sendResult?.id,
-                remoteJid: key.remoteJid || sendResult?.remoteJid || jid,
+                id: readString(key.id) || readString(sentRecord.id),
+                remoteJid: readString(key.remoteJid) || readString(sentRecord.remoteJid) || jid,
                 fromMe: true
             },
             message: { conversation: payload.text || payload.caption || "" },
@@ -705,7 +738,7 @@ export async function fireSentWebhook(
         }
 
         await onMessageSent(sessionId, webhookMsg);
-    } catch (e) {
+    } catch {
         // Non-blocking
     }
 }
@@ -737,8 +770,8 @@ export function onConnectionUpdate(sessionId: string, status: string, qr?: strin
 /**
  * Extract content and type from Baileys message
  */
-function extractMessageContent(msg: any): { type: string, content: string, caption?: string } {
-    const messageContent = normalizeMessageContent(msg.message);
+function extractMessageContent(message: WebhookMessageInput["message"]): { type: string, content: string, caption?: string } {
+    const messageContent = normalizedWebhookContent(message);
     let text = "";
     let caption = undefined;
     let messageType = "TEXT";
@@ -803,12 +836,12 @@ function extractMessageContent(msg: any): { type: string, content: string, capti
 /**
  * Extract Quoted Message recursively (Async to Lookup DB)
  */
-async function extractQuotedMessageAsync(msg: any, sessionId: string): Promise<any> {
-    const messageContent = normalizeMessageContent(msg.message);
+async function extractQuotedMessageAsync(msg: WebhookMessageInput, sessionId: string): Promise<QuotedWebhookMessage | null> {
+    const messageContent = normalizedWebhookContent(msg.message);
     if (!messageContent) return null;
 
     // Check for contextInfo in common message types
-    let contextInfo: any = null;
+    let contextInfo: unknown = null;
 
     if (messageContent.extendedTextMessage) {
         contextInfo = messageContent.extendedTextMessage.contextInfo;
@@ -836,14 +869,16 @@ async function extractQuotedMessageAsync(msg: any, sessionId: string): Promise<a
         contextInfo = messageContent.listResponseMessage.contextInfo;
     }
 
-    if (contextInfo && contextInfo.quotedMessage) {
+    if (isRecord(contextInfo) && contextInfo.quotedMessage) {
         const quotedMsg = contextInfo.quotedMessage;
-        const normalized = extractMessageContent({ message: quotedMsg });
+        if (!isRecord(quotedMsg)) return null;
+        const normalized = extractMessageContent(quotedMsg);
 
         let fileUrl = null;
 
         // Lookup Media URL in DB if possible
-        if (contextInfo.stanzaId) {
+        const stanzaId = readString(contextInfo.stanzaId);
+        if (stanzaId) {
             try {
                 // We need the dbSessionId... this is tricky without fetching session again.
                 // But we can try to look up by sessionId (baileys ID) and keyId
@@ -860,7 +895,7 @@ async function extractQuotedMessageAsync(msg: any, sessionId: string): Promise<a
                         where: {
                             sessionId_keyId: {
                                 sessionId: session.id,
-                                keyId: contextInfo.stanzaId
+                                keyId: stanzaId
                             }
                         },
                         select: { mediaUrl: true }
@@ -877,10 +912,10 @@ async function extractQuotedMessageAsync(msg: any, sessionId: string): Promise<a
 
         return {
             key: {
-                remoteJid: contextInfo.remoteJid || null, // Group JID
-                participant: contextInfo.participant || null, // Sender JID
+                remoteJid: readString(contextInfo.remoteJid) || null, // Group JID
+                participant: readString(contextInfo.participant) || null, // Sender JID
                 fromMe: contextInfo.participant === undefined, // Not reliable, better check participant
-                id: contextInfo.stanzaId || null
+                id: stanzaId || null
             },
             type: normalized.type,
             content: normalized.content, // Text or Caption

@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { ChatService, type ChatListFilter } from "@/modules/whatsapp/chat.service";
 import { getAuthenticatedUserForAction } from "@/lib/server-action-auth";
 import { canAccessSession } from "@/lib/api-auth";
+import type { InteractiveMessagePayload } from "@/modules/whatsapp/interactive";
 
 const CHAT_PAGE_SIZE = parseInt(process.env.NEXT_PUBLIC_CHAT_PAGE_SIZE || "50", 10);
 
@@ -54,7 +55,7 @@ export async function getChatMessages(
     const { messages, hasMore } = await ChatService.getMessages(session.id, jid, limit, before);
 
     return {
-        messages: messages.map((msg: any) => ({
+        messages: messages.map((msg) => ({
             ...msg,
             timestamp: msg.timestamp instanceof Date
                 ? msg.timestamp.toISOString()
@@ -75,8 +76,8 @@ export async function sendChatMessage(sessionId: string, jid: string, text: stri
     try {
         await ChatService.sendTextMessage(sessionId, jid, { text }, undefined, quotedMessageId);
         return { success: true };
-    } catch (error: any) {
-        throw new Error(`Failed to send message: ${error.message}`);
+    } catch (error) {
+        throw new Error(`Failed to send message: ${error instanceof Error ? error.message : String(error)}`);
     }
 }
 
@@ -112,9 +113,9 @@ export async function sendMediaMessage(formData: FormData) {
         );
 
         return { success: true };
-    } catch (error: any) {
+    } catch (error) {
         console.error("Media send error:", error);
-        throw new Error(`Failed to send media: ${error.message}`);
+        throw new Error(`Failed to send media: ${error instanceof Error ? error.message : String(error)}`);
     }
 }
 
@@ -122,13 +123,7 @@ export async function sendMediaMessage(formData: FormData) {
 export async function sendInteractiveChatMessage(
     sessionId: string,
     jid: string,
-    payload: {
-        title?: string;
-        body: string;
-        footer?: string;
-        header?: any;
-        buttons?: any[];
-    }
+    payload: InteractiveMessagePayload
 ) {
     const user = await getAuthenticatedUserForAction();
     if (!user) throw new Error("Unauthorized");
@@ -139,9 +134,9 @@ export async function sendInteractiveChatMessage(
     try {
         const result = await ChatService.sendInteractiveMessage(sessionId, jid, payload);
         return { success: true, result };
-    } catch (error: any) {
+    } catch (error) {
         console.error("Interactive send error:", error);
-        throw new Error(`Failed to send interactive message: ${error.message}`);
+        throw new Error(`Failed to send interactive message: ${error instanceof Error ? error.message : String(error)}`);
     }
 }
 

@@ -1,16 +1,17 @@
 "use client";
 import { apiUrl } from "@/lib/api-url";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Bell, Inbox, Trash2, CheckCheck, ChevronLeft, Info, AlertTriangle, CheckCircle, Settings, ExternalLink } from "lucide-react";
+import { Inbox, Trash2, CheckCheck, ChevronLeft, Info, AlertTriangle, CheckCircle, Settings, ExternalLink, type LucideIcon } from "lucide-react";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useTranslations } from "next-intl";
+import { useSocket } from "@/components/chat/socket-context";
 
 interface Notification {
     id: string;
@@ -22,7 +23,7 @@ interface Notification {
     createdAt: string;
 }
 
-const TYPE_STYLES: Record<string, { icon: any; bg: string; border: string; dot: string }> = {
+const TYPE_STYLES: Record<string, { icon: LucideIcon; bg: string; border: string; dot: string }> = {
     INFO: { icon: Info, bg: "bg-blue-50 dark:bg-blue-950/30", border: "border-l-blue-500", dot: "bg-blue-500" },
     WARNING: { icon: AlertTriangle, bg: "bg-yellow-50 dark:bg-yellow-950/30", border: "border-l-yellow-500", dot: "bg-yellow-500" },
     SUCCESS: { icon: CheckCircle, bg: "bg-green-50 dark:bg-green-950/30", border: "border-l-green-500", dot: "bg-green-500" },
@@ -36,7 +37,7 @@ export default function InboxPage() {
     const [notifications, setNotifications] = useState<Notification[]>([]);
     const [loading, setLoading] = useState(true);
     const [filter, setFilter] = useState<"all" | "unread" | "read">("all");
-    const socketRef = useRef<any>(null);
+    const { getSocket } = useSocket();
 
     const fetchNotifications = useCallback(async () => {
         try {
@@ -56,16 +57,17 @@ export default function InboxPage() {
 
     // Real-time socket for new notifications
     useEffect(() => {
-        const socketIo = (window as any).__socket;
+        const socketIo = getSocket();
         if (socketIo) {
-            socketRef.current = socketIo;
             const handler = (n: Notification) => {
                 setNotifications(prev => [n, ...prev]);
             };
             socketIo.on("notification:new", handler);
-            return () => socketIo.off("notification:new", handler);
+            return () => {
+                socketIo.off("notification:new", handler);
+            };
         }
-    }, []);
+    }, [getSocket]);
 
     const markAsRead = async (id?: string) => {
         try {
@@ -80,8 +82,8 @@ export default function InboxPage() {
                     id ? (n.id === id ? { ...n, read: true } : n) : { ...n, read: true }
                 ));
             }
-        } catch (e) {
-            console.error("Failed to mark read", e);
+        } catch {
+            console.error("Failed to mark read");
         }
     };
 
@@ -92,7 +94,7 @@ export default function InboxPage() {
                 setNotifications(prev => prev.filter(n => n.id !== id));
                 toast.success(t("deleted"));
             }
-        } catch (e) {
+        } catch {
             toast.error(t("toastDeleteFailed"));
         }
     };

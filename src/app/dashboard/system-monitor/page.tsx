@@ -11,10 +11,19 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
 
+interface MonitorData {
+    cpu: { load: number; cores: number[] };
+    memory: { total: number; used: number; free: number; swapTotal: number; swapUsed: number };
+    process: { uptime: number; heapTotal: number; heapUsed: number; rss: number };
+    network: { iface: string; rx_sec: number; tx_sec: number; state: string }[];
+    disk: { fs: string; mount: string; size: number; used: number; usePercent: number }[];
+    os: { platform: string; distro: string; release: string; uptime: number };
+}
+
 export default function SystemMonitorPage() {
     const t = useTranslations("systemMonitor");
     const { data: session } = useSession();
-    const [data, setData] = useState<any>(null);
+    const [data, setData] = useState<MonitorData | null>(null);
     const [loading, setLoading] = useState(true);
 
     // Fetch stats
@@ -219,7 +228,7 @@ export default function SystemMonitorPage() {
                         <CardDescription>{t("storageDesc")}</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-6">
-                        {data.disk.map((d: any, i: number) => (
+                        {data.disk.map((d, i) => (
                             <div key={i} className="space-y-2">
                                 <div className="flex items-center justify-between text-sm">
                                     <div className="flex items-center gap-2 font-medium">

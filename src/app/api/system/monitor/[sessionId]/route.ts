@@ -67,12 +67,12 @@ export async function GET(
         let pingStatus = "Unknown";
         try {
             if (instance.socket && instance.socket.ws) {
-                const ws = instance.socket.ws as any;
+                const ws = instance.socket.ws as typeof instance.socket.ws & { readyState: number };
                 if (ws.readyState === 1) { // OPEN
                     pingStatus = "Online";
                 }
             }
-        } catch (e) { }
+        } catch { }
 
 
 
@@ -92,8 +92,8 @@ export async function GET(
             }
         });
 
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error("Session Monitor API Error:", error);
-        return NextResponse.json({ status: false, message: error.message }, { status: 500 });
+        return NextResponse.json({ status: false, message: error instanceof Error ? error.message : "Failed to load session monitor" }, { status: 500 });
     }
 }

@@ -1,6 +1,6 @@
-import { apiUrl } from "@/lib/api-url";
-
 "use client";
+
+import { apiUrl } from "@/lib/api-url";
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -12,7 +12,6 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Switch } from "@/components/ui/switch";
 import { Bell, Send, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
-import { useSession } from "next-auth/react"; // Use client session for Role check UI-side
 import { useTranslations } from "next-intl";
 
 export default function NotificationAdminPage() {
@@ -58,7 +57,7 @@ export default function NotificationAdminPage() {
             } else {
                 toast.error(t("toastSendFailed"));
             }
-        } catch (e) {
+        } catch {
             toast.error(t("toastSendError"));
         } finally {
             setLoading(false);

@@ -9,20 +9,18 @@ export async function GET(request: NextRequest) {
             return NextResponse.json({ status: false, message: "Unauthorized", error: "Unauthorized" }, { status: 401 });
         }
 
-        // @ts-ignore
         const config = await prisma.systemConfig.findUnique({
             where: { id: "default" }
         });
 
         return NextResponse.json({ status: true, message: "System config fetched", data: config || { appName: "WA-AKG", faviconUrl: "/favicon.ico" } });
-    } catch (error) {
+    } catch {
         return NextResponse.json({ status: false, message: "Failed to fetch settings", error: "Failed to fetch settings" }, { status: 500 });
     }
 }
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
     try {
-        // @ts-ignore
         const user = await getAuthenticatedUser(req);
         if (!user || user.role !== "SUPERADMIN") {
             return NextResponse.json({ status: false, message: "Unauthorized", error: "Unauthorized" }, { status: 401 });
@@ -31,7 +29,6 @@ export async function POST(req: Request) {
         const body = await req.json();
         const { appName, logoUrl, faviconUrl, timezone, enableRegistration } = body;
 
-        // @ts-ignore
         const config = await prisma.systemConfig.upsert({
             where: { id: "default" },
             update: { appName, logoUrl, faviconUrl, timezone, enableRegistration: enableRegistration ?? true },
@@ -39,7 +36,7 @@ export async function POST(req: Request) {
         });
 
         return NextResponse.json({ status: true, message: "System settings updated", data: config });
-    } catch (error) {
+    } catch {
         return NextResponse.json({ status: false, message: "Failed to update settings", error: "Failed to update settings" }, { status: 500 });
     }
 }

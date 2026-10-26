@@ -24,7 +24,9 @@ export async function proxy(request: NextRequest) {
     // Allow Next.js internals and favicon only
     if (
         pathname.startsWith("/_next") ||
-        pathname === "/favicon.ico"
+        pathname === "/favicon.ico" ||
+        pathname === "/.well-known/oauth-protected-resource" ||
+        pathname === "/.well-known/oauth-authorization-server"
     ) {
         return NextResponse.next();
     }

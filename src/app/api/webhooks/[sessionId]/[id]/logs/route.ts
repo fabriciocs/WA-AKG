@@ -1,6 +1,7 @@
 import { NextResponse, NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAuthenticatedUser, canAccessSession } from "@/lib/api-auth";
+import { sanitizeWebhookLog } from "@/lib/webhook-redaction";
 export async function GET(
     request: NextRequest,
     { params }: { params: Promise<{ sessionId: string; id: string }> }
@@ -65,7 +66,7 @@ export async function GET(
 
         return NextResponse.json({
             status: true,
-            data: logs,
+            data: logs.map(sanitizeWebhookLog),
             total,
             limit,
             offset

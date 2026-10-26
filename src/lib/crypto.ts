@@ -65,8 +65,8 @@ export function decryptData(data: string): string {
         decrypted += decipher.final("utf8");
 
         return decrypted;
-    } catch (err: any) {
-        logger.error("Crypto", "Decryption failed:", err.message);
+    } catch (err: unknown) {
+        logger.error("Crypto", "Decryption failed:", err instanceof Error ? err.message : String(err));
         throw new Error("Failed to decrypt data payload");
     }
 }

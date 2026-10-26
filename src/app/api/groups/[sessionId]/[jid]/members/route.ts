@@ -1,6 +1,7 @@
 import { NextResponse, NextRequest } from "next/server";
 import { waManager } from "@/modules/whatsapp/manager";
 import { getAuthenticatedUser, canAccessSession } from "@/lib/api-auth";
+import { errorMessage } from "@/lib/error-message";
 
 // PUT: Update group members (add, remove, promote, demote)
 export async function PUT(
@@ -48,7 +49,7 @@ export async function PUT(
         const result = await instance.socket.groupParticipantsUpdate(
             decodedJid,
             participants,
-            action as any
+            action as "add" | "remove" | "promote" | "demote"
         );
 
         return NextResponse.json({ 
@@ -57,14 +58,14 @@ export async function PUT(
             result
         });
 
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error("Update group members error:", error);
-        
-        if (error.message?.includes("not-admin") || error.message?.includes("forbidden")) {
+        const message = errorMessage(error, "");
+        if (message.includes("not-admin") || message.includes("forbidden")) {
             return NextResponse.json({ status: false, message: "Bot must be admin to update group members", error: "Bot must be admin to update group members" }, { status: 403 });
         }
         
-        if (error.message?.includes("not-authorized")) {
+        if (message.includes("not-authorized")) {
             return NextResponse.json({ status: false, message: "Not authorized to perform this action", error: "Not authorized to perform this action" }, { status: 403 });
         }
         

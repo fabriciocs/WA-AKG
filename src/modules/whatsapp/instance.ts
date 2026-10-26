@@ -6,19 +6,29 @@ import makeWASocket, {
     ConnectionState
 } from "@whiskeysockets/baileys";
 import { prisma } from "@/lib/prisma";
-import { usePrismaAuthState } from "./auth/usePrismaAuthState";
+import { loadPrismaAuthState } from "./auth/usePrismaAuthState";
 import { Server } from "socket.io";
 import pino from "pino";
 import { bindSessionStore } from "./store";
 import { syncGroups } from "./store/groups";
 import { bindContactSync } from "./store/contacts";
 import { bindAutoReply } from "./store/autoreply";
-import { bindPpGuard } from "./store/ppguard";
 import { antispam } from "./antispam";
 import { logger } from "@/lib/logger";
 import { isInteractiveContent, handleInteractiveMessageDispatch } from "./interactive";
 
 const MAX_RECONNECT_ATTEMPTS = 3;
+type WhatsAppSocketWithHelpers = WASocket & {
+    newsletterId: (url: string) => Promise<string | null>;
+    newsletterMetadata: (type: string, code: string) => Promise<{ id?: string } | null>;
+    checkWhatsApp: WASocket["onWhatsApp"];
+};
+
+function getDisconnectStatusCode(error: unknown) {
+    if (!error || typeof error !== "object") return undefined;
+    const output = (error as { output?: { statusCode?: unknown } }).output;
+    return output?.statusCode;
+}
 
 export class WhatsAppInstance {
     socket: WASocket | null = null;
@@ -28,12 +38,16 @@ export class WhatsAppInstance {
     sessionId: string;
     userId: string;
     io: Server;
-    config: any = {};
+    config: unknown = {};
     startTime: Date | null = null;
     pairingCode: string | null = null;
 
     isStopped: boolean = false;
     private reconnectCount: number = 0;
+    private initPromise: Promise<void> | null = null;
+    private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+    private generation = 0;
+    private boundOpenGeneration = 0;
     /** Called when instance auto-stops or logs out — lets manager remove it from Map */
     onRemovedFromManager: (() => void) | null = null;
 
@@ -44,6 +58,19 @@ export class WhatsAppInstance {
     }
 
     async init() {
+        if (this.isStopped) return;
+        if (this.initPromise) return this.initPromise;
+        if (this.socket && ["SCAN_QR", "CONNECTED"].includes(this.status)) return;
+
+        const generation = ++this.generation;
+        const pending = this.initialize(generation).finally(() => {
+            if (this.initPromise === pending) this.initPromise = null;
+        });
+        this.initPromise = pending;
+        return pending;
+    }
+
+    private async initialize(generation: number) {
         const sessionData = await prisma.session.findUnique({
             where: { sessionId: this.sessionId },
             include: { botConfig: true }
@@ -52,19 +79,22 @@ export class WhatsAppInstance {
             logger.warn("Instance", `Session ${this.sessionId} not found in DB, aborting init`);
             return;
         }
+        if (this.isStopped || generation !== this.generation) return;
         this.config = sessionData?.config || {};
-        const botConfig = (sessionData as any)?.botConfig;
+        const botConfig = sessionData.botConfig;
 
-        const { state, saveCreds } = await usePrismaAuthState(this.sessionId);
+        const { state, saveCreds } = await loadPrismaAuthState(this.sessionId);
         const { version } = await fetchLatestBaileysVersion();
+        if (this.isStopped || generation !== this.generation) return;
 
+        const baileysLogger = pino({ level: process.env.BAILEYS_LOG_LEVEL || "error" }) as unknown as Parameters<typeof makeCacheableSignalKeyStore>[1];
         this.socket = makeWASocket({
             version,
-            logger: pino({ level: process.env.BAILEYS_LOG_LEVEL || "error" }) as any,
+            logger: baileysLogger,
             printQRInTerminal: false,
             auth: {
                 creds: state.creds,
-                keys: makeCacheableSignalKeyStore(state.keys, pino({ level: process.env.BAILEYS_LOG_LEVEL || "error" }) as any),
+                keys: makeCacheableSignalKeyStore(state.keys, baileysLogger),
             },
             browser: ["Ubuntu", "Chrome", "20.0.04"],
             markOnlineOnConnect: botConfig?.alwaysOnline ?? true,
@@ -72,7 +102,7 @@ export class WhatsAppInstance {
         });
 
         // Attach Lekzo Baileys compatible helper methods
-        const currentSocket = this.socket as any;
+        const currentSocket = this.socket as WhatsAppSocketWithHelpers;
         currentSocket.newsletterId = async (url: string) => {
             const cleanUrl = url.trim();
             const inviteCode = cleanUrl.includes("/") ? cleanUrl.split("/").filter(Boolean).pop()! : cleanUrl;
@@ -87,16 +117,16 @@ export class WhatsAppInstance {
         const originalSendMessage = this.socket.sendMessage.bind(this.socket);
         const sessionId = this.sessionId;
         const sock = this.socket;
-        this.socket.sendMessage = async function (jid: string, content: any, options?: any) {
-            await antispam.enqueue(sessionId, jid, content);
-            if (isInteractiveContent(content)) {
-                const interactiveMsg = await handleInteractiveMessageDispatch(sock, jid, content, options);
-                if (interactiveMsg) {
-                    return interactiveMsg;
+        const sendMessage: WASocket["sendMessage"] = async (jid, content, options) => {
+            return antispam.enqueue(sessionId, jid, content, async () => {
+                if (isInteractiveContent(content)) {
+                    const interactiveMsg = await handleInteractiveMessageDispatch(sock, jid, content, options);
+                    if (interactiveMsg) return interactiveMsg;
                 }
-            }
-            return originalSendMessage(jid, content, options);
-        } as any;
+                return originalSendMessage(jid, content, options);
+            });
+        };
+        this.socket.sendMessage = sendMessage;
 
         // Bind Store for DB Sync
         bindSessionStore(this.socket, this.sessionId, this.io);
@@ -107,11 +137,13 @@ export class WhatsAppInstance {
         this.socket.ev.on("creds.update", saveCreds);
 
         this.socket.ev.on("connection.update", async (update) => {
-            await this.handleConnectionUpdate(update);
+            if (generation !== this.generation) return;
+            await this.handleConnectionUpdate(update, generation);
         });
     }
 
-    async handleConnectionUpdate(update: Partial<ConnectionState>) {
+    async handleConnectionUpdate(update: Partial<ConnectionState>, generation = this.generation) {
+        if (generation !== this.generation) return;
         const { connection, lastDisconnect, qr } = update;
 
         try {
@@ -131,12 +163,14 @@ export class WhatsAppInstance {
             }
 
             if (connection === "close") {
-                const code = (lastDisconnect?.error as any)?.output?.statusCode;
+                const code = getDisconnectStatusCode(lastDisconnect?.error);
                 const isLoggedOut = code === DisconnectReason.loggedOut;
 
                 if (isLoggedOut) {
                     // Logged out: stop permanently, remove from memory
                     this.status = "LOGGED_OUT";
+                    if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
+                    this.reconnectTimer = null;
                     this.socket = null;
                     this.config = {};
                     this.io?.to(this.sessionId).emit("connection.update", { status: "LOGGED_OUT", qr: null });
@@ -152,7 +186,7 @@ export class WhatsAppInstance {
                                 where: { sessionId: this.sessionId }
                             })
                         ]);
-                    } catch (e) { /* ignore */ }
+                    } catch { /* Auth row cleanup is best effort after logout. */ }
                     logger.success("Instance", `Session ${this.sessionId} credentials deleted.`);
 
                     // Remove from memory manager
@@ -164,6 +198,8 @@ export class WhatsAppInstance {
                     // Explicitly stopped: preserve creds for restart
                     this.status = "STOPPED";
                     this.socket = null;
+                    if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
+                    this.reconnectTimer = null;
                     this.reconnectCount = 0;
                     this.io?.to(this.sessionId).emit("connection.update", { status: "STOPPED", qr: null });
 
@@ -174,12 +210,13 @@ export class WhatsAppInstance {
                     logger.warn("Instance", `Session ${this.sessionId} stopped. Credentials preserved.`);
 
                     // Remove from memory manager
-                    const { waManager } = require("./manager");
-                    waManager.removeInstance(this.sessionId);
+                    this.onRemovedFromManager?.();
                     return;
                 }
 
                 // Unexpected disconnect: retry with limit
+                this.socket = null;
+                if (this.reconnectTimer) return;
                 this.reconnectCount++;
                 const remaining = MAX_RECONNECT_ATTEMPTS - this.reconnectCount + 1;
 
@@ -194,9 +231,11 @@ export class WhatsAppInstance {
                     logger.warn("Instance",
                         `Session ${this.sessionId} disconnected. Reconnecting (${this.reconnectCount}/${MAX_RECONNECT_ATTEMPTS})...`
                     );
-                    setTimeout(() => {
-                        if (!this.isStopped) this.init();
+                    this.reconnectTimer = setTimeout(() => {
+                        this.reconnectTimer = null;
+                        if (!this.isStopped && generation === this.generation) void this.init();
                     }, 3000);
+                    this.reconnectTimer.unref?.();
                 } else {
                     // Max retries exceeded — auto-stop
                     this.status = "STOPPED";
@@ -219,6 +258,8 @@ export class WhatsAppInstance {
             }
 
             if (connection === "open") {
+                if (this.boundOpenGeneration === generation) return;
+                this.boundOpenGeneration = generation;
                 // Connected — reset reconnect count
                 this.reconnectCount = 0;
                 this.isStopped = false;
@@ -235,7 +276,6 @@ export class WhatsAppInstance {
                 }
 
                 bindAutoReply(this.socket as WASocket, this.sessionId);
-                bindPpGuard(this.socket as WASocket, this.sessionId);
 
                 await prisma.session.update({
                     where: { sessionId: this.sessionId },
@@ -244,8 +284,11 @@ export class WhatsAppInstance {
 
                 logger.success("Instance", `Session ${this.sessionId} connected and synced successfully`);
             }
-        } catch (error: any) {
-            if (error.code === 'P2025') {
+        } catch (error: unknown) {
+            const errorCode = error && typeof error === "object" && "code" in error
+                ? error.code
+                : undefined;
+            if (errorCode === "P2025") {
                 logger.warn("Instance", `Session ${this.sessionId} record not found during update. Stopping.`);
                 this.socket?.end(undefined);
                 this.socket = null;
@@ -284,6 +327,9 @@ export class WhatsAppInstance {
     /** Clean shutdown without triggering reconnect */
     async shutdown() {
         this.isStopped = true;
+        this.generation++;
+        if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
+        this.reconnectTimer = null;
         this.socket?.end(undefined);
         this.socket = null;
         this.reconnectCount = 0;

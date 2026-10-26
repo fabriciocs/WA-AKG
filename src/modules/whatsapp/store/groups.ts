@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
-import type { WASocket, GroupMetadata } from "@whiskeysockets/baileys";
+import type { WASocket } from "@whiskeysockets/baileys";
+import type { Prisma } from "@prisma/client";
 import { logger } from "@/lib/logger";
 
 export async function syncGroups(sock: WASocket, sessionId: string) {
@@ -36,8 +37,8 @@ export async function syncGroups(sock: WASocket, sessionId: string) {
                          creation: g.creation ? new Date(g.creation * 1000) : undefined,
                          restrict: g.restrict,
                          announce: g.announce,
-                         participants: g.participants as any,
-                         metadata: g as any,
+                         participants: g.participants as unknown as Prisma.InputJsonValue,
+                         metadata: g as unknown as Prisma.InputJsonValue,
                          isCommunity: g.isCommunity || false,
                          linkedParentJid: g.linkedParent || null
                      },
@@ -47,8 +48,8 @@ export async function syncGroups(sock: WASocket, sessionId: string) {
                          ownerJid: g.owner,
                          restrict: g.restrict,
                          announce: g.announce,
-                         participants: g.participants as any,
-                         metadata: g as any,
+                         participants: g.participants as unknown as Prisma.InputJsonValue,
+                         metadata: g as unknown as Prisma.InputJsonValue,
                          isCommunity: g.isCommunity || false,
                          linkedParentJid: g.linkedParent || null
                      }

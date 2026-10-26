@@ -1,59 +1,73 @@
 import dns from "dns";
+import http from "http";
+import https from "https";
 import net from "net";
-import { logger } from "./logger";
+
+/** A DNS answer retained so the transport connects to the exact address validated. */
+type LookupAddress = { address: string; family: number };
 
 /**
- * Checks if an IPv4 or IPv6 address is private, loopback, link-local, or reserved.
+ * Checks whether an address is non-global or reserved. This is deliberately
+ * fail-closed: addresses that cannot be parsed are unsafe.
  */
-export function isPrivateOrReservedIp(ip: string): boolean {
-    // Handle IPv4-mapped IPv6 (e.g. ::ffff:127.0.0.1)
-    if (ip.startsWith("::ffff:")) {
-        ip = ip.substring(7);
-    }
-
-    if (net.isIPv4(ip)) {
+export function isPrivateOrReservedIp(input: string): boolean {
+    const ip = input.replace(/^\[|\]$/g, "");
+    const family = net.isIP(ip);
+    if (family === 4) {
         const parts = ip.split(".").map(Number);
-        if (parts.length !== 4 || parts.some(p => isNaN(p) || p < 0 || p > 255)) {
-            return true; // Invalid IPv4, treat as unsafe
-        }
-
-        const [b0, b1] = parts;
-
-        // 0.0.0.0/8 (Current network)
-        if (b0 === 0) return true;
-        // 10.0.0.0/8 (Private)
-        if (b0 === 10) return true;
-        // 127.0.0.0/8 (Loopback)
-        if (b0 === 127) return true;
-        // 169.254.0.0/16 (Link-local / Cloud Metadata: AWS, GCP, Azure, DO, etc.)
-        if (b0 === 169 && b1 === 254) return true;
-        // 172.16.0.0/12 (Private)
-        if (b0 === 172 && b1 >= 16 && b1 <= 31) return true;
-        // 192.168.0.0/16 (Private)
-        if (b0 === 192 && b1 === 168) return true;
-        // 224.0.0.0/4 (Multicast) & 240.0.0.0/4 (Reserved)
-        if (b0 >= 224) return true;
-        // Broadcast
-        if (ip === "255.255.255.255") return true;
-
-        return false;
+        const value = parts.reduce((acc, part) => acc * 256 + part, 0);
+        const inCidr = (network: string, prefix: number) => {
+            const base = network.split(".").map(Number).reduce((acc, part) => acc * 256 + part, 0);
+            const mask = prefix === 0 ? 0 : Math.floor(0x100000000 / (2 ** (32 - prefix))) * (2 ** (32 - prefix)) - (2 ** (32 - prefix));
+            return (value & mask) === (base & mask);
+        };
+        const nonGlobal = [
+            ["0.0.0.0", 8], ["10.0.0.0", 8], ["100.64.0.0", 10],
+            ["127.0.0.0", 8], ["169.254.0.0", 16], ["172.16.0.0", 12],
+            ["192.0.0.0", 24], ["192.0.2.0", 24], ["192.88.99.0", 24],
+            ["192.168.0.0", 16], ["198.18.0.0", 15], ["198.51.100.0", 24],
+            ["203.0.113.0", 24], ["224.0.0.0", 4], ["240.0.0.0", 4]
+        ] as const;
+        return nonGlobal.some(([network, prefix]) => inCidr(network, prefix));
     }
 
-    if (net.isIPv6(ip)) {
-        const lower = ip.toLowerCase();
-        // ::1 (Loopback)
-        if (lower === "::1" || lower === "0:0:0:0:0:0:0:1") return true;
-        // :: (Unspecified)
-        if (lower === "::" || lower === "0:0:0:0:0:0:0:0") return true;
-        // fe80::/10 (Link-local)
-        if (lower.startsWith("fe8") || lower.startsWith("fe9") || lower.startsWith("fea") || lower.startsWith("feb")) return true;
-        // fc00::/7 (Unique local private)
-        if (lower.startsWith("fc") || lower.startsWith("fd")) return true;
+    if (family !== 6) return true;
+    const groups = parseIpv6(ip);
+    if (!groups) return true;
 
-        return false;
+    // IPv4-mapped IPv6 can encode private IPv4 destinations.
+    if (groups.slice(0, 5).every(group => group === 0) && groups[5] === 0xffff) {
+        const mappedV4 = `${groups[6] >> 8}.${groups[6] & 255}.${groups[7] >> 8}.${groups[7] & 255}`;
+        return isPrivateOrReservedIp(mappedV4);
     }
 
-    return true; // Unknown address format, treat as unsafe
+    // Only global-unicast 2000::/3 is allowed; deny special-purpose blocks.
+    if ((groups[0] & 0xe000) !== 0x2000) return true;
+    if (groups[0] === 0x2001 && groups[1] <= 0x01ff) return true; // IETF special-use
+    if (groups[0] === 0x2001 && groups[1] === 0x0db8) return true; // Documentation
+    if (groups[0] === 0x2002) return true; // 6to4 embeds IPv4
+    return false;
+}
+
+function parseIpv6(input: string): number[] | null {
+    let address = input.toLowerCase();
+    if (address.includes(".")) {
+        const lastColon = address.lastIndexOf(":");
+        if (lastColon < 0) return null;
+        const v4 = address.slice(lastColon + 1);
+        if (net.isIP(v4) !== 4) return null;
+        const [a, b, c, d] = v4.split(".").map(Number);
+        address = `${address.slice(0, lastColon)}:${((a << 8) | b).toString(16)}:${((c << 8) | d).toString(16)}`;
+    }
+
+    const halves = address.split("::");
+    if (halves.length > 2) return null;
+    const left = halves[0] ? halves[0].split(":") : [];
+    const right = halves.length === 2 && halves[1] ? halves[1].split(":") : [];
+    if ([...left, ...right].some(part => !/^[0-9a-f]{1,4}$/.test(part))) return null;
+    const missing = 8 - left.length - right.length;
+    if ((halves.length === 1 && missing !== 0) || (halves.length === 2 && missing < 1)) return null;
+    return [...left.map(part => parseInt(part, 16)), ...Array(missing).fill(0), ...right.map(part => parseInt(part, 16))];
 }
 
 export interface ValidateUrlOptions {
@@ -61,181 +75,183 @@ export interface ValidateUrlOptions {
     allowedHostnames?: string[];
 }
 
-/**
- * Validates that a URL is well-formed, uses allowed protocols,
- * and does NOT resolve to internal / private / loopback IP addresses (anti-SSRF).
- */
+/** Validates URL policy and every DNS answer before the transport is opened. */
 export async function validateSafeUrl(
     urlStr: string,
-    options: ValidateUrlOptions = {}
+    options: ValidateUrlOptions = {},
+    lookup: (hostname: string) => Promise<LookupAddress[]> = hostname => dns.promises.lookup(hostname, { all: true })
 ): Promise<{ valid: boolean; error?: string; url?: URL; resolvedIps?: string[] }> {
-    if (!urlStr || typeof urlStr !== "string") {
-        return { valid: false, error: "URL must be a non-empty string" };
-    }
+    if (!urlStr || typeof urlStr !== "string") return { valid: false, error: "URL must be a non-empty string" };
 
     let parsed: URL;
-    try {
-        parsed = new URL(urlStr);
-    } catch {
-        return { valid: false, error: "Malformed URL" };
-    }
-
+    try { parsed = new URL(urlStr); } catch { return { valid: false, error: "Malformed URL" }; }
     const allowedProtocols = options.allowHttp ? ["https:", "http:"] : ["https:"];
-    if (!allowedProtocols.includes(parsed.protocol)) {
-        return { valid: false, error: `Protocol '${parsed.protocol}' is not allowed. Only HTTPS is supported.` };
+    if (!allowedProtocols.includes(parsed.protocol)) return { valid: false, error: `Protocol '${parsed.protocol}' is not allowed. Only HTTPS is supported.` };
+    if (parsed.username || parsed.password) return { valid: false, error: "URL credentials are not allowed" };
+
+    const hostname = parsed.hostname.replace(/^\[|\]$/g, "").replace(/\.$/, "").toLowerCase();
+    if (!hostname) return { valid: false, error: "URL missing valid hostname" };
+    if (options.allowedHostnames?.length) {
+        const matches = options.allowedHostnames.some(allowed => {
+            const normalized = allowed.toLowerCase().replace(/^\[|\]$/g, "").replace(/\.$/, "");
+            return hostname === normalized || hostname.endsWith(`.${normalized}`);
+        });
+        if (!matches) return { valid: false, error: `Hostname '${hostname}' is not in the allowed domains list` };
+    }
+    if (hostname === "localhost" || hostname.endsWith(".localhost") || hostname.endsWith(".local")) {
+        return { valid: false, error: "Access to local hostnames is forbidden" };
     }
 
-    const hostname = parsed.hostname;
-    if (!hostname) {
-        return { valid: false, error: "URL missing valid hostname" };
-    }
-
-    // Check specific hostnames whitelist if requested
-    if (options.allowedHostnames && options.allowedHostnames.length > 0) {
-        const matches = options.allowedHostnames.some(allowed => 
-            hostname === allowed || hostname.endsWith(`.${allowed}`)
-        );
-        if (!matches) {
-            return { valid: false, error: `Hostname '${hostname}' is not in the allowed domains list` };
-        }
-    }
-
-    // Direct IP address in hostname
-    if (net.isIP(hostname)) {
-        if (isPrivateOrReservedIp(hostname)) {
-            return { valid: false, error: `Access to private or local IP address (${hostname}) is forbidden` };
-        }
+    const family = net.isIP(hostname);
+    if (family) {
+        if (isPrivateOrReservedIp(hostname)) return { valid: false, error: `Access to private or reserved IP address (${hostname}) is forbidden` };
         return { valid: true, url: parsed, resolvedIps: [hostname] };
     }
 
-    // Reject localhost explicitly
-    if (hostname.toLowerCase() === "localhost" || hostname.toLowerCase().endsWith(".localhost")) {
-        return { valid: false, error: "Access to localhost is forbidden" };
-    }
-
-    // Resolve DNS and check every returned IP
     try {
-        const lookupResults = await dns.promises.lookup(hostname, { all: true });
-        if (!lookupResults || lookupResults.length === 0) {
-            return { valid: false, error: `Unable to resolve hostname '${hostname}'` };
+        const results = await lookup(hostname);
+        if (!results?.length) return { valid: false, error: `Unable to resolve hostname '${hostname}'` };
+        if (results.some(result => isPrivateOrReservedIp(result.address))) {
+            return { valid: false, error: "Hostname resolves to a private or reserved IP address" };
         }
-
-        const resolvedIps = lookupResults.map(r => r.address);
-        for (const res of lookupResults) {
-            if (isPrivateOrReservedIp(res.address)) {
-                return { valid: false, error: `Hostname resolves to private or internal IP address (${res.address})` };
-            }
-        }
-
-        return { valid: true, url: parsed, resolvedIps };
-    } catch (err: any) {
-        return { valid: false, error: `DNS lookup failed for '${hostname}': ${err.message}` };
+        return { valid: true, url: parsed, resolvedIps: results.map(result => result.address) };
+    } catch (error) {
+        return { valid: false, error: `DNS lookup failed for '${hostname}': ${error instanceof Error ? error.message : "unknown error"}` };
     }
 }
 
-export interface SafeFetchOptions {
+export interface SafeFetchOptions extends ValidateUrlOptions {
     maxBytes?: number;
     timeoutMs?: number;
-    allowHttp?: boolean;
-    allowedHostnames?: string[];
 }
 
-const DEFAULT_MAX_BYTES = 16 * 1024 * 1024; // 16 MB
-const DEFAULT_TIMEOUT_MS = 10000; // 10s
+export interface SafeRequestOptions extends SafeFetchOptions {
+    method?: string;
+    headers?: Record<string, string>;
+    body?: string | Buffer;
+    followRedirects?: boolean;
+    maxRedirects?: number;
+}
+
+export interface SafeHttpResponse {
+    status: number;
+    statusText: string;
+    headers: Headers;
+    body: Buffer;
+}
+
+type SafeRequestDependencies = {
+    lookup: (hostname: string) => Promise<LookupAddress[]>;
+    request: (url: URL, pinnedAddress: string, options: SafeRequestOptions) => Promise<SafeHttpResponse>;
+};
+
+const defaultDependencies: SafeRequestDependencies = {
+    lookup: hostname => dns.promises.lookup(hostname, { all: true }),
+    request: nodePinnedRequest
+};
+
+function nodePinnedRequest(url: URL, pinnedAddress: string, options: SafeRequestOptions): Promise<SafeHttpResponse> {
+    return new Promise((resolve, reject) => {
+        const transport = url.protocol === "https:" ? https : http;
+        const host = url.hostname.replace(/^\[|\]$/g, "");
+        const headers = { ...(options.headers ?? {}) };
+        for (const key of Object.keys(headers)) if (key.toLowerCase() === "host") delete headers[key];
+        const requestOptions: https.RequestOptions = {
+            protocol: url.protocol,
+            hostname: host,
+            port: url.port || undefined,
+            method: options.method ?? "GET",
+            path: `${url.pathname}${url.search}`,
+            headers: { ...headers, host: url.host },
+            // A fresh socket ensures no pooled connection bypasses the validated IP.
+            agent: false,
+            lookup: (_hostname: string, _lookupOptions: unknown, callback: (error: NodeJS.ErrnoException | null, address: string, family: number) => void) => {
+                callback(null, pinnedAddress, net.isIP(pinnedAddress));
+            },
+            ...(url.protocol === "https:" && !net.isIP(host) ? { servername: host } : {})
+        };
+        const request = transport.request(requestOptions, response => {
+            const chunks: Buffer[] = [];
+            let size = 0;
+            const maxBytes = options.maxBytes ?? 16 * 1024 * 1024;
+            response.on("data", chunk => {
+                const data = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+                size += data.length;
+                if (size > maxBytes) {
+                    request.destroy(new Error(`Response exceeds the maximum permitted size of ${maxBytes} bytes`));
+                    return;
+                }
+                chunks.push(data);
+            });
+            response.on("end", () => resolve({
+                status: response.statusCode ?? 0,
+                statusText: response.statusMessage ?? "",
+                headers: new Headers(Object.entries(response.headers).flatMap(([key, value]) =>
+                    value === undefined ? [] : (Array.isArray(value) ? value : [value]).map(item => [key, String(item)] as [string, string])
+                )),
+                body: Buffer.concat(chunks)
+            }));
+            response.on("error", reject);
+        });
+        const timer = setTimeout(() => request.destroy(new Error(`Request timed out after ${options.timeoutMs ?? 10000}ms`)), options.timeoutMs ?? 10000);
+        request.on("error", error => { clearTimeout(timer); reject(error); });
+        request.on("close", () => clearTimeout(timer));
+        if (options.body !== undefined) request.write(options.body);
+        request.end();
+    });
+}
 
 /**
- * Safely fetches a remote file with SSRF protection, size limits, and timeout.
+ * Performs a request only to a previously validated DNS answer. DNS is resolved
+ * once per hop and the exact selected IP is pinned in the socket lookup callback.
+ * Redirects are denied by default; GET media downloads may opt into revalidation.
+ * The dependency parameter exists for deterministic unit tests.
  */
+export async function safeRequest(
+    urlStr: string,
+    options: SafeRequestOptions = {},
+    dependencies: SafeRequestDependencies = defaultDependencies
+): Promise<SafeHttpResponse> {
+    const method = options.method ?? "GET";
+    if (options.body && Buffer.byteLength(options.body) > (options.maxBytes ?? 16 * 1024 * 1024)) {
+        throw new Error("Request body exceeds the configured size limit");
+    }
+    let current = urlStr;
+    const maxRedirects = options.maxRedirects ?? 3;
+    for (let redirectCount = 0; redirectCount <= (options.followRedirects ? maxRedirects : 0); redirectCount++) {
+        const validation = await validateSafeUrl(current, options, dependencies.lookup);
+        if (!validation.valid || !validation.url || !validation.resolvedIps?.length) throw new Error(`SSRF Prevention: ${validation.error}`);
+        const response = await dependencies.request(validation.url, validation.resolvedIps[0], options);
+        if (response.body.length > (options.maxBytes ?? 16 * 1024 * 1024)) throw new Error("Response exceeds the configured size limit");
+
+        if (response.status >= 300 && response.status < 400) {
+            if (!options.followRedirects) throw new Error(`Redirect response (${response.status}) is not allowed`);
+            const location = response.headers.get("location");
+            if (!location) throw new Error(`Redirect response (${response.status}) missing Location header`);
+            if (method !== "GET" && method !== "HEAD") throw new Error("Redirects are not allowed for non-idempotent requests");
+            if (redirectCount === maxRedirects) throw new Error(`Too many redirects (max ${maxRedirects})`);
+            current = new URL(location, validation.url).toString();
+            continue;
+        }
+        return response;
+    }
+    throw new Error(`Too many redirects (max ${maxRedirects})`);
+}
+
+/** Safely downloads a remote file with IP pinning, size limits and timeout. */
 export async function safeFetchBuffer(
     urlStr: string,
     options: SafeFetchOptions = {}
 ): Promise<{ buffer: Buffer; contentType: string; fileName?: string }> {
-    const maxBytes = options.maxBytes ?? DEFAULT_MAX_BYTES;
-    const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
-
-    let currentUrl = urlStr;
-    const maxRedirects = 3;
-
-    for (let redirectCount = 0; redirectCount <= maxRedirects; redirectCount++) {
-        const val = await validateSafeUrl(currentUrl, {
-            allowHttp: options.allowHttp,
-            allowedHostnames: options.allowedHostnames
-        });
-
-        if (!val.valid || !val.url) {
-            throw new Error(`SSRF Prevention: ${val.error}`);
-        }
-
-        const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), timeoutMs);
-
-        let response: Response;
-        try {
-            response = await fetch(val.url.toString(), {
-                method: "GET",
-                signal: controller.signal,
-                redirect: "manual" // Handle redirects manually to validate destination IP at each hop
-            });
-        } catch (err: any) {
-            clearTimeout(timer);
-            throw new Error(`Network fetch failed for '${currentUrl}': ${err.message}`);
-        } finally {
-            clearTimeout(timer);
-        }
-
-        // Handle redirects
-        if (response.status >= 300 && response.status < 400) {
-            const location = response.headers.get("location");
-            if (!location) {
-                throw new Error(`Redirect response (${response.status}) missing Location header`);
-            }
-            // Resolve relative redirect
-            currentUrl = new URL(location, val.url).toString();
-            continue;
-        }
-
-        if (!response.ok) {
-            throw new Error(`Remote server responded with HTTP ${response.status} ${response.statusText}`);
-        }
-
-        // Check Content-Length header if present
-        const contentLength = response.headers.get("content-length");
-        if (contentLength && parseInt(contentLength, 10) > maxBytes) {
-            throw new Error(`File size (${contentLength} bytes) exceeds the maximum limit of ${maxBytes} bytes`);
-        }
-
-        // Stream body with byte counter
-        if (!response.body) {
-            throw new Error("Empty response body from remote server");
-        }
-
-        const reader = response.body.getReader();
-        const chunks: Uint8Array[] = [];
-        let receivedBytes = 0;
-
-        while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-            if (value) {
-                receivedBytes += value.length;
-                if (receivedBytes > maxBytes) {
-                    reader.cancel();
-                    throw new Error(`Download exceeded maximum permitted size of ${maxBytes} bytes`);
-                }
-                chunks.push(value);
-            }
-        }
-
-        const buffer = Buffer.concat(chunks);
-        const contentType = response.headers.get("content-type") || "application/octet-stream";
-        const pathFileName = val.url.pathname.split("/").pop() || "media";
-
-        return {
-            buffer,
-            contentType,
-            fileName: pathFileName
-        };
-    }
-
-    throw new Error(`Too many redirects (max ${maxRedirects})`);
+    const maxBytes = options.maxBytes ?? 16 * 1024 * 1024;
+    const response = await safeRequest(urlStr, { ...options, method: "GET", followRedirects: true, maxBytes });
+    if (response.status < 200 || response.status >= 300) throw new Error(`Remote server responded with HTTP ${response.status} ${response.statusText}`);
+    const contentLength = response.headers.get("content-length");
+    if (contentLength && Number(contentLength) > maxBytes) throw new Error(`File size (${contentLength} bytes) exceeds the maximum limit of ${maxBytes} bytes`);
+    if (response.body.length === 0) throw new Error("Empty response body from remote server");
+    return {
+        buffer: response.body,
+        contentType: response.headers.get("content-type") || "application/octet-stream",
+        fileName: new URL(urlStr).pathname.split("/").pop() || "media"
+    };
 }

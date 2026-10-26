@@ -31,6 +31,7 @@ function safeBaseUrl() {
   if (!["http:", "https:"].includes(url.protocol)) throw new Error("WA_AKG_API_BASE_URL must use HTTP or HTTPS");
   if (url.username || url.password) throw new Error("Do not place credentials in WA_AKG_API_BASE_URL; use WA_AKG_API_KEY");
   if (!remoteApiAllowed && !isLoopbackHost(url.hostname)) throw new Error("Remote API targets are disabled. Use loopback or explicitly set WA_AKG_MCP_ALLOW_REMOTE_API=true.");
+  if (!isLoopbackHost(url.hostname) && url.protocol !== "https:") throw new Error("Remote WA-AKG API targets must use HTTPS");
   url.pathname = url.pathname.replace(/\/+$/, "");
   url.search = "";
   url.hash = "";
@@ -68,13 +69,22 @@ function createInputSchema(operation) {
     : z.record(z.string(), z.unknown()).optional();
   return shape;
 }
-function isAllowedOperation(method, route) {
+export function isAllowedOperation(method, route, authContext) {
+  const scopes = Array.isArray(authContext?.scopes) ? authContext.scopes : null;
+  if (scopes && !scopes.includes("mcp:read")) return false;
   if (method === "get") {
     // Avoid automatically exposing credential, pairing-secret, media, authentication, and broad admin reads.
-    if (/^\/(user\/api-key|sessions\/[^/]+\/qr|users(?:\/|$)|settings\/system|auth(?:\/|$)|media(?:\/|$)|messages\/[^/]+\/download\/)/.test(route)) return false;
+    if (/^\/(user\/api-key|sessions\/[^/]+\/qr|users(?:\/|$)|settings\/system|auth(?:\/|$)|oauth(?:\/|$)|media(?:\/|$)|messages\/[^/]+\/download\/)/.test(route)) return false;
+    if (scopes) {
+      const sessionRead = /^\/sessions(?:\/[^/]+)?$/.test(route) && scopes.includes("sessions:read");
+      if (!sessionRead && !scopes.includes("api:read")) return false;
+    }
     return true;
   }
-  return writeAllowlist.has(operationKey(method, route));
+  if (!writeAllowlist.has(operationKey(method, route))) return false;
+  // HTTP API writes also require api:write. mcp:write alone is not a bearer
+  // permission for direct API writes, and the MCP server must not bypass that.
+  return !scopes || (scopes.includes("mcp:write") && scopes.includes("api:write"));
 }
 function pathForRoute(route, args) {
   return route.replace(/\{([^}]+)\}/g, (_match, name) => {
@@ -94,11 +104,12 @@ function buildUrl(baseUrl, route, operation, args) {
   }
   return url;
 }
-async function callApi(method, route, operation, args) {
+async function callApi(method, route, operation, args, authContext) {
   const baseUrl = safeBaseUrl();
   const url = buildUrl(baseUrl, route, operation, args);
   const headers = { Accept: "application/json" };
-  if (apiKey) headers["X-API-Key"] = apiKey;
+  if (authContext?.accessToken) headers.Authorization = `Bearer ${authContext.accessToken}`;
+  else if (apiKey) headers["X-API-Key"] = apiKey;
   let body;
   if (operation.requestBody && args.body !== undefined) {
     headers["Content-Type"] = "application/json";
@@ -129,12 +140,12 @@ async function callApi(method, route, operation, args) {
     throw error;
   } finally { clearTimeout(timeout); }
 }
-function registerApiTools(spec, targetServer = server) {
+function registerApiTools(spec, targetServer = server, authContext) {
   let registered = 0;
   const usedNames = new Set();
   for (const [route, pathItem] of Object.entries(spec.paths ?? {})) {
     for (const [method, operation] of Object.entries(pathItem ?? {})) {
-      if (!["get", "post", "put", "patch", "delete"].includes(method) || !isAllowedOperation(method, route)) continue;
+      if (!["get", "post", "put", "patch", "delete"].includes(method) || !isAllowedOperation(method, route, authContext)) continue;
       let name = toolName(method, route);
       if (usedNames.has(name)) name = `${name}_${Buffer.from(route).toString("hex").slice(0, 8)}`;
       usedNames.add(name);
@@ -151,7 +162,8 @@ function registerApiTools(spec, targetServer = server) {
         annotations: { readOnlyHint: method === "get", destructiveHint: method === "delete", idempotentHint: ["get", "put", "delete"].includes(method), openWorldHint: false }
       }, async (args) => {
         try {
-          const result = await callApi(method, route, operation, args);
+          if (!isAllowedOperation(method, route, authContext)) throw new Error("The current OAuth token does not grant this MCP tool");
+          const result = await callApi(method, route, operation, args, authContext);
           return { content: [{ type: "text", text: JSON.stringify(result, null, 2).slice(0, maxResponseBytes) }] };
         } catch (error) {
           return { isError: true, content: [{ type: "text", text: error instanceof Error ? error.message : "Unknown WA-AKG API error" }] };
@@ -162,12 +174,12 @@ function registerApiTools(spec, targetServer = server) {
   }
   return registered;
 }
-export async function initializeMcpServer(targetServer = server) {
+export async function initializeMcpServer(targetServer = server, authContext) {
   if (initializedServers.has(targetServer)) return registeredCounts.get(targetServer) ?? 0;
   const raw = await readFile(specPath, "utf8");
   const spec = JSON.parse(raw);
   if (!spec.openapi || !spec.paths) throw new Error(`Invalid OpenAPI document: ${specPath}`);
-  const count = registerApiTools(spec, targetServer);
+  const count = registerApiTools(spec, targetServer, authContext);
   targetServer.registerTool("wa_akg_server_info", {
     title: "WA-AKG MCP server information",
     description: "Returns safe runtime metadata and the configured API target without revealing credentials.",
@@ -175,11 +187,18 @@ export async function initializeMcpServer(targetServer = server) {
     annotations: { readOnlyHint: true, openWorldHint: false }
   }, async () => {
     const baseUrl = safeBaseUrl();
+    const availableWriteTools = authContext?.scopes
+      ? [...writeAllowlist].filter((entry) => {
+          const separator = entry.indexOf(" ");
+          return separator > 0 && isAllowedOperation(entry.slice(0, separator).toLowerCase(), entry.slice(separator + 1), authContext);
+        }).length
+      : writeAllowlist.size;
     return { content: [{ type: "text", text: JSON.stringify({
       server: "wa-akg-mcp", version: "0.1.0", openapiVersion: spec.openapi,
       apiTitle: spec.info?.title ?? "WA-AKG API", apiVersion: spec.info?.version ?? "unknown",
       apiBaseUrl: baseUrl.origin + baseUrl.pathname, apiKeyConfigured: Boolean(apiKey),
-      writeToolsEnabled: writeAllowlist.size > 0, writeAllowlistCount: writeAllowlist.size, registeredApiTools: count
+      authentication: authContext ? "oauth-user-delegation" : (apiKey ? "local-api-key" : "none"),
+      writeToolsEnabled: availableWriteTools > 0, writeAllowlistCount: availableWriteTools, registeredApiTools: count
     }, null, 2) }] };
   });
   initializedServers.add(targetServer);

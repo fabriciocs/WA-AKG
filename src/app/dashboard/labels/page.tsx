@@ -3,7 +3,7 @@ import { apiUrl } from "@/lib/api-url";
 
 import { useState, useEffect, useCallback } from "react";
 import { useSession } from "@/components/dashboard/session-provider";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -93,13 +93,7 @@ export default function LabelsPage() {
     const [contacts, setContacts] = useState<Contact[]>([]);
     const [contactsLoading, setContactsLoading] = useState(false);
 
-    useEffect(() => {
-        if (sessionId) {
-            fetchLabels();
-        }
-    }, [sessionId]);
-
-    const fetchLabels = async () => {
+    const fetchLabels = useCallback(async () => {
         if (!sessionId) return;
         setLoading(true);
         try {
@@ -117,7 +111,11 @@ export default function LabelsPage() {
         } finally {
             setLoading(false);
         }
-    };
+    }, [sessionId]);
+
+    useEffect(() => {
+        if (sessionId) fetchLabels();
+    }, [sessionId, fetchLabels]);
 
     const handleCreate = async () => {
         if (!sessionId) return;
@@ -293,7 +291,7 @@ export default function LabelsPage() {
                 const data = await res.json();
                 toast.error(data.message || "Failed to assign label");
             }
-        } catch (error) {
+        } catch {
             toast.error("Error assigning label");
         }
     };
@@ -316,7 +314,7 @@ export default function LabelsPage() {
             } else {
                 toast.error("Failed to remove label");
             }
-        } catch (error) {
+        } catch {
             toast.error("Error removing label");
         }
     };

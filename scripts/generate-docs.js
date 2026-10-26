@@ -226,7 +226,7 @@ for (const [tag, endpoints] of Object.entries(tagMap)) {
             let resp200 = responses['200'];
             if (resp200?.$ref) resp200 = resolveRef(resp200.$ref, swagger);
             if (resp200?.content) {
-                for (const [ct, ctSpec] of Object.entries(resp200.content)) {
+                for (const ctSpec of Object.values(resp200.content)) {
                     // Show response fields table
                     const respSchema = resolveSchema(ctSpec.schema, swagger);
                     if (respSchema && respSchema.properties) {

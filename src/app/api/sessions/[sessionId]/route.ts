@@ -1,7 +1,8 @@
 import { NextResponse, NextRequest } from "next/server";
 import { waManager } from "@/modules/whatsapp/manager";
-import { getAuthenticatedUser, canAccessSession } from "@/lib/api-auth";
+import { getAuthenticatedUser, canAccessSession, isSessionOwner } from "@/lib/api-auth";
 import { prisma } from "@/lib/prisma";
+import { SAFE_WEBHOOK_SELECT, sanitizeSessionWebhooks, sanitizeSharedSession } from "@/lib/session-access";
 
 export async function GET(
     request: NextRequest,
@@ -22,12 +23,14 @@ export async function GET(
             return NextResponse.json({ status: false, message: "Forbidden - Cannot access this session", error: "Forbidden - Cannot access this session" }, { status: 403 });
         }
 
+        const isOwner = await isSessionOwner(user.id, user.role, sessionId);
+
         // Get DB Session
         const session = await prisma.session.findUnique({
             where: { sessionId },
             include: {
                 botConfig: true,
-                webhooks: true,
+                webhooks: { select: SAFE_WEBHOOK_SELECT },
                 _count: {
                     select: {
                         groups: true,
@@ -62,12 +65,12 @@ export async function GET(
             status: true,
             message: "Session details retrieved successfully",
             data: {
-                ...session,
+                ...sanitizeSessionWebhooks(isOwner ? session : sanitizeSharedSession(session)),
                 status: instance?.status || session.status, // Prefer live status
                 uptime,
                 me,
                 hasInstance: !!instance,
-                pairingCode: instance?.pairingCode || null
+                pairingCode: isOwner ? instance?.pairingCode || null : null
             }
         });
 

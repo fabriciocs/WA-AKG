@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
-import type { WASocket, WAMessage, Contact } from "@whiskeysockets/baileys";
+import type { WASocket, WAMessage } from "@whiskeysockets/baileys";
+import type { BotConfig, MessageType, Prisma } from "@prisma/client";
 import { normalizeMessageContent } from "@whiskeysockets/baileys";
 import { onMessageReceived, onMessageSent, dispatchWebhook, downloadAndSaveMedia } from "@/lib/webhook";
 import { handleBotCommand, setSessionStartTime } from "../bot/command-handler";
@@ -49,7 +50,8 @@ export const bindSessionStore = (sock: WASocket, sessionId: string, io: Server |
             dbSessionId = session.id;
         }
 
-        const processedMessages = [];
+        type SavedMessage = Awaited<ReturnType<typeof prisma.message.create>>;
+        const processedMessages: SavedMessage[] = [];
 
         // Fetch Bot Config for auto-read & welcome message
         const config = await prisma.botConfig.findUnique({
@@ -59,7 +61,7 @@ export const bindSessionStore = (sock: WASocket, sessionId: string, io: Server |
         for (const msg of messages) {
             try {
                 // Auto Read Logic
-                if (type === 'notify' && (config as any)?.autoRead && !msg.key.fromMe) {
+                if (type === 'notify' && config?.autoRead && !msg.key.fromMe) {
                     await sock.readMessages([msg.key]);
                 }
 
@@ -81,7 +83,7 @@ export const bindSessionStore = (sock: WASocket, sessionId: string, io: Server |
         // Emit to socket room for real-time frontend updates
         if (processedMessages.length > 0) {
             // Serialize for frontend: convert Date to ISO string
-            const serialized = processedMessages.map((m: any) => ({
+            const serialized = processedMessages.map((m) => ({
                 ...m,
                 timestamp: m.timestamp instanceof Date ? m.timestamp.toISOString() : m.timestamp
             }));
@@ -137,24 +139,20 @@ export const bindSessionStore = (sock: WASocket, sessionId: string, io: Server |
                     create: {
                         sessionId: dbSessionId,
                         jid: c.id,
-                        // @ts-ignore
                         lid: c.lid || undefined,
                         name: c.name || c.notify || c.verifiedName,
                         notify: c.notify,
-                        // @ts-ignore
                         verifiedName: c.verifiedName,
                         profilePic: c.imgUrl || undefined,
-                        data: c as any
+                        data: c as unknown as Prisma.InputJsonValue
                     },
                     update: {
-                        // @ts-ignore
                         lid: c.lid || undefined,
                         name: c.name || undefined,
                         notify: c.notify || undefined,
-                        // @ts-ignore
                         verifiedName: c.verifiedName || undefined,
                         profilePic: c.imgUrl || undefined,
-                        data: c as any
+                        data: c as unknown as Prisma.InputJsonValue
                     }
                 });
 
@@ -175,7 +173,7 @@ export const bindSessionStore = (sock: WASocket, sessionId: string, io: Server |
                 const keyId = update.key?.id;
                 if (!keyId) continue;
 
-                const statusMap: Record<number, string> = {
+                const statusMap: Record<number, "PENDING" | "SENT" | "DELIVERED" | "READ"> = {
                     0: 'PENDING',
                     1: 'SENT',
                     2: 'DELIVERED',
@@ -187,7 +185,7 @@ export const bindSessionStore = (sock: WASocket, sessionId: string, io: Server |
 
                 await prisma.message.updateMany({
                     where: { sessionId: dbSessionId, keyId },
-                    data: { status: status as any }
+                    data: { status }
                 });
 
                 // Dispatch webhook for message status update
@@ -211,7 +209,7 @@ export const bindSessionStore = (sock: WASocket, sessionId: string, io: Server |
                 if (!update.id) continue;
                 
                 // Keep DB in sync
-                const updateData: any = {};
+                const updateData: Prisma.GroupUpdateManyMutationInput = {};
                 if (update.subject !== undefined) updateData.subject = update.subject;
                 if (update.desc !== undefined) updateData.description = update.desc;
                 if (update.restrict !== undefined) updateData.restrict = update.restrict;
@@ -257,7 +255,7 @@ export const bindSessionStore = (sock: WASocket, sessionId: string, io: Server |
             sock.groupMetadata(update.id).then(async (g) => {
                 await prisma.group.updateMany({
                     where: { sessionId: dbSessionId as string, jid: update.id as string },
-                    data: { participants: g.participants as any }
+                    data: { participants: g.participants as unknown as Prisma.InputJsonValue }
                 });
             }).catch(e => {
                  logger.debug("Store", "Failed to refresh group participants metadata", e);
@@ -274,7 +272,7 @@ async function processAndSaveMessage(
     sessionId: string,
     triggerWebhook: boolean,
     sock?: WASocket,
-    config?: any,
+    config?: BotConfig | null,
     io?: Server | null
 ) {
     const keyId = msg.key.id;
@@ -335,7 +333,9 @@ async function processAndSaveMessage(
                     where: { sessionId },
                     select: { config: true }
                 });
-                antiDeleteEnabled = !!(s?.config as any)?.antiDelete;
+                const sessionConfig = s?.config;
+                antiDeleteEnabled = typeof sessionConfig === "object" && sessionConfig !== null &&
+                    "antiDelete" in sessionConfig && sessionConfig.antiDelete === true;
             } catch {}
 
             if (antiDeleteEnabled) {
@@ -422,7 +422,7 @@ async function processAndSaveMessage(
     let messageType = "TEXT";
 
     // Check for interactive message (native flow / viewOnce wrapper)
-    const rawMsg = msg.message as any;
+    const rawMsg = msg.message;
     const interactiveMsg = messageContent?.interactiveMessage || 
         rawMsg?.viewOnceMessage?.message?.interactiveMessage || 
         rawMsg?.viewOnceMessageV2?.message?.interactiveMessage;
@@ -437,7 +437,7 @@ async function processAndSaveMessage(
         let buttonList = "";
         const rawBtns = interactiveMsg.nativeFlowMessage?.buttons || [];
         if (Array.isArray(rawBtns) && rawBtns.length > 0) {
-            const btnTitles = rawBtns.map((b: any) => {
+            const btnTitles = rawBtns.map((b) => {
                 try {
                     const parsed = typeof b.buttonParamsJson === "string" ? JSON.parse(b.buttonParamsJson) : b.buttonParamsJson;
                     return `[🔘 ${parsed?.display_text || parsed?.title || b.name}]`;
@@ -535,12 +535,12 @@ async function processAndSaveMessage(
     // Extract contextInfo (quoted message ID)
     let quoteId: string | null = null;
     if (msg.message) {
-        const msgObj = msg.message as any;
+        const msgObj = msg.message as unknown as Record<string, unknown>;
         for (const key of Object.keys(msgObj)) {
             const inner = msgObj[key];
             if (inner && typeof inner === 'object' && inner !== null && 'contextInfo' in inner) {
-                const contextInfo = (inner as any).contextInfo;
-                if (contextInfo?.stanzaId) {
+                const contextInfo = inner.contextInfo;
+                if (contextInfo && typeof contextInfo === "object" && "stanzaId" in contextInfo && typeof contextInfo.stanzaId === "string") {
                     quoteId = contextInfo.stanzaId;
                     break;
                 }
@@ -557,7 +557,7 @@ async function processAndSaveMessage(
                 fromMe: fromMe || false,
                 keyId,
                 pushName,
-                type: messageType as any,
+                type: messageType as MessageType,
                 content: text,
                 mediaUrl: fileUrl, // Save Media URL
                 status: fromMe ? "SENT" : "PENDING",
@@ -570,7 +570,7 @@ async function processAndSaveMessage(
         const finalRemoteJid = normalizeJid(normalizedRemoteJid);
         if (remoteJid && !remoteJid.includes('@g.us') && !remoteJid.includes('status@broadcast')) {
             const contactJid = finalRemoteJid; // Use fully normalized JID
-            const contactData: any = {
+            const contactData: Prisma.ContactUncheckedCreateInput = {
                 sessionId: dbSessionId,
                 jid: contactJid
             };
@@ -581,19 +581,17 @@ async function processAndSaveMessage(
                 if (pushName) contactData.name = pushName;
             }
 
-            const contact = await prisma.contact.upsert({
+            await prisma.contact.upsert({
                 where: { sessionId_jid: { sessionId: dbSessionId, jid: contactJid } },
                 create: {
                     sessionId: dbSessionId,
                     jid: contactJid,
                     notify: !fromMe ? pushName : undefined,
                     name: !fromMe ? pushName : undefined,
-                    // @ts-ignore
                     remoteJidAlt: remoteJidAlt || undefined
                 },
                 update: !fromMe ? {
                     notify: pushName,
-                    // @ts-ignore
                     remoteJidAlt: remoteJidAlt || undefined
                 } : {}
             });
@@ -622,9 +620,9 @@ async function processAndSaveMessage(
         }
 
         return newMessage;
-    } catch (e: any) {
-        logger.error("Store", "Error saving message query", e);
-        throw e;
+    } catch (error: unknown) {
+        logger.error("Store", "Error saving message query", error);
+        throw error;
     }
 }
 // Placeholder - verified that I need to find the logic first

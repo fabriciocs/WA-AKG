@@ -13,13 +13,13 @@ import { useTranslations } from "next-intl";
 
 export default function SettingsPage() {
     const t = useTranslations("settings");
-    const tCommon = useTranslations("common");
     const { data: authSession } = useSession();
-    const isSuperAdmin = (authSession?.user as any)?.role === "SUPERADMIN";
+    const isSuperAdmin = authSession?.user?.role === "SUPERADMIN";
 
     const [systemConfig, setSystemConfig] = useState({
         appName: "WA-AKG",
         logoUrl: "",
+        faviconUrl: "/favicon.ico",
         timezone: "Asia/Jakarta",
         enableRegistration: true
     });
@@ -50,7 +50,6 @@ export default function SettingsPage() {
                     setSystemConfig({
                         appName: data.appName || "WA-AKG",
                         logoUrl: data.logoUrl || "",
-                        // @ts-ignore
                         faviconUrl: data.faviconUrl || "/favicon.ico",
                         timezone: data.timezone || "Asia/Jakarta",
                         enableRegistration: data.enableRegistration !== undefined ? data.enableRegistration : true
@@ -162,7 +161,7 @@ export default function SettingsPage() {
                             <input
                                 className={inputClass}
                                 placeholder="/favicon.ico"
-                                value={(systemConfig as any).faviconUrl || ""}
+                                value={systemConfig.faviconUrl}
                                 onChange={(e) => setSystemConfig(prev => ({ ...prev, faviconUrl: e.target.value }))}
                                 disabled={!isSuperAdmin}
                             />
@@ -212,7 +211,7 @@ export default function SettingsPage() {
                                 } else {
                                     toast.error(data.message || "Failed to check updates");
                                 }
-                            } catch (e) {
+                            } catch {
                                 toast.error(t("checkUpdatesError"));
                             } finally {
                                 setSystemLoading(false);

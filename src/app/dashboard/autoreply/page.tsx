@@ -1,14 +1,14 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useSession } from "@/components/dashboard/session-provider";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { BotMessageSquare, Loader2, Plus, Trash2, MessageCircleReply, Image as ImageIcon, Pencil } from "lucide-react";
+import { BotMessageSquare, Loader2, Plus, Trash2, Image as ImageIcon, Pencil } from "lucide-react";
 import {
     Dialog,
     DialogContent,
@@ -35,17 +35,7 @@ import { getAutoReplies, createAutoReply, deleteAutoReply, updateAutoReply } fro
 import { SessionGuard } from "@/components/dashboard/session-guard";
 import { useTranslations } from "next-intl";
 
-interface AutoReply {
-    id: string;
-    keyword: string;
-    matchType: string;
-    response: string;
-    isMedia: boolean;
-    mediaUrl: string | null;
-    mediaType: string | null;
-    triggerType: string;
-    createdAt: Date;
-}
+type AutoReply = Awaited<ReturnType<typeof getAutoReplies>>[number];
 
 export default function AutoReplyPage() {
     const t = useTranslations("autoreply");
@@ -75,26 +65,24 @@ export default function AutoReplyPage() {
     const [editMediaUrl, setEditMediaUrl] = useState("");
     const [editMediaType, setEditMediaType] = useState("image");
 
-    useEffect(() => {
-        if (sessionId) {
-            fetchRules();
-        }
-    }, [sessionId]);
-
-    const fetchRules = async () => {
+    const fetchRules = useCallback(async () => {
         if (!sessionId) return;
         setLoading(true);
         try {
             // Using direct Server Action instead of API route
             const data = await getAutoReplies(sessionId);
-            setRules(data as unknown as AutoReply[]);
-        } catch (error: any) {
+            setRules(data);
+        } catch (error) {
             console.error(error);
-            toast.error(error.message || "Error fetching auto-replies");
+            toast.error(error instanceof Error ? error.message : "Error fetching auto-replies");
         } finally {
             setLoading(false);
         }
-    };
+    }, [sessionId]);
+
+    useEffect(() => {
+        if (sessionId) void fetchRules();
+    }, [sessionId, fetchRules]);
 
     const handleCreate = async () => {
         if (!sessionId) return;
@@ -120,9 +108,9 @@ export default function AutoReplyPage() {
             setIsCreateOpen(false);
             fetchRules();
             resetForm();
-        } catch (error: any) {
+        } catch (error) {
             console.error(error);
-            toast.error(error.message || "Error creating auto-reply");
+            toast.error(error instanceof Error ? error.message : "Error creating auto-reply");
         } finally {
             setSubmitting(false);
         }
@@ -135,9 +123,9 @@ export default function AutoReplyPage() {
             await deleteAutoReply(sessionId, ruleId);
             toast.success(tCommon("deleted"));
             fetchRules();
-        } catch (error: any) {
+        } catch (error) {
             console.error(error);
-            toast.error(error.message || "Error deleting auto-reply");
+            toast.error(error instanceof Error ? error.message : "Error deleting auto-reply");
         }
     };
 
@@ -183,9 +171,9 @@ export default function AutoReplyPage() {
             toast.success(t("updatedSuccess"));
             setIsEditOpen(false);
             fetchRules();
-        } catch (error: any) {
+        } catch (error) {
             console.error(error);
-            toast.error(error.message || "Error updating auto-reply");
+            toast.error(error instanceof Error ? error.message : "Error updating auto-reply");
         } finally {
             setSubmitting(false);
         }

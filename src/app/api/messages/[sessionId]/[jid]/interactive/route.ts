@@ -1,5 +1,6 @@
 import { NextResponse, NextRequest } from "next/server";
 import { getAuthenticatedUser, canAccessSession } from "@/lib/api-auth";
+import { errorMessage } from "@/lib/error-message";
 import { ChatService } from "@/modules/whatsapp/chat.service";
 
 /**
@@ -53,10 +54,11 @@ export async function POST(
             message: "Interactive message sent successfully",
             data: sendResult
         });
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error("Send interactive message error:", error);
+        const message = errorMessage(error, "Failed to send interactive message");
         return NextResponse.json(
-            { status: false, message: error.message || "Failed to send interactive message", error: error.message },
+            { status: false, message, error: message },
             { status: 500 }
         );
     }

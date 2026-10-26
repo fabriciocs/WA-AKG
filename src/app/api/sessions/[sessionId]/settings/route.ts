@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { NextResponse, NextRequest } from "next/server";
 import { waManager } from "@/modules/whatsapp/manager";
-import { getAuthenticatedUser, canAccessSession, isAdmin } from "@/lib/api-auth";
+import { getAuthenticatedUser, canAccessSession, isSessionOwner } from "@/lib/api-auth";
 
 // GET: Retrieve session settings
 export async function GET(
@@ -56,6 +56,11 @@ export async function PATCH(
             return NextResponse.json({ status: false, message: "Forbidden - Cannot access this session", error: "Forbidden - Cannot access this session" }, { status: 403 });
         }
 
+        const isOwner = await isSessionOwner(user.id, user.role, sessionId);
+        if (!isOwner) {
+            return NextResponse.json({ status: false, message: "Forbidden - Only the session owner can update settings", error: "Forbidden" }, { status: 403 });
+        }
+
         const body = await request.json();
         const { config } = body;
 
@@ -92,8 +97,8 @@ export async function DELETE(
         }
 
         // Check if user can access this session
-        const canAccess = await canAccessSession(user.id, user.role, sessionId);
-        if (!canAccess) {
+        const isOwner = await isSessionOwner(user.id, user.role, sessionId);
+        if (!isOwner) {
             return NextResponse.json({ status: false, message: "Forbidden - Cannot delete this session", error: "Forbidden - Cannot delete this session" }, { status: 403 });
         }
 

@@ -1,0 +1,10 @@
+export function normalizeBasePath(value?: string): string;
+export function normalizeEndpointPath(value?: string): string;
+export function withBasePath(basePath?: string, routePath?: string): string;
+export function appOrigin(options: { configuredOrigin?: string; requestOrigin?: string }): string;
+export function requestOriginFromNodeRequest(req: { headers: Record<string, string | string[] | undefined> }): string;
+export function oauthIssuer(options: { configuredIssuer?: string; configuredOrigin?: string; requestOrigin?: string; basePath?: string }): string;
+export function authorizationRedirectWithIssuer(redirectUri: string, issuer: string): URL;
+export function protectedResourceMetadataUrl(options: { origin: string; basePath?: string }): string;
+export function mcpResourceUrl(options: { origin: string; basePath?: string; endpointPath?: string }): string;
+export function protectedResourceMetadata(options: { configuredOrigin?: string; requestOrigin?: string; configuredIssuer?: string; basePath?: string; endpointPath?: string }): { resource: string; authorization_servers: string[] };

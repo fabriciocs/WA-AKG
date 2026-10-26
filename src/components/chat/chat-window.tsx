@@ -2,6 +2,7 @@
 import { apiUrl } from "@/lib/api-url";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import Image from "next/image";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Send, Paperclip, ArrowLeft, FileText, Image as ImageIcon, Music, Video, Download, ArrowDown, CornerUpLeft, Copy, Trash2, Info, X, Sparkles } from "lucide-react";
@@ -36,7 +37,7 @@ interface Message {
     remoteJid?: string;
     quoteId?: string | null;
     quoted?: {
-        keyId: string;
+        keyId: string | null;
         content: string | null;
         fromMe: boolean;
         senderJid: string | null;
@@ -52,6 +53,7 @@ interface ChatWindowProps {
 }
 
 const PAGE_LIMIT = 50;
+const passthroughMediaLoader = ({ src }: { src: string }) => src;
 
 // ─── Lazy media (unchanged) ────────
 function LazyMedia({ src, alt }: { src: string; alt: string }) {
@@ -67,7 +69,7 @@ function LazyMedia({ src, alt }: { src: string; alt: string }) {
     }, []);
     return (
         <div ref={ref} className="mb-1.5 overflow-hidden rounded-xl">
-            {visible ? <img src={src} alt={alt} className={`max-w-full max-h-60 object-cover rounded-xl transition-opacity ${loaded ? 'opacity-100' : 'opacity-0'}`} onLoad={() => setLoaded(true)} loading="lazy" />
+            {visible ? <Image src={src} alt={alt} width={640} height={480} loader={passthroughMediaLoader} unoptimized className={`max-w-full max-h-60 object-cover rounded-xl transition-opacity ${loaded ? 'opacity-100' : 'opacity-0'}`} onLoad={() => setLoaded(true)} style={{ width: "auto", height: "auto" }} />
                 : <div className="h-40 bg-muted/30 rounded-xl animate-pulse" />}
         </div>
     );
@@ -206,11 +208,17 @@ export function ChatWindow({ sessionId, jid, name, onBack }: ChatWindowProps) {
         try {
             if (!before) setLoading(true);
             else setLoadingMore(true);
-            const data: any = await getChatMessages(sessionId, jid, PAGE_LIMIT, before);
-            if (!before) { setMessages(data.messages || []); setAutoScroll(true); }
-            else if (data.messages?.length > 0) setMessages(prev => [...(data.messages || []), ...prev]);
+            const data = await getChatMessages(sessionId, jid, PAGE_LIMIT, before);
+            const fetchedMessages: Message[] = (data.messages || []).map(message => ({
+                ...message,
+                content: message.content ?? "",
+                pushName: message.pushName ?? undefined,
+                mediaUrl: message.mediaUrl ?? undefined,
+            }));
+            if (!before) { setMessages(fetchedMessages); setAutoScroll(true); }
+            else if (fetchedMessages.length > 0) setMessages(prev => [...fetchedMessages, ...prev]);
             setHasMore(data.hasMore);
-            if (data.messages?.length > 0) setOldestTimestamp(data.messages[0].timestamp);
+            if (fetchedMessages.length > 0) setOldestTimestamp(fetchedMessages[0].timestamp);
         } catch (e) { console.error("Failed to load messages", e); }
         finally { setLoading(false); setLoadingMore(false); }
     }, [sessionId, jid]);
@@ -271,7 +279,7 @@ export function ChatWindow({ sessionId, jid, name, onBack }: ChatWindowProps) {
             setInput("");
             setReplyingTo(null);
             setTimeout(() => fetchMessages(), 800);
-        } catch (e: any) { toast.error(e.message || "Failed to send"); }
+        } catch (e) { toast.error(e instanceof Error ? e.message : "Failed to send"); }
     };
 
     const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -323,7 +331,7 @@ export function ChatWindow({ sessionId, jid, name, onBack }: ChatWindowProps) {
             await sendMediaMessage(formData);
             toast.success("Sent!");
             setTimeout(() => fetchMessages(), 800);
-        } catch (error: any) { toast.error(error.message || "Failed to send media"); }
+        } catch (error) { toast.error(error instanceof Error ? error.message : "Failed to send media"); }
     };
 
     const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -534,7 +542,7 @@ export function ChatWindow({ sessionId, jid, name, onBack }: ChatWindowProps) {
                                         {/* STICKER */}
                                         {msg.type === 'STICKER' && msg.mediaUrl && (
                                             <div className="relative group/media mb-1">
-                                                <img src={msg.mediaUrl} alt="Sticker" className="max-h-32 object-contain rounded-lg" loading="lazy" />
+                                                <Image src={msg.mediaUrl} alt="Sticker" width={256} height={256} loader={passthroughMediaLoader} unoptimized className="max-h-32 object-contain rounded-lg" style={{ width: "auto", height: "auto" }} />
                                                 <Button size="icon" variant="secondary" className="absolute -top-1 -right-1 h-6 w-6 rounded-full opacity-0 group-hover/media:opacity-100 transition-opacity bg-background/80 backdrop-blur-sm"
                                                     onClick={() => handleDownload(msg.mediaUrl!, `STICKER-${msg.keyId}.webp`)}><Download className="h-3 w-3" /></Button>
                                             </div>

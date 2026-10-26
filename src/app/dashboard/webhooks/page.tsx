@@ -1,15 +1,14 @@
 "use client";
 import { apiUrl } from "@/lib/api-url";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Trash2, Plus, Copy, RefreshCw, Webhook, Key, Eye, EyeOff, Play, History, ChevronDown, ChevronUp, Loader2 } from "lucide-react";
+import { Trash2, Plus, Copy, RefreshCw, Webhook, Key, Eye, EyeOff, Play, History, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import {
     AlertDialog,
@@ -45,21 +44,6 @@ interface WebhookConfig {
     createdAt: string;
 }
 
-interface WebhookLog {
-    id: string;
-    webhookId: string;
-    event: string;
-    status: string;
-    requestUrl: string;
-    requestHeaders?: any;
-    requestBody?: any;
-    responseStatusCode?: number;
-    responseBody?: string;
-    responseTimeMs?: number;
-    errorMessage?: string;
-    createdAt: string;
-}
-
 import { useTranslations } from "next-intl";
 import { useSession } from "@/components/dashboard/session-provider";
 import { WEBHOOK_CHAT_TYPES, WEBHOOK_MESSAGE_TYPES, type WebhookFilters } from "@/lib/webhook-filter-constants";
@@ -68,6 +52,33 @@ interface EventDef {
     id: string;
     labelKey: "events.messageReceived" | "events.messageSent" | "events.messageStatus" | "events.connectionUpdate" | "events.groupUpdate" | "events.groupParticipant" | "events.contactUpdate" | "events.statusUpdate" | "events.messageEdited" | "events.messageDeleted";
     descKey: "events.messageReceivedDesc" | "events.messageSentDesc" | "events.messageStatusDesc" | "events.connectionUpdateDesc" | "events.groupUpdateDesc" | "events.groupParticipantDesc" | "events.contactUpdateDesc" | "events.statusUpdateDesc" | "events.messageEditedDesc" | "events.messageDeletedDesc";
+}
+
+interface WebhookTestResult {
+    testing?: boolean;
+    success?: boolean;
+    error?: string;
+    responseTimeMs?: number;
+    statusCode?: number;
+    responseBody?: unknown;
+}
+
+function formatResponseBody(value: unknown): string {
+    if (typeof value === "string") return value;
+    try {
+        const serialized = JSON.stringify(value, null, 2);
+        return serialized ?? String(value);
+    } catch {
+        return String(value);
+    }
+}
+
+interface WebhookPayload {
+    name: string;
+    url: string;
+    events: string[];
+    filters: WebhookFilters;
+    secret?: string;
 }
 
 const AVAILABLE_EVENTS: EventDef[] = [
@@ -110,21 +121,14 @@ export default function WebhooksPage() {
 
     // Testing state
     const [testingId, setTestingId] = useState<string | null>(null);
-    const [testResults, setTestResults] = useState<Record<string, any>>({});
+    const [testResults, setTestResults] = useState<Record<string, WebhookTestResult>>({});
 
     // Log viewer state
     const [logDialogId, setLogDialogId] = useState<string | null>(null);
     const [logDialogName, setLogDialogName] = useState("");
     const [logDialogSessionId, setLogDialogSessionId] = useState("");
 
-    useEffect(() => {
-        if (sessions.length > 0) {
-            fetchWebhooks();
-        }
-        fetchApiKey();
-    }, [sessionId, sessions]);
-
-    const fetchWebhooks = async () => {
+    const fetchWebhooks = useCallback(async () => {
         setLoading(true);
         try {
             const res = await fetch(apiUrl(`/api/webhooks/${sessionId}`));
@@ -146,9 +150,9 @@ export default function WebhooksPage() {
         } finally {
             setLoading(false);
         }
-    };
+    }, [sessionId, sessions]);
 
-    const fetchApiKey = async () => {
+    const fetchApiKey = useCallback(async () => {
         try {
             const res = await fetch(apiUrl("/api/user/api-key"));
             if (res.ok) {
@@ -158,7 +162,12 @@ export default function WebhooksPage() {
         } catch (error) {
             console.error("Failed to fetch API key", error);
         }
-    };
+    }, []);
+
+    useEffect(() => {
+        if (sessions.length > 0) void fetchWebhooks();
+        void fetchApiKey();
+    }, [fetchWebhooks, fetchApiKey, sessions.length]);
 
     const generateNewApiKey = async () => {
         try {
@@ -168,7 +177,7 @@ export default function WebhooksPage() {
                 setApiKey(data?.data?.apiKey);
                 toast.success(t("toastKeyGenerated"));
             }
-        } catch (error) {
+        } catch {
             toast.error(t("toastKeyFailed"));
         }
     };
@@ -186,8 +195,9 @@ export default function WebhooksPage() {
             } else {
                 toast.error(t("toastTestFailed", { error: data?.data?.error || "Unknown error" }));
             }
-        } catch (error: any) {
-            setTestResults(prev => ({ ...prev, [webhook.id]: { success: false, error: error.message } }));
+        } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            setTestResults(prev => ({ ...prev, [webhook.id]: { success: false, error: message } }));
             toast.error(t("toastTestError"));
         } finally {
             setTestingId(null);
@@ -236,7 +246,7 @@ export default function WebhooksPage() {
             return;
         }
         try {
-            const payload: any = { name: newName, url: newUrl, events: newEvents, filters: newFilters };
+            const payload: WebhookPayload = { name: newName, url: newUrl, events: newEvents, filters: newFilters };
             if (newSecret) payload.secret = newSecret;
             const res = await fetch(apiUrl(`/api/webhooks/${sessionId}`), {
                 method: "POST",
@@ -255,7 +265,7 @@ export default function WebhooksPage() {
             } else {
                 toast.error(t("toastCreateFailed"));
             }
-        } catch (error) {
+        } catch {
             toast.error(tCommon("error"));
         }
     };
@@ -269,7 +279,7 @@ export default function WebhooksPage() {
         try {
             const webhook = webhooks.find(w => w.id === editingId);
             const targetSessionId = webhook?.sessionId || sessionId;
-            const payload: any = { name: editName, url: editUrl, events: editEvents, filters: editFilters };
+            const payload: WebhookPayload = { name: editName, url: editUrl, events: editEvents, filters: editFilters };
             if (editSecret) payload.secret = editSecret;
             const res = await fetch(apiUrl(`/api/webhooks/${targetSessionId}/${editingId}`), {
                 method: "PUT",
@@ -284,7 +294,7 @@ export default function WebhooksPage() {
             } else {
                 toast.error(t("toastUpdateFailed"));
             }
-        } catch (error) {
+        } catch {
             toast.error(tCommon("error"));
         }
     };
@@ -299,7 +309,7 @@ export default function WebhooksPage() {
                 body: JSON.stringify({ isActive })
             });
             setWebhooks(webhooks.map(w => w.id === id ? { ...w, isActive } : w));
-        } catch (error) {
+        } catch {
             toast.error(t("toastUpdateFailed"));
         }
     };
@@ -318,7 +328,7 @@ export default function WebhooksPage() {
                 body: JSON.stringify({ events: newEvents })
             });
             setWebhooks(webhooks.map(w => w.id === webhookId ? { ...w, events: newEvents } : w));
-        } catch (error) {
+        } catch {
             toast.error(t("toastEventsFailed"));
         }
     };
@@ -337,7 +347,7 @@ export default function WebhooksPage() {
             await fetch(apiUrl(`/api/webhooks/${targetSessionId}/${deleteId}`), { method: "DELETE" });
             setWebhooks(webhooks.filter(w => w.id !== deleteId));
             toast.success(t("toastDeleted"));
-        } catch (error) {
+        } catch {
             toast.error(t("toastDeleteFailed"));
         } finally {
             setDeleteId(null);
@@ -347,21 +357,6 @@ export default function WebhooksPage() {
     const copyToClipboard = (text: string) => {
         navigator.clipboard.writeText(text);
         toast.success(tCommon("copied"));
-    };
-
-    // Format JSON for display
-    const formatJson = (obj: any): string => {
-        try {
-            return JSON.stringify(obj, null, 2);
-        } catch {
-            return String(obj);
-        }
-    };
-
-    // Format timestamp
-    const formatTime = (ts: string) => {
-        const d = new Date(ts);
-        return d.toLocaleString("id-ID", { timeZone: "Asia/Jakarta" });
     };
 
     return (
@@ -409,7 +404,7 @@ export default function WebhooksPage() {
                     </div>
                     {apiKey && (
                         <p className="text-xs text-muted-foreground mt-2">
-                            {t("curlExample")}: <code className="bg-slate-100 px-1 py-0.5 rounded">curl -H "X-API-Key: {apiKey?.slice(0, 10)}..." http://your-server/api/sessions</code>
+                            {t("curlExample")}: <code className="bg-slate-100 px-1 py-0.5 rounded">curl -H &quot;X-API-Key: {apiKey?.slice(0, 10)}...&quot; http://your-server/api/sessions</code>
                         </p>
                     )}
                 </CardContent>
@@ -603,10 +598,10 @@ export default function WebhooksPage() {
                                                     {testResult.error && (
                                                         <div>{t("testError", { error: testResult.error })}</div>
                                                     )}
-                                                    {testResult.responseBody && (
+                                                    {Boolean(testResult.responseBody) && (
                                                         <details className="mt-1">
                                                             <summary className="cursor-pointer text-xs">{t("testResponse")}</summary>
-                                                            <pre className="mt-1 text-xs overflow-x-auto">{testResult.responseBody}</pre>
+                                                            <pre className="mt-1 text-xs overflow-x-auto">{formatResponseBody(testResult.responseBody)}</pre>
                                                         </details>
                                                     )}
                                                 </div>

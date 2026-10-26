@@ -135,7 +135,7 @@ export async function GET(request: NextRequest) {
                 totalCount: files.length,
             }
         });
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error("Media list error:", error);
         return NextResponse.json({ status: false, message: "Failed to list media", error: "Failed to list media" }, { status: 500 });
     }
@@ -196,14 +196,14 @@ export async function DELETE(request: NextRequest) {
             try {
                 await unlink(filePath);
                 deleted++;
-            } catch (e) {
+            } catch {
                 errors.push(`Failed to delete: ${filename}`);
                 failed++;
             }
         }
 
         return NextResponse.json({ status: true, message: "Media files processed", data: { deleted, failed, errors } });
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error("Media delete error:", error);
         return NextResponse.json({ status: false, message: "Failed to delete media", error: "Failed to delete media" }, { status: 500 });
     }

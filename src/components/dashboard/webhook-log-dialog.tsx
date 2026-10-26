@@ -34,8 +34,8 @@ interface WebhookLog {
     event: string;
     status: string;
     requestUrl: string;
-    requestHeaders?: any;
-    requestBody?: any;
+    requestHeaders?: unknown;
+    requestBody?: unknown;
     responseStatusCode?: number;
     responseBody?: string;
     responseTimeMs?: number;
@@ -73,7 +73,7 @@ function formatTimeOnly(ts: string, tz: string) {
     }
 }
 
-function formatJson(obj: any): string {
+function formatJson(obj: unknown): string {
     try {
         return JSON.stringify(obj, null, 2);
     } catch {

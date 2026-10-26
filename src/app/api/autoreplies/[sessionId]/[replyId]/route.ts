@@ -20,7 +20,7 @@ export async function PUT(
 
         const rule = await prisma.autoReply.findUnique({
             where: { id: replyId },
-            include: { session: true }
+            include: { session: { select: { id: true, sessionId: true, name: true, status: true } } }
         });
 
         if (!rule) {
@@ -89,7 +89,7 @@ export async function DELETE(
 
         const rule = await prisma.autoReply.findUnique({
             where: { id: replyId },
-            include: { session: true }
+            include: { session: { select: { id: true, sessionId: true, name: true, status: true } } }
         });
 
         if (!rule) {

@@ -1,7 +1,7 @@
 "use client";
 import { apiUrl } from "@/lib/api-url";
 
-import { createContext, useContext, useEffect, useRef, useState } from "react";
+import { createContext, useContext, useEffect, useRef } from "react";
 import { io, Socket } from "socket.io-client";
 
 type SocketContextValue = {
@@ -20,21 +20,11 @@ export function useSocket() {
 
 export function SocketProvider({ children }: { children: React.ReactNode }) {
     const socketRef = useRef<Socket | null>(null);
-    const [ready, setReady] = useState(false);
-
     useEffect(() => {
         const socket = io({
             path: apiUrl("/api/socket/io"),
             addTrailingSlash: false,
             transports: ["websocket", "polling"],
-        });
-
-        socket.on("connect", () => {
-            setReady(true);
-        });
-
-        socket.on("disconnect", () => {
-            setReady(false);
         });
 
         socketRef.current = socket;

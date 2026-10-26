@@ -1,7 +1,7 @@
 import { NextResponse, NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
-import { getAuthenticatedUser, canAccessSession, isAdmin } from "@/lib/api-auth";
+import { getAuthenticatedUser, canAccessSession } from "@/lib/api-auth";
 
 // GET: List Auto Replies
 export async function GET(
@@ -32,7 +32,7 @@ export async function GET(
 
         const rules = await prisma.autoReply.findMany({
             where: { sessionId: session.id },
-            include: { session: true },
+            include: { session: { select: { id: true, sessionId: true, name: true, status: true } } },
             orderBy: { createdAt: 'desc' }
         });
 
@@ -97,7 +97,6 @@ export async function POST(
             isMedia: isMedia || false,
             mediaUrl: mediaUrl || null,
             mediaType: mediaType || null,
-            // @ts-ignore: triggerType exists in generated schema but may be stale in editor types
             triggerType: (triggerType as string) || "ALL"
         };
 

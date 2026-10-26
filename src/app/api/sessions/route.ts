@@ -1,6 +1,5 @@
 import { NextResponse, NextRequest } from "next/server";
 import { waManager } from "@/modules/whatsapp/manager";
-import { prisma } from "@/lib/prisma";
 import { getAuthenticatedUser, getAccessibleSessions } from "@/lib/api-auth";
 
 export const dynamic = 'force-dynamic';
@@ -14,8 +13,12 @@ export async function GET(request: NextRequest) {
         }
 
         // Get sessions based on user role
-        const sessions = await getAccessibleSessions(user.id, user.role);
-        return NextResponse.json({ status: true, message: "Sessions retrieved successfully", data: sessions });
+        let sessions = await getAccessibleSessions(user.id, user.role);
+        if (user.authMethod === "oauth" && user.oauthSessionScope) {
+            const scope = new Set(user.oauthSessionScope);
+            sessions = sessions.filter((item) => scope.has(item.id));
+        }
+        return NextResponse.json({ status: true, message: "Sessions retrieved successfully", data: sessions }, { headers: { "Cache-Control": "no-store" } });
     } catch (error) {
         console.error("Get sessions error:", error);
         return NextResponse.json({ status: false, message: "Failed to fetch sessions", error: "Failed to fetch sessions" }, { status: 500 });

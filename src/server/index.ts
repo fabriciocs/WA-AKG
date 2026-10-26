@@ -8,8 +8,9 @@ import next from "next";
 import { Server } from "socket.io";
 import { setupSocket } from "./socket";
 import { waManager } from "../modules/whatsapp/manager";
+import { prisma } from "../lib/prisma";
 import { logger } from "../lib/logger";
-import { runAutoMigration } from "../lib/auto-migrate";
+import { withBasePath } from "../lib/oauth/discovery.mjs";
 import pkg from "../../package.json";
 
 const dev = process.env.NODE_ENV !== "production";
@@ -48,16 +49,17 @@ const app = next({
 const handle = app.getRequestHandler();
 
 app.prepare().then(async () => {
-  // Run runtime database migrations directly on application start
-  await runAutoMigration();
+  // Startup verifies database connectivity only. Apply versioned schema
+  // migrations explicitly before starting application replicas.
+  await prisma.$connect();
 
   // Optional MCP add-on: mounted on this HTTP server, disabled by default.
   let handleMcpHttp: ((req: import("http").IncomingMessage, res: import("http").ServerResponse) => Promise<boolean>) | undefined;
   let mcpEndpointPath = "/mcp";
   if (process.env.WA_AKG_MCP_ENABLED === "true") {
     const mcpHttp = await import("../../mcp/wa-akg-mcp/src/http.mjs");
-    handleMcpHttp = await mcpHttp.createMcpHttpHandler();
-    mcpEndpointPath = basePath + mcpHttp.endpointPath;
+    handleMcpHttp = await mcpHttp.createMcpHttpHandler({ basePath });
+    mcpEndpointPath = withBasePath(basePath, mcpHttp.endpointPath);
     logger.info("Server", `MCP HTTP endpoint enabled at ${mcpEndpointPath}`);
   }
 
@@ -102,7 +104,7 @@ app.prepare().then(async () => {
 
   setupSocket(io);
   // Optional: Global instance for Baileys to emit events
-  (global as any).io = io;
+  global.io = io;
 
   // Initialize WhatsApp Manager
   waManager.setup(io);

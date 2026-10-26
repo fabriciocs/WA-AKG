@@ -1,7 +1,6 @@
 import { NextResponse, NextRequest } from "next/server";
 import si from "systeminformation";
 import { getAuthenticatedUser } from "@/lib/api-auth";
-import { prisma } from "@/lib/prisma";
 
 // Ensure this route is dynamic
 export const dynamic = "force-dynamic";
@@ -19,11 +18,10 @@ export async function GET(req: NextRequest) {
         }
 
         // Fetch system stats in parallel for speed
-        const [cpu, mem, os, diskLayout, fsSize, networkStats] = await Promise.all([
+        const [cpu, mem, os, fsSize, networkStats] = await Promise.all([
             si.currentLoad(),
             si.mem(),
             si.osInfo(),
-            si.diskLayout(),
             si.fsSize(),
             si.networkStats()
         ]);
@@ -76,8 +74,8 @@ export async function GET(req: NextRequest) {
             data
         });
 
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error("Monitor API Error:", error);
-        return NextResponse.json({ status: false, message: error.message }, { status: 500 });
+        return NextResponse.json({ status: false, message: error instanceof Error ? error.message : "Failed to load system monitor" }, { status: 500 });
     }
 }

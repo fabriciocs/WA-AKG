@@ -1,10 +1,14 @@
 'use client';
 
-import React, { Suspense, useEffect, useState } from 'react';
+import React, { Suspense, useSyncExternalStore } from 'react';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { AlertCircle, ShieldAlert, Lock, Hourglass, HelpCircle, ArrowLeft, Home } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+
+const subscribeToHydration = () => () => {};
+const getClientSnapshot = () => true;
+const getServerSnapshot = () => false;
 
 interface ErrorConfig {
   icon: React.ReactNode;
@@ -55,13 +59,9 @@ const ERROR_CONFIGS: Record<string, ErrorConfig> = {
 function ErrorContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const [mounted, setMounted] = useState(false);
+  const mounted = useSyncExternalStore(subscribeToHydration, getClientSnapshot, getServerSnapshot);
   const code = searchParams.get('code') || '500';
   const customMessage = searchParams.get('message');
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   const config = ERROR_CONFIGS[code] || {
     icon: <HelpCircle className="size-12 animate-pulse" />,

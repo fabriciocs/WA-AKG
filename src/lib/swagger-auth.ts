@@ -55,10 +55,8 @@ export function constantTimeStringEqual(actual: string, expected: string): boole
 }
 
 export function getSwaggerCredentials(): { username: string; password: string } | null {
-    // The NEXT_PUBLIC_* names are supported temporarily for existing Compose files.
-    // Never read these values in client components or embed them in browser code.
-    const username = process.env.SWAGGER_USERNAME || process.env.NEXT_PUBLIC_SWAGGER_USERNAME;
-    const password = process.env.SWAGGER_PASSWORD || process.env.NEXT_PUBLIC_SWAGGER_PASSWORD;
+    const username = process.env.SWAGGER_USERNAME;
+    const password = process.env.SWAGGER_PASSWORD;
     if (!username || !password) return null;
     return { username, password };
 }

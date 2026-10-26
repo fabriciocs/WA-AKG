@@ -1,8 +1,8 @@
-import { apiUrl } from "@/lib/api-url";
-
 "use client";
 
-import { useState, useEffect } from "react";
+import { apiUrl } from "@/lib/api-url";
+
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useSession } from "@/components/dashboard/session-provider";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -19,12 +19,9 @@ import {
     Pagination,
     PaginationContent,
     PaginationItem,
-    PaginationLink,
-    PaginationNext,
-    PaginationPrevious
 } from "@/components/ui/pagination";
 
-import { Search, Loader2, User, ChevronDown } from "lucide-react";
+import { Search, Loader2, User } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
     Select,
@@ -58,32 +55,24 @@ export default function ContactListPage() {
     const [page, setPage] = useState(1);
     const [limit, setLimit] = useState("10");
     const [meta, setMeta] = useState({ total: 0, totalPages: 1 });
+    const sessionIdRef = useRef(sessionId);
+    const limitRef = useRef(limit);
+    const searchRef = useRef(search);
+    sessionIdRef.current = sessionId;
+    limitRef.current = limit;
+    searchRef.current = search;
 
-    // Debounce Search
-    useEffect(() => {
-        const timer = setTimeout(() => {
-            setPage(1); // Reset to page 1 on search
-            fetchContacts();
-        }, 500);
-        return () => clearTimeout(timer);
-    }, [search]);
-
-    // Fetch on page/session/limit change
-    useEffect(() => {
-        fetchContacts();
-    }, [page, sessionId, limit]);
-
-    const fetchContacts = async () => {
-        if (!sessionId) return;
+    const fetchContacts = useCallback(async (query: { sessionId: string; page: number; limit: string; search: string }) => {
+        if (!query.sessionId) return;
         setLoading(true);
         try {
             const params = new URLSearchParams({
-                page: page.toString(),
-                limit: limit,
-                search: search
+                page: query.page.toString(),
+                limit: query.limit,
+                search: query.search,
             });
 
-            const res = await fetch(apiUrl(`/api/contacts/${sessionId}?${params}`));
+            const res = await fetch(apiUrl(`/api/contacts/${query.sessionId}?${params}`));
             const data = await res.json();
 
             if (res.ok) {
@@ -97,7 +86,20 @@ export default function ContactListPage() {
         } finally {
             setLoading(false);
         }
-    };
+    }, []);
+
+    // Debounce Search
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setPage(1); // Reset to page 1 on search
+            void fetchContacts({ sessionId: sessionIdRef.current, page: 1, limit: limitRef.current, search });
+        }, 500);
+        return () => clearTimeout(timer);
+    }, [search, fetchContacts]);
+
+    useEffect(() => {
+        void fetchContacts({ sessionId, page, limit, search: searchRef.current });
+    }, [page, sessionId, limit, fetchContacts]);
 
     return (
         <SessionGuard>

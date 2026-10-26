@@ -81,6 +81,7 @@
       "sessionAccess": "Session Access",
       "users": "Users",
       "settings": "Settings",
+    "oauthAccess": "OAuth Access",
       "systemMonitor": "System Monitor",
       "notifications": "Notifications"
     }
@@ -1131,5 +1132,45 @@
     "statCategories": "Categories",
     "statPost": "POST Endpoints",
     "statGet": "GET Endpoints"
+  },
+  "oauth": {
+    "security": "Security",
+    "title": "OAuth access",
+    "subtitle": "Manage connected clients and revoke their access to your WA-AKG account.",
+    "loadError": "Could not load OAuth access.",
+    "createError": "Could not create the client.",
+    "updateError": "Could not update the client.",
+    "revokeError": "Could not revoke access.",
+    "connectedClients": "Connected clients",
+    "noActiveGrants": "No active OAuth grants.",
+    "limitedSessions": "Limited to {count} sessions",
+    "allSessions": "All sessions you can access",
+    "revokeAccess": "Revoke access",
+    "accessRevoked": "Access revoked.",
+    "clients": "OAuth clients",
+    "clientName": "Client name",
+    "redirectUri": "Redirect URI",
+    "redirectPlaceholder": "https://client.example/callback",
+    "allowedScopes": "Allowed scopes",
+    "mcpWriteHint": "MCP write tools also require api:write and must be enabled by the server allowlist.",
+    "mcpReadHint": "MCP read tools require mcp:read plus api:read, or sessions:read for session listing.",
+    "publicClientHint": "This creates a public PKCE client. The authorization code flow does not expose a client secret.",
+    "createClient": "Create client",
+    "creatingClient": "Creating client…",
+    "clientId": "Client ID",
+    "clientCreated": "Client created: {name}. Its public client ID is shown below.",
+    "active": "Active",
+    "disabled": "Disabled",
+    "disable": "Disable",
+    "enable": "Enable"
+  },
+  "oauthConsent": {
+    "eyebrow": "OAuth authorization",
+    "allowClient": "Allow {name}?",
+    "requesting": "This client is requesting:",
+    "limitSessions": "Limit access to selected WhatsApp sessions",
+    "sessionHint": "Leave all boxes clear to allow the client to use any session you can access.",
+    "deny": "Deny",
+    "allow": "Allow"
   }
 }

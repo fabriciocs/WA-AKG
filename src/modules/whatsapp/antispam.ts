@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
+import { randomUUID } from "node:crypto";
 
 interface AntiSpamConfig {
     antiSpamEnabled: boolean;
@@ -11,238 +12,192 @@ interface AntiSpamConfig {
 
 interface QueueItem {
     id: number;
-    sessionId: string;
     jid: string;
     messageType: string;
     queuedAt: number;
-    resolve: () => void;
-    reject: (err: any) => void;
+    send: () => Promise<unknown>;
+    resolve: (value: unknown) => void;
+    reject: (error: unknown) => void;
 }
 
-class AntiSpamManager {
+const MAX_QUEUE_PER_SESSION = 500;
+
+export class AntiSpamManager {
     private static instance: AntiSpamManager;
-    private sessionHistory: Map<string, number[]> = new Map();
-    private configCache: Map<string, { config: AntiSpamConfig | null; cachedAt: number }> = new Map();
-    private processing: Map<string, boolean> = new Map();
-    private queues: Map<string, QueueItem[]> = new Map();
+    private configCache = new Map<string, { config: AntiSpamConfig; cachedAt: number }>();
+    private processing = new Set<string>();
+    private queues = new Map<string, QueueItem[]>();
     private messageCounter = 0;
 
-    private constructor() { }
+    constructor(private readonly db: typeof prisma = prisma) {}
 
     static getInstance() {
-        if (!AntiSpamManager.instance) {
-            AntiSpamManager.instance = new AntiSpamManager();
-        }
+        if (!AntiSpamManager.instance) AntiSpamManager.instance = new AntiSpamManager();
         return AntiSpamManager.instance;
     }
 
-    /**
-     * Enqueue a message and wait for it to be processed.
-     * Returns only when it's this message's turn to send.
-     */
-    async enqueue(sessionId: string, jid: string, content: any): Promise<void> {
+    /** Resolve only after the actual Baileys send has completed. */
+    async enqueue<T>(sessionId: string, jid: string, content: unknown, send: () => Promise<T>): Promise<T> {
         const config = await this.getAntiSpamConfig(sessionId);
+        if (!config.antiSpamEnabled) return send();
 
-        if (!config || !config.antiSpamEnabled) {
-            return; // Anti-spam disabled, send immediately
+        const queue = this.queues.get(sessionId) ?? [];
+        if (queue.length >= MAX_QUEUE_PER_SESSION) {
+            throw new Error("WhatsApp send queue is full; retry later");
         }
 
-        const messageType = this.detectMessageType(content);
-        const msgId = ++this.messageCounter;
-
-        return new Promise<void>((resolve, reject) => {
-            const item: QueueItem = {
-                id: msgId,
-                sessionId,
+        const result = new Promise<T>((resolve, reject) => {
+            queue.push({
+                id: ++this.messageCounter,
                 jid,
-                messageType,
+                messageType: this.detectMessageType(content),
                 queuedAt: Date.now(),
-                resolve,
-                reject,
-            };
-
-            if (!this.queues.has(sessionId)) {
-                this.queues.set(sessionId, []);
-            }
-            this.queues.get(sessionId)!.push(item);
-
-            const queue = this.queues.get(sessionId)!;
-            const position = queue.length;
-
-            logger.debug("Anti-Spam", 
-                `📥 QUEUED  | Session: ${sessionId} | #${msgId} | To: ${this.formatJid(jid)} | Type: ${messageType} | Queue position: ${position}`
-            );
-
-            // Start processing if not already running
-            this.processQueue(sessionId);
+                send: () => send(),
+                resolve: value => resolve(value as T),
+                reject
+            });
         });
+        this.queues.set(sessionId, queue);
+        void this.processQueue(sessionId);
+        return result;
     }
 
     private async processQueue(sessionId: string) {
-        if (this.processing.get(sessionId)) return; // Already processing
-        this.processing.set(sessionId, true);
+        if (this.processing.has(sessionId)) return;
+        this.processing.add(sessionId);
+        try {
+            while (true) {
+                const queue = this.queues.get(sessionId);
+                const item = queue?.[0];
+                if (!queue || !item) return;
 
-        const config = await this.getAntiSpamConfig(sessionId);
-        if (!config) {
-            this.processing.set(sessionId, false);
-            return;
-        }
-
-        while (true) {
-            const queue = this.queues.get(sessionId);
-            if (!queue || queue.length === 0) break;
-
-            const item = queue[0]; // Peek at front
-            const now = Date.now();
-            const history = this.sessionHistory.get(sessionId) || [];
-
-            // Clean history: keep only messages in the current window
-            const windowStart = now - (config.spamInterval * 1000);
-            const recentMessages = history.filter(ts => ts > windowStart);
-            this.sessionHistory.set(sessionId, recentMessages);
-
-            if (recentMessages.length >= config.spamLimit) {
-                // Rate limit reached — calculate and apply delay
-                const delay = Math.floor(
-                    Math.random() * (config.spamDelayMax - config.spamDelayMin + 1)
-                ) + config.spamDelayMin;
-
-                const sendAt = new Date(now + delay);
-                const waitingSince = now - item.queuedAt;
-
-                logger.warn("Anti-Spam", 
-                    `⏳ DELAY   | Session: ${sessionId} | #${item.id} | Rate: ${recentMessages.length}/${config.spamLimit} in ${config.spamInterval}s | Delay: ${delay}ms | Send at: ${sendAt.toLocaleTimeString()} | Waiting: ${waitingSince}ms | Queue: ${queue.length} remaining`
-                );
-
-                await this.sleep(delay);
-
-                // Re-fetch config (might have changed during delay)
-                const freshConfig = await this.getAntiSpamConfig(sessionId);
-                if (!freshConfig || !freshConfig.antiSpamEnabled) {
-                    // Anti-spam was disabled during delay, flush all
-                    logger.warn("Anti-Spam", `⚡ DISABLED | Session: ${sessionId} | Flushing ${queue.length} queued messages immediately`);
-                    while (queue.length > 0) {
-                        const q = queue.shift()!;
-                        this.recordSend(sessionId);
-                        q.resolve();
-                    }
-                    break;
+                try {
+                    const config = await this.getAntiSpamConfig(sessionId);
+                    const result = config.antiSpamEnabled
+                        ? await this.sendWithDistributedThrottle(sessionId, config, item.send)
+                        : await item.send();
+                    queue.shift();
+                    item.resolve(result);
+                } catch (error) {
+                    queue.shift();
+                    item.reject(error);
+                    logger.error("Anti-Spam", `Queued send ${item.id} failed for ${this.formatJid(item.jid)}`, error);
                 }
-                continue; // Re-check rate after delay
             }
-
-            // Rate is within limit — send this message
-            queue.shift(); // Remove from queue
-            this.recordSend(sessionId);
-
-            const totalWait = now - item.queuedAt;
-            const remainingInQueue = queue.length;
-
-            if (totalWait > 50) {
-                logger.success("Anti-Spam", 
-                    `✅ SENDING | Session: ${sessionId} | #${item.id} | To: ${this.formatJid(item.jid)} | Type: ${item.messageType} | Waited: ${totalWait}ms | Queue: ${remainingInQueue} remaining`
-                );
-            } else {
-                logger.success("Anti-Spam", 
-                    `✅ INSTANT | Session: ${sessionId} | #${item.id} | To: ${this.formatJid(item.jid)} | Type: ${item.messageType} | Rate: ${recentMessages.length + 1}/${config.spamLimit} | Queue: ${remainingInQueue} remaining`
-                );
-            }
-
-            item.resolve();
+        } finally {
+            this.processing.delete(sessionId);
+            if (!this.queues.get(sessionId)?.length) this.queues.delete(sessionId);
+            else queueMicrotask(() => void this.processQueue(sessionId));
         }
-
-        this.processing.set(sessionId, false);
     }
 
-    private recordSend(sessionId: string) {
-        const history = this.sessionHistory.get(sessionId) || [];
-        history.push(Date.now());
-        // Keep only last 60 seconds of history
-        this.sessionHistory.set(
-            sessionId,
-            history.filter(ts => ts > Date.now() - 60000)
-        );
+    private async sendWithDistributedThrottle<T>(sessionId: string, config: AntiSpamConfig, send: () => Promise<T>): Promise<T> {
+        await this.db.whatsAppSendThrottle.upsert({
+            where: { sessionId },
+            create: { sessionId },
+            update: {}
+        });
+
+        const token = randomUUID();
+        const acquireUntil = Date.now() + 30 * 60 * 1000;
+        let acquired = false;
+        while (Date.now() < acquireUntil) {
+            const now = new Date();
+            const claim = await this.db.whatsAppSendThrottle.updateMany({
+                where: { sessionId, OR: [{ leaseToken: null }, { leaseUntil: { lte: now } }] },
+                data: { leaseToken: token, leaseUntil: new Date(now.getTime() + 60000) }
+            });
+            if (claim.count === 1) {
+                acquired = true;
+                break;
+            }
+            await this.sleep(100);
+        }
+        if (!acquired) throw new Error("Timed out waiting for the shared WhatsApp send lock");
+
+        const heartbeat = setInterval(() => {
+            void this.db.whatsAppSendThrottle.updateMany({
+                where: { sessionId, leaseToken: token },
+                data: { leaseUntil: new Date(Date.now() + 60000) }
+            }).catch(error => logger.error("Anti-Spam", "Shared send lock heartbeat failed", error));
+        }, 20000);
+        heartbeat.unref?.();
+
+        let nextAllowedAt: Date | null = null;
+        try {
+            const state = await this.db.whatsAppSendThrottle.findUnique({ where: { sessionId } });
+            if (state?.nextAllowedAt && state.nextAllowedAt.getTime() > Date.now()) {
+                await this.sleep(state.nextAllowedAt.getTime() - Date.now());
+            }
+            return await send();
+        } finally {
+            clearInterval(heartbeat);
+            const min = Math.min(config.spamDelayMin, config.spamDelayMax);
+            const max = Math.max(config.spamDelayMin, config.spamDelayMax);
+            const configuredGap = min + Math.floor(Math.random() * (max - min + 1));
+            const rateGap = Math.ceil(config.spamInterval * 1000 / config.spamLimit);
+            nextAllowedAt = new Date(Date.now() + Math.max(configuredGap, rateGap));
+            await this.db.whatsAppSendThrottle.updateMany({
+                where: { sessionId, leaseToken: token },
+                data: { nextAllowedAt, leaseToken: null, leaseUntil: null }
+            }).catch(error => logger.error("Anti-Spam", "Unable to release shared send lock; lease will expire", error));
+        }
     }
 
-    private detectMessageType(content: any): string {
-        if (!content) return "unknown";
-        if (content.text) return "text";
-        if (content.image) return "image";
-        if (content.video) return "video";
-        if (content.audio) return "audio";
-        if (content.document) return "document";
-        if (content.sticker) return "sticker";
-        if (content.react) return "reaction";
-        if (content.delete) return "delete";
-        if (content.poll) return "poll";
-        if (content.location) return "location";
-        if (content.contact) return "contact";
+    private detectMessageType(content: unknown): string {
+        if (!content || typeof content !== "object") return "unknown";
+        const message = content as Record<string, unknown>;
+        for (const key of ["text", "image", "video", "audio", "document", "sticker", "react", "delete", "poll", "location", "contact"]) {
+            if (message[key]) return key;
+        }
         return "other";
     }
 
     private formatJid(jid: string): string {
-        if (jid.endsWith("@s.whatsapp.net")) {
-            return jid.replace("@s.whatsapp.net", "");
-        }
-        if (jid.endsWith("@g.us")) {
-            return `group:${jid.replace("@g.us", "").slice(-6)}`;
-        }
+        if (jid.endsWith("@s.whatsapp.net")) return jid.replace("@s.whatsapp.net", "");
+        if (jid.endsWith("@g.us")) return `group:${jid.replace("@g.us", "").slice(-6)}`;
         return jid.slice(0, 15);
     }
 
-    private sleep(ms: number): Promise<void> {
-        return new Promise(resolve => setTimeout(resolve, ms));
+    private sleep(ms: number) {
+        return new Promise<void>(resolve => setTimeout(resolve, ms));
     }
 
-    /**
-     * Fetch anti-spam config with 10-second cache
-     */
-    private async getAntiSpamConfig(sessionId: string): Promise<AntiSpamConfig | null> {
+    private async getAntiSpamConfig(sessionId: string): Promise<AntiSpamConfig> {
         const cached = this.configCache.get(sessionId);
-        if (cached && (Date.now() - cached.cachedAt) < 10000) {
-            return cached.config;
-        }
+        if (cached && Date.now() - cached.cachedAt < 10000) return cached.config;
 
-        try {
-            const session = await prisma.session.findUnique({
-                where: { sessionId },
-                select: {
-                    botConfig: {
-                        select: {
-                            antiSpamEnabled: true,
-                            spamLimit: true,
-                            spamInterval: true,
-                            spamDelayMin: true,
-                            spamDelayMax: true
-                        }
+        // DB errors are propagated; they must not turn protection into a bypass.
+        const session = await this.db.session.findUnique({
+            where: { sessionId },
+            select: {
+                botConfig: {
+                    select: {
+                        antiSpamEnabled: true,
+                        spamLimit: true,
+                        spamInterval: true,
+                        spamDelayMin: true,
+                        spamDelayMax: true
                     }
                 }
-            });
-
-            if (!session || !session.botConfig) {
-                this.configCache.set(sessionId, { config: null, cachedAt: Date.now() });
-                return null;
             }
-
-            const row = session.botConfig;
-            const config: AntiSpamConfig = {
-                antiSpamEnabled: Boolean(row.antiSpamEnabled),
-                spamLimit: Number(row.spamLimit) || 5,
-                spamInterval: Number(row.spamInterval) || 10,
-                spamDelayMin: Number(row.spamDelayMin) || 1000,
-                spamDelayMax: Number(row.spamDelayMax) || 3000,
-            };
-
-            this.configCache.set(sessionId, { config, cachedAt: Date.now() });
-            return config;
-        } catch (error) {
-            logger.error("Anti-Spam", `❌ ERROR   | Config fetch failed for ${sessionId}:`, error);
-            this.configCache.set(sessionId, { config: null, cachedAt: Date.now() });
-            return null;
-        }
+        });
+        const row = session?.botConfig;
+        const limit = Number(row?.spamLimit) || 5;
+        const interval = Number(row?.spamInterval) || 10;
+        const minDelay = Number(row?.spamDelayMin) || 1000;
+        const maxDelay = Number(row?.spamDelayMax) || 3000;
+        const config: AntiSpamConfig = {
+            antiSpamEnabled: Boolean(row?.antiSpamEnabled),
+            spamLimit: Math.max(1, Math.min(limit, 100)),
+            spamInterval: Math.max(1, Math.min(interval, 3600)),
+            spamDelayMin: Math.max(0, Math.min(minDelay, 60000)),
+            spamDelayMax: Math.max(0, Math.min(maxDelay, 60000))
+        };
+        this.configCache.set(sessionId, { config, cachedAt: Date.now() });
+        return config;
     }
 
-    /** Clear cache for a session (call when config is updated) */
     clearCache(sessionId: string) {
         this.configCache.delete(sessionId);
     }

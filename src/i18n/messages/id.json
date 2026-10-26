@@ -81,6 +81,7 @@
       "sessionAccess": "Akses Sesi",
       "users": "Pengguna",
       "settings": "Pengaturan",
+    "oauthAccess": "Akses OAuth",
       "systemMonitor": "Monitor Sistem",
       "notifications": "Notifikasi"
     }
@@ -1131,5 +1132,45 @@
     "statCategories": "Kategori",
     "statPost": "Endpoint POST",
     "statGet": "Endpoint GET"
+  },
+  "oauth": {
+    "security": "Keamanan",
+    "title": "Akses OAuth",
+    "subtitle": "Kelola klien yang terhubung dan cabut akses mereka ke akun WA-AKG Anda.",
+    "loadError": "Akses OAuth tidak dapat dimuat.",
+    "createError": "Klien tidak dapat dibuat.",
+    "updateError": "Klien tidak dapat diperbarui.",
+    "revokeError": "Akses tidak dapat dicabut.",
+    "connectedClients": "Klien terhubung",
+    "noActiveGrants": "Tidak ada izin OAuth aktif.",
+    "limitedSessions": "Dibatasi untuk {count} sesi",
+    "allSessions": "Semua sesi yang dapat Anda akses",
+    "revokeAccess": "Cabut akses",
+    "accessRevoked": "Akses dicabut.",
+    "clients": "Klien OAuth",
+    "clientName": "Nama klien",
+    "redirectUri": "URI pengalihan",
+    "redirectPlaceholder": "https://klien.contoh/callback",
+    "allowedScopes": "Cakupan yang diizinkan",
+    "mcpWriteHint": "Alat tulis MCP juga memerlukan api:write dan harus diaktifkan dalam daftar izin server.",
+    "mcpReadHint": "Alat baca MCP memerlukan mcp:read bersama api:read, atau sessions:read untuk daftar sesi.",
+    "publicClientHint": "Ini membuat klien PKCE publik. Alur kode otorisasi tidak mengekspos rahasia klien.",
+    "createClient": "Buat klien",
+    "creatingClient": "Membuat klien…",
+    "clientId": "ID klien",
+    "clientCreated": "Klien dibuat: {name}. ID publik klien ditampilkan di bawah.",
+    "active": "Aktif",
+    "disabled": "Dinonaktifkan",
+    "disable": "Nonaktifkan",
+    "enable": "Aktifkan"
+  },
+  "oauthConsent": {
+    "eyebrow": "Otorisasi OAuth",
+    "allowClient": "Izinkan {name}?",
+    "requesting": "Klien ini meminta:",
+    "limitSessions": "Batasi akses ke sesi WhatsApp yang dipilih",
+    "sessionHint": "Biarkan semua kotak tidak dicentang agar klien dapat menggunakan sesi apa pun yang dapat Anda akses.",
+    "deny": "Tolak",
+    "allow": "Izinkan"
   }
 }

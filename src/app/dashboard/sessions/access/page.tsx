@@ -62,9 +62,7 @@ export default function SessionAccessPage() {
     // For revoke confirmation
     const [revokeTarget, setRevokeTarget] = useState<AccessEntry | null>(null);
 
-    // @ts-ignore
     const currentUserId = authSession?.user?.id;
-    // @ts-ignore
     const currentUserRole = authSession?.user?.role;
 
     // Fetch user's owned sessions — wait for authSession to be ready
@@ -147,7 +145,7 @@ export default function SessionAccessPage() {
             } else {
                 toast.error(data.message || t("toastGrantFailed"));
             }
-        } catch (error) {
+        } catch {
             toast.error(t("toastGrantFailed"));
         } finally {
             setSubmitting(false);
@@ -172,7 +170,7 @@ export default function SessionAccessPage() {
             } else {
                 toast.error(data.message || t("toastRevokeFailed"));
             }
-        } catch (error) {
+        } catch {
             toast.error(t("toastRevokeFailed"));
         } finally {
             setRevokeTarget(null);

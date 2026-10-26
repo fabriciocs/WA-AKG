@@ -1,5 +1,4 @@
 import { prisma } from "@/lib/prisma";
-import { resolveToPhoneJid, isLidJid } from "@/lib/jid-utils";
 import { NextResponse, NextRequest } from "next/server";
 import { getAuthenticatedUser, canAccessSession } from "@/lib/api-auth";
 
@@ -59,11 +58,13 @@ export async function GET(
             });
 
             if (group && group.participants) {
-                const parts = group.participants as any[];
+                const parts: unknown[] = Array.isArray(group.participants) ? group.participants : [];
 
-                const enrichedMessages = messages.map((msg: any) => {
+                const enrichedMessages = messages.map(msg => {
                     const sender = msg.senderJid || msg.remoteJid; // Fallback
-                    const participant = parts.find(p => p.id === sender);
+                    const participant = parts.find(p =>
+                        typeof p === "object" && p !== null && "id" in p && p.id === sender
+                    );
 
                     return {
                         ...msg,

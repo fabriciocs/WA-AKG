@@ -1,5 +1,6 @@
 import { PrismaClient } from "@prisma/client";
-import { normalizeJid, resolveToPhoneJid, isLidJid } from "./src/lib/jid-utils";
+import type { MessageType } from "@prisma/client";
+import { normalizeJid } from "./src/lib/jid-utils";
 
 const prisma = new PrismaClient();
 
@@ -11,14 +12,13 @@ async function simulate() {
         return;
     }
     const dbSessionId = session.id;
-    const sessionId = session.sessionId;
 
     const fromMe = false;
     const remoteJid = "1234567890@s.whatsapp.net";
     const normalizedRemoteJid = remoteJid;
     const keyId = "SIMKEY_" + Date.now();
     const pushName = "Sim User";
-    const messageType = "TEXT";
+    const messageType: MessageType = "TEXT";
     const text = "Simulation test";
     const fileUrl = null;
     const timestamp = new Date();
@@ -34,7 +34,7 @@ async function simulate() {
                 fromMe,
                 keyId,
                 pushName,
-                type: messageType as any,
+                type: messageType,
                 content: text,
                 mediaUrl: fileUrl,
                 status: fromMe ? "SENT" : "PENDING",
@@ -42,8 +42,8 @@ async function simulate() {
             }
         });
         console.log("Message created successfully:", newMessage.id);
-    } catch (e: any) {
-        console.error("Failed to create message:", e);
+    } catch (error: unknown) {
+        console.error("Failed to create message:", error);
     }
 
     // Now contact upsert
@@ -64,8 +64,8 @@ async function simulate() {
             }
         });
         console.log("Contact upsert successful:", contact.id);
-    } catch (e: any) {
-        console.error("Failed to upsert contact:", e);
+    } catch (error: unknown) {
+        console.error("Failed to upsert contact:", error);
     }
 }
 

@@ -32,9 +32,7 @@ import {
     ListFilter,
     MousePointerClick,
     Zap,
-    CheckCircle2,
     Loader2,
-    HelpCircle,
     Layers
 } from "lucide-react";
 import { toast } from "sonner";
@@ -56,6 +54,16 @@ export interface InteractiveButtonItem {
     type: ButtonType;
     displayText: string;
     value: string; // url, phone, copy text, or id
+}
+
+interface PresetButtonPreview {
+    displayText?: string;
+    buttonText?: string;
+    title?: string;
+}
+
+function getPresetButtonLabel(button: PresetButtonPreview): string {
+    return button.displayText ?? button.buttonText ?? button.title ?? "";
 }
 
 export function InteractiveMessageDialog({
@@ -187,9 +195,9 @@ export function InteractiveMessageDialog({
             toast.success(t("successToast", { target: displayName }));
             onSuccess?.();
             onOpenChange(false);
-        } catch (error: any) {
+        } catch (error) {
             console.error("Test trigger error:", error);
-            toast.error(error.message || t("failedToast", { error: "" }));
+            toast.error(error instanceof Error ? error.message : t("failedToast", { error: "" }));
         } finally {
             setSendingPreset(null);
         }
@@ -211,7 +219,7 @@ export function InteractiveMessageDialog({
         setButtons(prev => prev.filter(b => b.id !== id));
     };
 
-    const handleUpdateButton = (id: string, field: keyof InteractiveButtonItem, value: any) => {
+    const handleUpdateButton = (id: string, field: keyof InteractiveButtonItem, value: string) => {
         setButtons(prev =>
             prev.map(b => {
                 if (b.id !== id) return b;
@@ -285,9 +293,9 @@ export function InteractiveMessageDialog({
             toast.success(t("successToast", { target: displayName }));
             onSuccess?.();
             onOpenChange(false);
-        } catch (error: any) {
+        } catch (error) {
             console.error("Custom interactive send error:", error);
-            toast.error(error.message || t("failedToast", { error: "" }));
+            toast.error(error instanceof Error ? error.message : t("failedToast", { error: "" }));
         } finally {
             setSubmittingCustom(false);
         }
@@ -368,7 +376,7 @@ export function InteractiveMessageDialog({
                                                 {preset.payload.body}
                                             </p>
                                             <div className="pt-1.5 border-t border-border/40 space-y-1">
-                                                {preset.payload.buttons.map((b: any, i) => (
+                                                {preset.payload.buttons.map((b, i) => (
                                                     <div
                                                         key={i}
                                                         className="text-[10px] font-medium py-1 px-2 rounded bg-background/80 border border-border/50 text-center text-primary flex items-center justify-center gap-1.5 shadow-2xs"
@@ -378,7 +386,7 @@ export function InteractiveMessageDialog({
                                                         {b.type === "cta_copy" && <Copy className="h-3 w-3" />}
                                                         {b.type === "single_select" && <ListFilter className="h-3 w-3" />}
                                                         {b.type === "quick_reply" && <MousePointerClick className="h-3 w-3" />}
-                                                        <span>{b.displayText || b.buttonText || b.title}</span>
+                                                        <span>{getPresetButtonLabel(b)}</span>
                                                     </div>
                                                 ))}
                                             </div>

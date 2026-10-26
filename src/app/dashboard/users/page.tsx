@@ -1,16 +1,15 @@
 "use client";
 import { apiUrl } from "@/lib/api-url";
 
-import { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { useState, useEffect, useCallback } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Trash2, Plus, Edit, User, Shield, ShieldAlert, ShieldCheck } from "lucide-react";
+import { Trash2, Plus, Edit, User, ShieldAlert, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
-import { useSession } from "next-auth/react";
 import { useTranslations } from "next-intl";
 import {
     AlertDialog,
@@ -37,7 +36,6 @@ interface UserProfile {
 export default function UsersPage() {
     const t = useTranslations("users");
     const tCommon = useTranslations("common");
-    const { data: session } = useSession();
     const [users, setUsers] = useState<UserProfile[]>([]);
     const [loading, setLoading] = useState(true);
     const [showForm, setShowForm] = useState(false);
@@ -51,11 +49,7 @@ export default function UsersPage() {
         role: "USER"
     });
 
-    useEffect(() => {
-        fetchUsers();
-    }, []);
-
-    const fetchUsers = async () => {
+    const fetchUsers = useCallback(async () => {
         try {
             const res = await fetch(apiUrl("/api/users"));
             if (res.ok) {
@@ -69,7 +63,11 @@ export default function UsersPage() {
         } finally {
             setLoading(false);
         }
-    };
+    }, [t]);
+
+    useEffect(() => {
+        void fetchUsers();
+    }, [fetchUsers]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -94,7 +92,7 @@ export default function UsersPage() {
                 const error = await res.json();
                 toast.error(error.error || "Operation failed");
             }
-        } catch (error) {
+        } catch {
             toast.error("Operation failed");
         }
     };
@@ -117,7 +115,7 @@ export default function UsersPage() {
                 const error = await res.json();
                 toast.error(error.error || "Failed to delete");
             }
-        } catch (error) {
+        } catch {
             toast.error("Failed to delete user");
         } finally {
             setDeleteId(null);
@@ -285,7 +283,7 @@ export default function UsersPage() {
     );
 }
 
-function UsersIcon(props: any) {
+function UsersIcon(props: React.SVGProps<SVGSVGElement>) {
     return (
         <svg
             {...props}

@@ -1,54 +1,39 @@
 # WA-AKG MCP add-on
 
-Optional Model Context Protocol (MCP) endpoint mounted directly in the WA-AKG custom HTTP server. It does not require Docker and is disabled by default. The add-on can also run as a standalone stdio MCP server for local MCP clients.
+Optional Model Context Protocol endpoint mounted in the WA-AKG custom HTTP server. It is disabled by default. The package also supports a local stdio MCP server.
 
-## HTTP endpoint (recommended for WA-AKG)
+## HTTP MCP with OAuth
 
-The HTTP endpoint is served by the same WA-AKG process and port as the app, at `http://127.0.0.1:3030/mcp` by default. It uses MCP Streamable HTTP transport with per-client MCP sessions.
+Create a public OAuth client from **Dashboard → OAuth Access** using the exact redirect URI required by your MCP client. Allow `mcp:read` and, when needed, `mcp:write`. The user approves each connection and may restrict it to selected WhatsApp sessions.
 
-Configure these environment variables for the WA-AKG server process before starting it:
+Configure the WA-AKG server process:
 
 ```dotenv
+OAUTH_ISSUER_URL=https://wa-akg.example.com
 WA_AKG_MCP_ENABLED=true
 WA_AKG_MCP_HTTP_PATH=/mcp
-WA_AKG_MCP_HTTP_TOKEN=replace-with-a-random-secret-at-least-32-characters-long
 WA_AKG_API_BASE_URL=http://127.0.0.1:3030/api
-WA_AKG_API_KEY=
 WA_AKG_MCP_WRITE_ALLOWLIST=
 WA_AKG_MCP_ALLOW_REMOTE_API=false
 ```
 
-Generate a strong token locally, for example in PowerShell:
+MCP clients discover OAuth metadata at `/.well-known/oauth-protected-resource` and `/.well-known/oauth-authorization-server`. The endpoint uses `Authorization: Bearer <OAuth access token>` and validates it on each MCP request. It forwards that user's token to generated WA-AKG API tools, where API scopes, roles, session ownership and shared `SessionAccess` are checked again. The old static `WA_AKG_MCP_HTTP_TOKEN` is not used.
 
-```powershell
-$bytes = New-Object byte[] 48
-[System.Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($bytes)
-$token = [Convert]::ToBase64String($bytes)
-$token
-```
+Write tools remain disabled unless an exact `METHOD /path` entry appears in `WA_AKG_MCP_WRITE_ALLOWLIST`. Keep destructive operations, broadcasts, credential changes and user administration disabled for routine agent use. Even an enabled write tool needs the user's `mcp:write` grant and the required WA-AKG role and session permissions.
 
-Store the token in the local environment/secret manager, not in source control. Clients must send `Authorization: Bearer <token>`. When the feature is enabled, the server refuses to start the MCP integration if the token is missing or shorter than 32 characters. Requests without a valid token receive HTTP 401. Request bodies are limited to 1 MiB. The endpoint path can be customized with `WA_AKG_MCP_HTTP_PATH`.
+Request bodies are limited to 1 MiB. Tool API calls have bounded timeouts and response sizes; redirects are rejected. API targets are loopback-only by default. Remote targets require HTTPS and an explicit `WA_AKG_MCP_ALLOW_REMOTE_API=true` setting. OAuth bearer tokens must never be written to logs.
 
-The default endpoint is `/mcp`, not `/api/mcp`. It is mounted by `src/server/index.ts` on the same HTTP server that serves WA-AKG. Existing routes are forwarded unchanged. When `WA_AKG_MCP_ENABLED` is not exactly `true`, no MCP endpoint is mounted.
+MCP transport sessions live in process memory, expire after 30 minutes idle and are limited to 500 active sessions per process. After a restart, clients initialize a new transport session. OAuth grants and refresh tokens remain persistent in Prisma.
 
-## Tools and safety
-
-Tools are generated from the repository's `swagger.json`. Read operations are exposed except for selected sensitive routes. Write tools are disabled unless an exact `METHOD /path` entry is present in `WA_AKG_MCP_WRITE_ALLOWLIST`. Do not enable delete, broadcast, credential-management, or user-administration operations for routine agent use. The WA-AKG API remains responsible for its own authorization; the MCP bearer token is an additional gate, not a replacement for API authorization.
-
-The API target is loopback-only by default. Redirects are rejected, timeouts and response sizes are bounded, and API keys are not included in tool metadata. Confirm the OpenAPI paths and API authentication mechanism before enabling API tools in a shared environment.
-
-## Standalone stdio mode (optional)
+## Local stdio mode
 
 ```powershell
 Set-Location C:\repos\WA-AKG
 npm run mcp:install
 npm run mcp:check
-npm run mcp:test
 npm run mcp:start
 ```
 
-The stdio server is separate from the app's HTTP endpoint. Do not expose a stdio server directly on a network port.
+For local stdio use, set `WA_AKG_API_BASE_URL` and optionally `WA_AKG_API_KEY` in the MCP client's environment. `WA_AKG_API_KEY` is ignored by the HTTP OAuth transport. Do not expose a stdio server directly on a network port.
 
-## Verification and limitations
-
-The local tests validate protocol startup, tool listing, the default read-only policy, and HTTP transport behavior. Live tool calls against a running WA-AKG API still require validation with the correct local API base URL and authentication. This integration should not be treated as production-verified until that test is completed.
+See [docs/OAUTH.md](../../docs/OAUTH.md) for OAuth scopes, client setup, endpoints and session restrictions.

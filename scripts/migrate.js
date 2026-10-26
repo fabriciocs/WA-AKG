@@ -77,7 +77,7 @@ async function runAutoMigration() {
                 await prisma.$executeRawUnsafe(`ALTER TYPE "Role" ADD VALUE IF NOT EXISTS 'USER';`);
                 const updated = await prisma.$executeRawUnsafe(`UPDATE "User" SET "role" = 'USER' WHERE "role" = 'OWNER';`);
                 console.log(`✓ PostgreSQL: Migrated ${updated} user(s) from 'OWNER' to 'USER'.`);
-            } catch (pgErr) {
+            } catch {
                 // PostgreSQL enum might already be migrated or table not initialized yet
             }
         }

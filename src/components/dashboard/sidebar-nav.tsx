@@ -18,7 +18,6 @@ import {
     Bell,
     FileText,
     Code,
-    Send,
     UserCheck,
     Megaphone,
     HardDrive,
@@ -26,8 +25,8 @@ import {
     UserCircle,
     Tag,
     MessageCircleReply,
-    Contact,
     UserPlus,
+    KeyRound,
     Sparkles
 } from "lucide-react";
 import { useSidebar } from "./sidebar-context";
@@ -103,6 +102,7 @@ export const navGroups: NavGroup[] = [
             { href: "/dashboard/sessions/access", key: "sessionAccess", icon: UserPlus },
             { href: "/dashboard/users", key: "users", icon: Users, superadminOnly: true },
             { href: "/dashboard/settings", key: "settings", icon: Settings },
+            { href: "/dashboard/oauth", key: "oauthAccess", icon: KeyRound },
             { href: "/dashboard/system-monitor", key: "systemMonitor", icon: Activity, superadminOnly: true },
             { href: "/dashboard/notifications", key: "notifications", icon: Bell, superadminOnly: true },
         ],
@@ -114,7 +114,6 @@ export function SidebarNav() {
     const { data: session } = useSession();
     const { isCollapsed, toggleCollapse } = useSidebar();
     const t = useTranslations();
-    // @ts-ignore
     const userRole = session?.user?.role;
 
     // Track collapsed groups — all expanded by default

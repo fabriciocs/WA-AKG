@@ -59,7 +59,7 @@ export function bindContactSync(sock: WASocket, sessionId: string) {
     });
 
     // Also listen for messaging events to auto-create contacts
-    sock.ev.on('messaging-history.set', async ({ chats, contacts, messages, isLatest }) => {
+    sock.ev.on('messaging-history.set', async ({ chats, contacts, messages }) => {
         if (!dbSessionId) {
             const session = await prisma.session.findUnique({ where: { sessionId }, select: { id: true } });
             if (!session) return;
@@ -73,13 +73,14 @@ export function bindContactSync(sock: WASocket, sessionId: string) {
             try {
                 if (!chat.id || chat.id.includes('@g.us') || chat.id.includes('@broadcast')) continue;
                 
+                const notify = "notify" in chat && typeof chat.notify === "string" ? chat.notify : undefined;
                 await prisma.contact.upsert({
                     where: { sessionId_jid: { sessionId: dbSessionId, jid: chat.id } },
                     create: {
                         sessionId: dbSessionId,
                         jid: chat.id,
                         name: chat.name || undefined,
-                        notify: (chat as any).notify || undefined
+                        notify
                     },
                     update: {
                         name: chat.name || undefined

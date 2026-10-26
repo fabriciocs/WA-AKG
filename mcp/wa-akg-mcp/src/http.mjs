@@ -1,17 +1,60 @@
-import { randomUUID, timingSafeEqual } from "node:crypto";
+import { randomUUID } from "node:crypto";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { createMcpServer, initializeMcpServer } from "./server.mjs";
+import { appOrigin, normalizeBasePath, protectedResourceMetadataUrl, requestOriginFromNodeRequest } from "../../../src/lib/oauth/discovery.mjs";
 
 export const endpointPath = process.env.WA_AKG_MCP_HTTP_PATH || "/mcp";
 const maxBodyBytes = 1024 * 1024;
+const maxSessions = 500;
+const sessionIdleTtlMs = 30 * 60_000;
 const sessions = new Map();
 
-function validBearerToken(req, configuredToken) {
-  const match = /^Bearer\s+(.+)$/i.exec(req.headers.authorization ?? "");
-  if (!match || !configuredToken) return false;
-  const actual = Buffer.from(match[1], "utf8");
-  const expected = Buffer.from(configuredToken, "utf8");
-  return actual.length === expected.length && timingSafeEqual(actual, expected);
+async function cleanupSessions() {
+  const now = Date.now();
+  for (const [id, entry] of sessions) {
+    if (now - entry.lastSeenAt <= sessionIdleTtlMs) continue;
+    sessions.delete(id);
+    try { await entry.transport.close(); } catch { /* already closed */ }
+  }
+}
+
+function apiBaseUrl() {
+  const raw = process.env.WA_AKG_API_BASE_URL ?? "http://127.0.0.1:3030/api";
+  const url = new URL(raw);
+  if (!["http:", "https:"].includes(url.protocol) || url.username || url.password) throw new Error("Invalid WA_AKG_API_BASE_URL");
+  const loopback = ["localhost", "127.0.0.1", "::1", "[::1]"].includes(url.hostname.toLowerCase());
+  if (process.env.WA_AKG_MCP_ALLOW_REMOTE_API !== "true" && !loopback) {
+    throw new Error("Remote API targets are disabled");
+  }
+  if (!loopback && url.protocol !== "https:") throw new Error("Remote WA-AKG API targets must use HTTPS");
+  url.pathname = url.pathname.replace(/\/+$/, "");
+  url.search = "";
+  url.hash = "";
+  return url;
+}
+
+async function authenticate(req) {
+  const token = /^Bearer\s+([^\s]+)$/i.exec(req.headers.authorization ?? "")?.[1];
+  if (!token) return null;
+  const userInfoUrl = `${apiBaseUrl().toString().replace(/\/$/, "")}/oauth/userinfo`;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 5000);
+  try {
+    const response = await fetch(userInfoUrl, {
+      headers: { Accept: "application/json", Authorization: `Bearer ${token}` },
+      signal: controller.signal,
+      redirect: "error",
+    });
+    if (!response.ok) return null;
+    const info = await response.json();
+    const scopes = info?.wa_akg?.scope;
+    if (typeof info?.sub !== "string" || !Array.isArray(scopes) || !scopes.includes("mcp:read")) return null;
+    return { accessToken: token, userId: info.sub, clientId: info.wa_akg.client_id, scopes };
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 async function readJsonBody(req) {
@@ -30,22 +73,51 @@ async function readJsonBody(req) {
   catch { throw Object.assign(new Error("Invalid JSON request body"), { statusCode: 400 }); }
 }
 
-export async function createMcpHttpHandler() {
+function unauthorized(res, req, basePath) {
+  const origin = appOrigin({
+    configuredOrigin: process.env.BASE_URL,
+    requestOrigin: requestOriginFromNodeRequest(req),
+  });
+  const metadataUrl = protectedResourceMetadataUrl({ origin, basePath });
+  res.writeHead(401, {
+    "Content-Type": "application/json",
+    "WWW-Authenticate": `Bearer resource_metadata="${metadataUrl}", error="invalid_token"`,
+    "Cache-Control": "no-store",
+  });
+  res.end(JSON.stringify({ error: "Unauthorized" }));
+}
+
+export async function createMcpHttpHandler({ basePath = process.env.NEXT_PUBLIC_BASE_PATH || "" } = {}) {
   if (process.env.WA_AKG_MCP_ENABLED !== "true") throw new Error("MCP HTTP endpoint is disabled; set WA_AKG_MCP_ENABLED=true to enable it");
-  const token = process.env.WA_AKG_MCP_HTTP_TOKEN?.trim();
-  if (!token || token.length < 32) throw new Error("WA_AKG_MCP_HTTP_TOKEN must be configured with at least 32 characters when MCP HTTP is enabled");
+  apiBaseUrl();
+  const normalizedBasePath = normalizeBasePath(basePath);
 
   return async function handleMcpHttp(req, res) {
-    if (!validBearerToken(req, token)) {
-      res.writeHead(401, { "Content-Type": "application/json", "WWW-Authenticate": "Bearer", "Cache-Control": "no-store" });
-      res.end(JSON.stringify({ error: "Unauthorized" }));
+    await cleanupSessions();
+    const authContext = await authenticate(req);
+    if (!authContext) {
+      unauthorized(res, req, normalizedBasePath);
       return true;
     }
     let body;
     try {
       body = await readJsonBody(req);
       const sessionId = req.headers["mcp-session-id"];
-      let transport = sessionId ? sessions.get(sessionId) : undefined;
+      const entry = sessionId ? sessions.get(sessionId) : undefined;
+      let transport = entry?.transport;
+      let credential = entry?.credential;
+      let sessionEntry = entry;
+
+      if (entry && (entry.authContext.userId !== authContext.userId || entry.authContext.clientId !== authContext.clientId)) {
+        res.writeHead(403, { "Content-Type": "application/json", "Cache-Control": "no-store" });
+        res.end(JSON.stringify({ error: "MCP session belongs to another OAuth client or user" }));
+        return true;
+      }
+      if (entry) {
+        credential.accessToken = authContext.accessToken;
+        credential.scopes = authContext.scopes;
+        entry.lastSeenAt = Date.now();
+      }
 
       if (!transport) {
         if (sessionId) {
@@ -58,18 +130,30 @@ export async function createMcpHttpHandler() {
           res.end(JSON.stringify({ error: "A new MCP session must start with an initialize request" }));
           return true;
         }
+        if (sessions.size >= maxSessions) {
+          res.writeHead(503, { "Content-Type": "application/json", "Cache-Control": "no-store" });
+          res.end(JSON.stringify({ error: "MCP session capacity reached" }));
+          return true;
+        }
         const mcpServer = createMcpServer();
-        await initializeMcpServer(mcpServer);
+        credential = { accessToken: authContext.accessToken, scopes: authContext.scopes };
+        await initializeMcpServer(mcpServer, credential);
         transport = new StreamableHTTPServerTransport({ sessionIdGenerator: () => randomUUID() });
+        const currentTransport = transport;
         transport.onclose = () => {
-          if (transport?.sessionId) sessions.delete(transport.sessionId);
+          if (currentTransport.sessionId) sessions.delete(currentTransport.sessionId);
         };
         await mcpServer.connect(transport);
+        sessionEntry = { transport, authContext: { ...authContext }, credential, lastSeenAt: Date.now() };
       }
 
       res.setHeader("Cache-Control", "no-store");
       await transport.handleRequest(req, res, body);
-      if (transport.sessionId) sessions.set(transport.sessionId, transport);
+      if (transport.sessionId) {
+        sessionEntry.authContext = { ...authContext };
+        sessionEntry.lastSeenAt = Date.now();
+        sessions.set(transport.sessionId, sessionEntry);
+      }
       if (req.method === "DELETE" && sessionId) sessions.delete(sessionId);
     } catch (error) {
       if (!res.headersSent) {

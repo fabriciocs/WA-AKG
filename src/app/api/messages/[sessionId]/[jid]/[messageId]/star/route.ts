@@ -34,7 +34,10 @@ export async function POST(
         }
 
         // Star/unstar the message
-        await (instance.socket as any).chatModify({
+        const socketWithChatModify = instance.socket as typeof instance.socket & {
+            chatModify: (modification: { star: { messages: Array<{ id: string; fromMe: boolean }>; star: boolean } }, jid: string) => Promise<unknown>;
+        };
+        await socketWithChatModify.chatModify({
             star: {
                 messages: [{ id: messageId, fromMe }],
                 star

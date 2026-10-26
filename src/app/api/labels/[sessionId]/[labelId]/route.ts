@@ -1,6 +1,7 @@
 import { NextResponse, NextRequest } from "next/server";
 import { getAuthenticatedUser, canAccessSession } from "@/lib/api-auth";
 import { prisma } from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
 
 // PUT: Update label
 export async function PUT(
@@ -38,7 +39,7 @@ export async function PUT(
         }
 
         // Prepare update data
-        const updateData: any = {};
+        const updateData: Prisma.LabelUpdateInput = {};
         if (name) updateData.name = name;
         if (color !== undefined) {
             if (color < 0 || color > 19) {

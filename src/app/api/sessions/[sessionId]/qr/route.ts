@@ -1,6 +1,6 @@
 import { NextResponse, NextRequest } from "next/server";
 import { waManager } from "@/modules/whatsapp/manager";
-import { getAuthenticatedUser, canAccessSession } from "@/lib/api-auth";
+import { getAuthenticatedUser, isSessionOwner } from "@/lib/api-auth";
 import QRCode from "qrcode";
 
 // GET: Get QR code for session
@@ -16,10 +16,10 @@ export async function GET(
             return NextResponse.json({ status: false, message: "Unauthorized", error: "Unauthorized" }, { status: 401 });
         }
 
-        // Check if user can access this session
-        const canAccess = await canAccessSession(user.id, user.role, sessionId);
-        if (!canAccess) {
-            return NextResponse.json({ status: false, message: "Forbidden - Cannot access this session", error: "Forbidden - Cannot access this session" }, { status: 403 });
+        // Pairing QR codes can link a new WhatsApp device and are owner-only.
+        const isOwner = await isSessionOwner(user.id, user.role, sessionId);
+        if (!isOwner) {
+            return NextResponse.json({ status: false, message: "Forbidden - Only the session owner can view the QR code", error: "Forbidden" }, { status: 403 });
         }
 
         const instance = waManager.getInstance(sessionId);

@@ -4,11 +4,11 @@ const bcrypt = require("bcryptjs");
 const prisma = new PrismaClient();
 
 async function main() {
-    const email = process.argv[2];
-    const password = process.argv[3];
+    const email = process.argv[2] || process.env.ADMIN_EMAIL;
+    const password = process.argv[3] || process.env.ADMIN_PASSWORD;
 
     if (!email) {
-        console.error("Please provide email. Usage: node scripts/setup-admin.js <email> [password]");
+        console.error("Set ADMIN_EMAIL or provide it as the first argument.");
         process.exit(1);
     }
 
@@ -25,7 +25,7 @@ async function main() {
         console.log("User promoted successfully!");
     } else {
         if (!password) {
-            console.error("Password required for new user. Usage: node scripts/setup-admin.js <email> <password>");
+            console.error("Set ADMIN_PASSWORD or provide it as the second argument to create a new admin.");
             process.exit(1);
         }
 

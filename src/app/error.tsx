@@ -1,9 +1,13 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useSyncExternalStore } from 'react';
 import Link from 'next/link';
 import { AlertTriangle, RotateCcw, Home, ChevronRight, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+
+const subscribeToHydration = () => () => {};
+const getClientSnapshot = () => true;
+const getServerSnapshot = () => false;
 
 export default function ErrorPage({
   error,
@@ -13,10 +17,9 @@ export default function ErrorPage({
   reset: () => void;
 }) {
   const [showDetails, setShowDetails] = useState(false);
-  const [mounted, setMounted] = useState(false);
+  const mounted = useSyncExternalStore(subscribeToHydration, getClientSnapshot, getServerSnapshot);
 
   useEffect(() => {
-    setMounted(true);
     console.error('Application runtime error boundary caught:', error);
   }, [error]);
 

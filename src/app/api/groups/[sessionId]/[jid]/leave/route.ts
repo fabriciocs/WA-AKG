@@ -32,7 +32,7 @@ export async function POST(
 
         return NextResponse.json({ status: true, message: "Successfully left the group" });
 
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error("Leave group error:", error);
         return NextResponse.json({ status: false, message: "Failed to leave group", error: "Failed to leave group" }, { status: 500 });
     }

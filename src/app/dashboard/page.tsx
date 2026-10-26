@@ -1,15 +1,13 @@
 import { prisma } from "@/lib/prisma";
-import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import {
     Plus,
     Wifi,
     WifiOff,
-    MessageSquare,
     Bot,
     Send,
-    Settings,
     QrCode,
     ArrowRight,
     Activity,
@@ -36,7 +34,6 @@ export default async function DashboardPage() {
     const totalSessions = sessions.length;
     const connectedSessions = sessions.filter(s => s.status === 'CONNECTED').length;
     const disconnectedSessions = totalSessions - connectedSessions; // Anything not connected is disconnected
-    const otherSessions = 0;
 
     // Fetch auto-reply count for accessible sessions
     let autoReplyCount = 0;

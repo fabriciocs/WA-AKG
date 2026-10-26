@@ -1,10 +1,8 @@
 "use client";
 import { apiUrl } from "@/lib/api-url";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Users, Plus, RefreshCw } from "lucide-react";
@@ -19,7 +17,7 @@ interface Group {
     id: string;
     subject: string;
     jid: string;
-    participants?: any[];
+    participants?: unknown[];
 }
 
 export default function GroupsPage() {
@@ -33,7 +31,7 @@ export default function GroupsPage() {
     const [newGroupName, setNewGroupName] = useState("");
     const [searchTerm, setSearchTerm] = useState("");
 
-    const fetchGroups = async (sessId: string) => {
+    const fetchGroups = useCallback(async (sessId: string) => {
         setLoading(true);
         try {
             const res = await fetch(apiUrl(`/api/groups/${sessId}`));
@@ -43,12 +41,12 @@ export default function GroupsPage() {
             } else {
                 setGroups([]);
             }
-        } catch (error) {
+        } catch {
             toast.error(t("createdFailed"));
         } finally {
             setLoading(false);
         }
-    };
+    }, [t]);
 
     useEffect(() => {
         if (sessionId) {
@@ -56,7 +54,7 @@ export default function GroupsPage() {
         } else {
             setGroups([]);
         }
-    }, [sessionId]);
+    }, [sessionId, fetchGroups]);
 
     const handleCreateGroup = async () => {
         if (!sessionId || !newGroupName) return;
@@ -74,7 +72,7 @@ export default function GroupsPage() {
             } else {
                 toast.error(t("createdFailed"));
             }
-        } catch (error) {
+        } catch {
             toast.error(t("createdFailed"));
         }
     };

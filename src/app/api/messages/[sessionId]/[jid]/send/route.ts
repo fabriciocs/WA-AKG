@@ -1,5 +1,6 @@
 import { NextResponse, NextRequest } from "next/server";
 import { getAuthenticatedUser, canAccessSession } from "@/lib/api-auth";
+import { errorMessage } from "@/lib/error-message";
 import { ChatService } from "@/modules/whatsapp/chat.service";
 
 export async function POST(
@@ -32,9 +33,9 @@ export async function POST(
         const result = await ChatService.sendTextMessage(sessionId, jid, message, mentions, quotedMessageId);
 
         return NextResponse.json({ status: true, message: "Message sent successfully", data: result });
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error("Send message error:", error);
-        const errorMsg = error?.message || "Failed to send message";
+        const errorMsg = errorMessage(error, "Failed to send message");
         return NextResponse.json({ status: false, message: errorMsg, error: errorMsg }, { status: 500 });
     }
 }

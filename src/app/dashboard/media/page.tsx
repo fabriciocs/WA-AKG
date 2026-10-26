@@ -1,7 +1,8 @@
 "use client";
 import { apiUrl } from "@/lib/api-url";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
+import Image from "next/image";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -58,11 +59,7 @@ interface MediaFile {
     url: string;
 }
 
-interface MediaListResponse {
-    files: MediaFile[];
-    totalSize: number;
-    totalCount: number;
-}
+const passthroughMediaLoader = ({ src }: { src: string }) => src;
 
 function formatFileSize(bytes: number): string {
     if (bytes === 0) return "0 B";
@@ -133,7 +130,7 @@ export default function MediaPage() {
     const [previewFile, setPreviewFile] = useState<MediaFile | null>(null);
     const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
 
-    const fetchMedia = async () => {
+    const fetchMedia = useCallback(async () => {
         setLoading(true);
         try {
             const res = await fetch(apiUrl("/api/media"));
@@ -149,9 +146,9 @@ export default function MediaPage() {
         } finally {
             setLoading(false);
         }
-    };
+    }, [t]);
 
-    useEffect(() => { fetchMedia(); }, []);
+    useEffect(() => { fetchMedia(); }, [fetchMedia]);
 
     const filteredFiles = useMemo(() => {
         return files.filter((f) => {
@@ -472,7 +469,7 @@ export default function MediaPage() {
                                                                                              <CardContent className="p-0">
                                                                                                  <div className={`h-24 flex items-center justify-center ${getTypeBg(file.type)} relative`}>
                                                                                                      {file.type === "image" ? (
-                                                                                                         <img src={file.url} alt={file.name} className="h-full w-full object-cover" loading="lazy" />
+                                                                                                         <Image src={file.url} alt={file.name} fill sizes="(max-width: 640px) 50vw, 16vw" loader={passthroughMediaLoader} unoptimized className="object-cover" />
                                                                                                      ) : (
                                                                                                          <div className="flex flex-col items-center gap-1">
                                                                                                              {getTypeIcon(file.type)}
@@ -529,7 +526,9 @@ export default function MediaPage() {
                         <button onClick={() => setPreviewFile(null)} className="absolute -top-10 right-0 text-white/50 hover:text-white transition-colors bg-white/10 hover:bg-white/20 rounded-full p-1 border border-white/10 m-2">
                             <X className="h-5 w-5" />
                         </button>
-                        <img src={previewFile.url} alt={previewFile.name} className="max-h-[85vh] rounded-lg object-contain shadow-2xl" />
+                        <div className="relative h-[85vh] w-[min(90vw,80rem)]">
+                            <Image src={previewFile.url} alt={previewFile.name} fill sizes="90vw" loader={passthroughMediaLoader} unoptimized className="rounded-lg object-contain shadow-2xl" />
+                        </div>
                         <div className="bg-black/50 backdrop-blur-sm px-4 py-2 rounded-full mt-4 flex items-center gap-4 text-xs">
                             <span className="text-white font-medium">{previewFile.name}</span>
                             <span className="text-white/60">•</span>

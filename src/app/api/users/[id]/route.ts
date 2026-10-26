@@ -1,5 +1,6 @@
 import { NextResponse, NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
 import { getAuthenticatedUser, isAdmin } from "@/lib/api-auth";
 import bcrypt from "bcryptjs";
 
@@ -25,7 +26,7 @@ export async function PATCH(
             // Allow update but maybe warn? For now let it be.
         }
 
-        const updateData: any = {};
+        const updateData: Prisma.UserUpdateInput = {};
         if (name) updateData.name = name;
         if (email) updateData.email = email;
         if (role) updateData.role = role;

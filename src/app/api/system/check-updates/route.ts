@@ -14,10 +14,9 @@ import { NextRequest } from "next/server";
 export async function POST(req: NextRequest) {
     const user = await getAuthenticatedUser(req); // Support API Key
     if (!user) return NextResponse.json({ status: false, message: "Unauthorized", error: "Unauthorized" }, { status: 401 });
-
-    // Check for SUPERADMIN role? Original code didn't check, but usually system updates are restricted.
-    // Ideally we should check user.role === 'SUPERADMIN'
-    // But let's stick to making it work first.
+    if (user.role !== "SUPERADMIN") {
+        return NextResponse.json({ status: false, message: "Forbidden", error: "Forbidden" }, { status: 403 });
+    }
     const session = { user }; // Mock session structure for compatibility if needed, or just use user.id
 
     try {
@@ -51,7 +50,7 @@ export async function POST(req: NextRequest) {
         });
 
         // Emit Socket.IO event
-        const io = (global as any).io;
+        const io = global.io;
         if (io) {
             io.to(`user:${session.user.id}`).emit('notification:new', {
                 id: notification.id,

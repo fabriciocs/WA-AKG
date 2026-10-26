@@ -1,7 +1,7 @@
 "use client";
 import { apiUrl } from "@/lib/api-url";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, type Dispatch, type SetStateAction } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Trash2, Plus, CalendarClock, RefreshCw, Pencil, CheckCircle2, XCircle } from "lucide-react";
+import { Trash2, Plus, CalendarClock, RefreshCw, CheckCircle2, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import moment from "moment-timezone";
 import { useTranslations } from "next-intl";
@@ -28,7 +28,6 @@ import {
 import {
     Dialog,
     DialogContent,
-    DialogDescription,
     DialogFooter,
     DialogHeader,
     DialogTitle,
@@ -47,6 +46,12 @@ interface ScheduledMessage {
     mediaType?: string;
     cronExpression?: string;
     recurrenceRule?: string;
+}
+
+type StateSetter<T> = Dispatch<SetStateAction<T>>;
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+    return typeof value === "object" && value !== null;
 }
 
 export default function SchedulerPage() {
@@ -110,15 +115,7 @@ export default function SchedulerPage() {
             .catch(() => { });
     }, []);
 
-    useEffect(() => {
-        if (selectedSessionId) {
-            fetchMessages(selectedSessionId, activeTab);
-        } else {
-            setMessages([]);
-        }
-    }, [selectedSessionId, activeTab]);
-
-    const fetchMessages = async (sessionId: string, tab: string) => {
+    const fetchMessages = useCallback(async (sessionId: string, tab: string) => {
         setLoading(true);
         try {
             const res = await fetch(apiUrl(`/api/scheduler/${sessionId}?tab=${tab}`));
@@ -128,14 +125,31 @@ export default function SchedulerPage() {
             } else {
                 setMessages([]);
             }
-        } catch (error) {
+        } catch {
             toast.error(t("toastFetchError"));
         } finally {
             setLoading(false);
         }
-    };
+    }, [t]);
 
-    const parseRecurrence = (ruleStr: string | undefined, cronExpr: string | undefined, setRecurring: any, setType: any, setMins: any, setHrs: any, setDays: any, setCron: any) => {
+    useEffect(() => {
+        if (selectedSessionId) {
+            void fetchMessages(selectedSessionId, activeTab);
+        } else {
+            setMessages([]);
+        }
+    }, [selectedSessionId, activeTab, fetchMessages]);
+
+    const parseRecurrence = (
+        ruleStr: string | undefined,
+        cronExpr: string | undefined,
+        setRecurring: StateSetter<string>,
+        setType: StateSetter<string>,
+        setMins: StateSetter<number>,
+        setHrs: StateSetter<number>,
+        setDays: StateSetter<number[]>,
+        setCron: StateSetter<string>,
+    ) => {
         if (!cronExpr) {
             setRecurring("once");
             return;
@@ -144,12 +158,17 @@ export default function SchedulerPage() {
         setCron(cronExpr);
         if (ruleStr) {
             try {
-                const rule = JSON.parse(ruleStr);
-                setType(rule.type || "cron");
-                if (rule.type === "minutes") setMins(rule.value);
-                if (rule.type === "hours") setHrs(rule.value);
-                if (rule.type === "days") setDays(rule.value);
-            } catch(e) {
+                const parsed: unknown = JSON.parse(ruleStr);
+                if (!isRecord(parsed)) {
+                    setType("cron");
+                    return;
+                }
+                const recurrenceType = typeof parsed.type === "string" ? parsed.type : "cron";
+                setType(recurrenceType);
+                if (recurrenceType === "minutes" && typeof parsed.value === "number") setMins(parsed.value);
+                if (recurrenceType === "hours" && typeof parsed.value === "number") setHrs(parsed.value);
+                if (recurrenceType === "days" && Array.isArray(parsed.value) && parsed.value.every((day): day is number => typeof day === "number")) setDays(parsed.value);
+            } catch {
                 setType("cron");
             }
         } else {
@@ -183,7 +202,7 @@ export default function SchedulerPage() {
         if (isRec === "once") return { cronExpression: null, recurrenceRule: null };
         
         let cron = "";
-        const rule: any = { type };
+        const rule: { type: string; value?: number | number[] | string } = { type };
         
         if (type === "minutes") {
             cron = `*/${mins} * * * *`;
@@ -271,7 +290,7 @@ export default function SchedulerPage() {
             } else {
                 toast.error(t("toastScheduleFailed"));
             }
-        } catch (error) {
+        } catch {
             toast.error(t("toastError"));
         }
     };
@@ -330,7 +349,7 @@ export default function SchedulerPage() {
             } else {
                 toast.error(t("toastUpdateFailed"));
             }
-        } catch (error) {
+        } catch {
             toast.error(t("toastError"));
         }
     };
@@ -345,7 +364,7 @@ export default function SchedulerPage() {
             } else {
                 toast.error(t("toastDeleteFailed"));
             }
-        } catch (error) {
+        } catch {
             toast.error(t("toastDeleteFailed"));
         } finally {
             setDeleteId(null);
@@ -368,14 +387,14 @@ export default function SchedulerPage() {
     ];
 
     const renderRecurrenceForm = (
-        isRec: string, setRec: any, 
-        type: string, setType: any, 
-        mins: number, setMins: any, 
-        hrs: number, setHrs: any, 
-        days: number[], setDays: any, 
-        cron: string, setCron: any,
-        sendAtStr: string, setSendAtStr: any,
-        sendTimeStr: string, setSendTimeStr: any
+        isRec: string, setRec: StateSetter<string>,
+        type: string, setType: StateSetter<string>,
+        mins: number, setMins: StateSetter<number>,
+        hrs: number, setHrs: StateSetter<number>,
+        days: number[], setDays: StateSetter<number[]>,
+        cron: string, setCron: StateSetter<string>,
+        sendAtStr: string, setSendAtStr: StateSetter<string>,
+        sendTimeStr: string, setSendTimeStr: StateSetter<string>
     ) => (
         <div className="space-y-4 border p-4 rounded-md bg-slate-50 mt-4">
             <Label className="font-semibold text-base">{t("scheduleType")}</Label>

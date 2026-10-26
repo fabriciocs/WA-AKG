@@ -1,7 +1,7 @@
 "use client";
 
 import { useSession } from "./session-provider";
-import { Bot, QrCode } from "lucide-react";
+import { QrCode } from "lucide-react";
 import { ReactNode } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";

@@ -32,7 +32,6 @@ export const viewport: Viewport = {
 export async function generateMetadata(): Promise<Metadata> {
   let appName = "WA-AKG";
   try {
-    // @ts-ignore
     const config = await prisma.systemConfig.findUnique({ where: { id: "default" } });
     if (config?.appName) appName = config.appName;
   } catch (e) {

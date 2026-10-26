@@ -16,14 +16,14 @@ export async function PUT(
         const { sessionId, jid } = await params;
         const decodedJid = decodeURIComponent(jid);
         const body = await request.json();
-        const { setting, value } = body;
+        const { setting } = body;
 
         if (!setting) {
             return NextResponse.json({ status: false, message: "setting is required", error: "setting is required" }, { status: 400 });
         }
 
         // Valid settings: 'announcement' (only admins can send messages), 'locked' (only admins can edit group info), 'not_announcement', 'unlocked'
-        const validSettings = ['announcement', 'not_announcement', 'locked', 'unlocked'];
+        const validSettings = ['announcement', 'not_announcement', 'locked', 'unlocked'] as const;
         if (!validSettings.includes(setting)) {
             return NextResponse.json({ 
                 error: `Invalid setting. Must be one of: ${validSettings.join(', ')}` 
@@ -42,7 +42,7 @@ export async function PUT(
         }
 
         // Update group setting
-        await instance.socket.groupSettingUpdate(decodedJid, setting as any);
+        await instance.socket.groupSettingUpdate(decodedJid, setting as typeof validSettings[number]);
 
         return NextResponse.json({ 
             success: true,
@@ -50,10 +50,10 @@ export async function PUT(
             setting
         });
 
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error("Update group settings error:", error);
-        
-        if (error.message?.includes("not-admin") || error.message?.includes("forbidden")) {
+        const errorMessage = error instanceof Error ? error.message : "";
+        if (errorMessage.includes("not-admin") || errorMessage.includes("forbidden")) {
             return NextResponse.json({ status: false, message: "Bot must be admin to update group settings", error: "Bot must be admin to update group settings" }, { status: 403 });
         }
         

@@ -1,6 +1,7 @@
 import { NextResponse, NextRequest } from "next/server";
 import { waManager } from "@/modules/whatsapp/manager";
 import { getAuthenticatedUser, canAccessSession } from "@/lib/api-auth";
+import { errorMessage } from "@/lib/error-message";
 
 // PUT: Update group picture
 export async function PUT(
@@ -41,11 +42,11 @@ export async function PUT(
 
         return NextResponse.json({ status: true, message: "Group picture updated successfully" });
 
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error("Update group picture error:", error);
-        
+        const message = errorMessage(error, "");
         // Handle specific errors
-        if (error.message?.includes("not-admin") || error.message?.includes("forbidden")) {
+        if (message.includes("not-admin") || message.includes("forbidden")) {
             return NextResponse.json({ status: false, message: "Bot must be admin to update group picture", error: "Bot must be admin to update group picture" }, { status: 403 });
         }
         
@@ -83,10 +84,10 @@ export async function DELETE(
 
         return NextResponse.json({ status: true, message: "Group picture removed successfully" });
 
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error("Remove group picture error:", error);
-        
-        if (error.message?.includes("not-admin") || error.message?.includes("forbidden")) {
+        const message = errorMessage(error, "");
+        if (message.includes("not-admin") || message.includes("forbidden")) {
             return NextResponse.json({ status: false, message: "Bot must be admin to remove group picture", error: "Bot must be admin to remove group picture" }, { status: 403 });
         }
         

@@ -1,7 +1,8 @@
 import { NextResponse, NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getAuthenticatedUser, canAccessSession } from "@/lib/api-auth";
+import { getAuthenticatedUser, canAccessSession, isSessionOwner } from "@/lib/api-auth";
 import { normalizeWebhookFilters } from "@/lib/webhook-filters";
+import { sanitizeWebhookUrl } from "@/lib/webhook-redaction";
 
 export async function GET(
     request: NextRequest,
@@ -40,12 +41,18 @@ export async function GET(
                 ]
             },
             include: {
-                session: true
+                session: { select: { id: true, sessionId: true, name: true, status: true } }
             },
             orderBy: { createdAt: 'desc' }
         });
+        const isOwner = await isSessionOwner(user.id, user.role, sessionId);
 
-        const safeWebhooks = webhooks.map(({ secret: _secret, ...webhook }) => webhook);
+        const safeWebhooks = webhooks.map(webhook => {
+            const safeWebhook = { ...webhook };
+            delete (safeWebhook as { secret?: string | null }).secret;
+            if (!isOwner) safeWebhook.url = sanitizeWebhookUrl(safeWebhook.url);
+            return safeWebhook;
+        });
         return NextResponse.json({ status: true, message: "Webhooks retrieved successfully", data: safeWebhooks });
     } catch (error) {
         console.error("Fetch webhooks error:", error);
@@ -64,8 +71,8 @@ export async function POST(
 
     const { sessionId } = await params;
 
-    const hasAccess = await canAccessSession(user.id, user.role, sessionId);
-    if (!hasAccess) {
+    const isOwner = await isSessionOwner(user.id, user.role, sessionId);
+    if (!isOwner) {
         return NextResponse.json({ status: false, message: "Forbidden - Cannot access this session", error: "Forbidden - Cannot access this session" }, { status: 403 });
     }
 
@@ -109,7 +116,8 @@ export async function POST(
             }
         });
 
-        const { secret: _secret, ...safeWebhook } = webhook;
+        const safeWebhook = { ...webhook };
+        delete (safeWebhook as { secret?: string | null }).secret;
         return NextResponse.json({ status: true, message: "Webhook created successfully", data: safeWebhook });
     } catch (error: unknown) {
         console.error("Create webhook error detailed:", error);

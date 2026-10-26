@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import Link from "next/link";
@@ -25,6 +25,37 @@ interface DocsClientProps {
     toc: TocSection[];
 }
 
+interface MarkdownCodeProps extends React.ComponentProps<"code"> {
+    node?: unknown;
+    inline?: boolean;
+}
+
+const MarkdownCode: React.FC<MarkdownCodeProps> = ({ node, inline, className, children, ...props }) => {
+    void node;
+    const match = /language-(\w+)/.exec(className || "");
+    const codeStr = String(children).replace(/\n$/, "");
+    return !inline && match ? (
+        <div className="rounded-xl overflow-hidden my-6 border border-gray-200 shadow-sm ring-1 ring-gray-900/5 bg-gray-950">
+            <div className="bg-gray-50/90 px-4 py-2.5 flex items-center justify-between border-b border-gray-200">
+                <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">{match[1]}</span>
+                <CopyButton code={codeStr} />
+            </div>
+            <pre className="text-gray-100 text-sm leading-loose overflow-x-auto p-5 m-0 selection:bg-gray-700">
+                <code className="font-mono">{codeStr}</code>
+            </pre>
+        </div>
+    ) : (
+        <code className="bg-gray-100 text-gray-800 px-1.5 py-0.5 rounded text-sm font-mono border border-gray-200 break-all" {...props}>
+            {children}
+        </code>
+    );
+};
+
+function withoutMarkdownNode<T extends { node?: unknown }>({ node, ...props }: T): Omit<T, "node"> {
+    void node;
+    return props;
+}
+
 function CopyButton({ code }: { code: string }) {
     const [copied, setCopied] = useState(false);
     const handleCopy = useCallback(() => {
@@ -47,18 +78,8 @@ function CopyButton({ code }: { code: string }) {
 
 export function DocsClient({ content, toc }: DocsClientProps) {
     const [searchQuery, setSearchQuery] = useState("");
-    const [filteredToc, setFilteredToc] = useState(toc);
     const [openMobileMenu, setOpenMobileMenu] = useState(false);
-    const [openSections, setOpenSections] = useState<Record<string, boolean>>({});
-
-    // Initialize openSections (all open by default or logic based)
-    useEffect(() => {
-        const initial: Record<string, boolean> = {};
-        toc.forEach(section => {
-            initial[section.id] = true;
-        });
-        setOpenSections(initial);
-    }, [toc]);
+    const [sectionState, setSectionState] = useState<{ query: string; values: Record<string, boolean> }>({ query: "", values: {} });
 
     // Debounce search query to prevent excessive re-renders
     const [debouncedQuery, setDebouncedQuery] = useState("");
@@ -70,10 +91,9 @@ export function DocsClient({ content, toc }: DocsClientProps) {
         return () => clearTimeout(timer);
     }, [searchQuery]);
 
-    useEffect(() => {
+    const filteredToc = useMemo(() => {
         if (!debouncedQuery) {
-            setFilteredToc(toc);
-            return;
+            return toc;
         }
 
         const lowerQuery = debouncedQuery.toLowerCase();
@@ -92,16 +112,19 @@ export function DocsClient({ content, toc }: DocsClientProps) {
             return null;
         }).filter(Boolean) as TocSection[];
 
-        setFilteredToc(filtered);
-
-        const allOpen: Record<string, boolean> = {};
-        filtered.forEach(s => allOpen[s.id] = true);
-        setOpenSections(allOpen);
-
+        return filtered;
     }, [debouncedQuery, toc]);
 
+    const openSections = sectionState.query === debouncedQuery ? sectionState.values : {};
+
     const toggleSection = (id: string) => {
-        setOpenSections(prev => ({ ...prev, [id]: !prev[id] }));
+        setSectionState((prev) => {
+            const values = prev.query === debouncedQuery ? prev.values : {};
+            return {
+                query: debouncedQuery,
+                values: { ...values, [id]: !(values[id] ?? true) },
+            };
+        });
     };
 
     const scrollToSection = (id: string, closeMobile = true) => {
@@ -248,42 +271,26 @@ export function DocsClient({ content, toc }: DocsClientProps) {
                     <ReactMarkdown
                         remarkPlugins={[remarkGfm]}
                         components={{
-                            h2: ({ node, ...props }) => {
+                            h2: (markdownProps) => {
+                                const props = withoutMarkdownNode(markdownProps);
                                 const id = props.children?.toString().toLowerCase().replace(/[^\w]+/g, '-') || '';
                                 return <h2 id={id} {...props} className="text-2xl font-bold mt-12 mb-6 border-b pb-2 scroll-mt-24" />
                             },
-                            h3: ({ node, ...props }) => {
+                            h3: (markdownProps) => {
+                                const props = withoutMarkdownNode(markdownProps);
                                 const id = props.children?.toString().toLowerCase().replace(/[^\w]+/g, '-') || '';
                                 return <h3 id={id} {...props} className="text-xl font-semibold mt-8 mb-4 scroll-mt-24" />
                             },
-                            code: ({ node, inline, className, children, ...props }: any) => {
-                                const match = /language-(\w+)/.exec(className || '');
-                                const codeStr = String(children).replace(/\n$/, '');
-                                return !inline && match ? (
-                                    <div className="rounded-xl overflow-hidden my-6 border border-gray-200 shadow-sm ring-1 ring-gray-900/5 bg-gray-950">
-                                        <div className="bg-gray-50/90 px-4 py-2.5 flex items-center justify-between border-b border-gray-200">
-                                            <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">{match[1]}</span>
-                                            <CopyButton code={codeStr} />
-                                        </div>
-                                        <pre className="text-gray-100 text-sm leading-loose overflow-x-auto p-5 m-0 selection:bg-gray-700">
-                                            <code className="font-mono">{codeStr}</code>
-                                        </pre>
-                                    </div>
-                                ) : (
-                                    <code className="bg-gray-100 text-gray-800 px-1.5 py-0.5 rounded text-sm font-mono border border-gray-200 break-all" {...props}>
-                                        {children}
-                                    </code>
-                                )
-                            },
-                            table: ({ node, ...props }) => (
-                        <div className="overflow-x-auto my-6 border rounded-lg shadow-sm">
-                                    <table {...props} className="min-w-full divide-y divide-gray-200 text-sm sm:text-base" />
+                            code: MarkdownCode,
+                            table: (markdownProps) => (
+                                <div className="overflow-x-auto my-6 border rounded-lg shadow-sm">
+                                    <table {...withoutMarkdownNode(markdownProps)} className="min-w-full divide-y divide-gray-200 text-sm sm:text-base" />
                                 </div>
                             ),
-                            thead: ({ node, ...props }) => <thead {...props} className="bg-gray-50" />,
-                            th: ({ node, ...props }) => <th {...props} className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" />,
-                            td: ({ node, ...props }) => <td {...props} className="px-3 sm:px-4 py-3 text-sm text-gray-500 break-words whitespace-normal" />,
-                            pre: ({ node, ...props }) => <pre {...props} /> // Passthrough to code block handler
+                            thead: (markdownProps) => <thead {...withoutMarkdownNode(markdownProps)} className="bg-gray-50" />,
+                            th: (markdownProps) => <th {...withoutMarkdownNode(markdownProps)} className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" />,
+                            td: (markdownProps) => <td {...withoutMarkdownNode(markdownProps)} className="px-3 sm:px-4 py-3 text-sm text-gray-500 break-words whitespace-normal" />,
+                            pre: (markdownProps) => <pre {...withoutMarkdownNode(markdownProps)} /> // Passthrough to code block handler
                         }}
                     >
                         {content}

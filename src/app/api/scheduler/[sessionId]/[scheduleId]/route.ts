@@ -27,7 +27,6 @@ export async function PUT(
         }
 
         // Fetch system timezone
-        // @ts-ignore
         const systemConfig = await prisma.systemConfig.findUnique({ where: { id: "default" } });
         const timezone = systemConfig?.timezone || "Asia/Jakarta";
 
@@ -37,7 +36,7 @@ export async function PUT(
 
         const msg = await prisma.scheduledMessage.findUnique({
             where: { id: scheduleId },
-            include: { session: true }
+            include: { session: { select: { id: true, sessionId: true, name: true, status: true } } }
         });
 
         if (!msg) {
@@ -88,7 +87,7 @@ export async function DELETE(
 
         const msg = await prisma.scheduledMessage.findUnique({
             where: { id: scheduleId },
-            include: { session: true }
+            include: { session: { select: { id: true, sessionId: true, name: true, status: true } } }
         });
 
         if (!msg) {
@@ -103,7 +102,7 @@ export async function DELETE(
         await prisma.scheduledMessage.delete({ where: { id: scheduleId } });
         return NextResponse.json({ status: true, message: "Operation successful" });
 
-    } catch (error) {
+    } catch {
         return NextResponse.json({ status: false, message: "Internal Server Error", error: "Internal Server Error" }, { status: 500 });
     }
 }

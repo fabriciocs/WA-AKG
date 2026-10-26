@@ -36,7 +36,7 @@ export function setupSocket(io: Server) {
 
             const secret = process.env.AUTH_SECRET;
 
-            let decodeJwt: any = null;
+            let decodeJwt: typeof import("next-auth/jwt").decode | null = null;
             try {
                 const jwtMod = await import("next-auth/jwt");
                 decodeJwt = jwtMod.decode;

@@ -40,7 +40,7 @@ export async function GET(
         let ppUrl = null;
         try {
             ppUrl = await instance.socket.profilePictureUrl(decodedJid, 'image');
-        } catch (e) {
+        } catch {
             // Ignore error if no PP
         }
 

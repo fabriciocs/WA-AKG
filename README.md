@@ -30,6 +30,7 @@ WA-AKG comes with extensive documentation designed for both developers and users
 - **[Master Project Documentation](docs/PROJECT_DOCUMENTATION.md)**: Architecture, database, and logic flow.
 - **[API Documentation](docs/API_DOCUMENTATION.md)**: Comprehensive OpenAPI / Swagger guide for all **109+ endpoints**.
 - **[API Quick Reference](docs/API-QUICK-REFERENCE.md)**: Instantly jumpstart your integration with ready-to-use cURL/JavaScript snippets.
+- **[OAuth and MCP authorization](docs/OAUTH.md)**: OAuth clients, user consent, session scopes, and MCP setup.
 - **[Environment Variables](docs/ENVIRONMENT_VARIABLES.md)**: Configuration and security guide.
 - **[Internationalization (i18n)](docs/I18N.md)**: How UI languages work and how to add or translate one.
 
@@ -179,13 +180,20 @@ Although **PM2 is highly recommended**, you can also deploy using Docker Compose
    ```bash
    cp .env.example .env
    ```
-   Edit `.env` — set `DATABASE_URL` (points to the MySQL container), `AUTH_SECRET`, and other branding settings.
+   Set `MYSQL_ROOT_PASSWORD`, `MYSQL_APP_PASSWORD`, `AUTH_SECRET`, `SWAGGER_PASSWORD`, and the other required settings. The app uses the dedicated MySQL application account, not `root`.
 
-2. **Start Services**:
+2. **Build and apply schema migrations explicitly**:
    ```bash
-   docker compose up -d
+   docker compose build app
+   docker compose --profile ops run --rm migrate
    ```
-   This spins up the MySQL database container alongside the Next.js gateway application.
+   New databases apply the migration chain in this step. For an existing database, back it up and verify its current schema against the exact migration before baselining: set `PRISMA_BASELINE_MIGRATION` to that migration ID and run `docker compose --profile ops run --rm baseline`. Only mark migrations already represented by the database as applied; then run `migrate` to apply later migrations.
+
+3. **Start the app and database**:
+   ```bash
+   docker compose up -d db app
+   ```
+   The app port binds to `127.0.0.1` by default. Put a reverse proxy in front for remote access. Schema migration and admin creation do not run on app startup. To create/promote the initial admin, set `ADMIN_EMAIL` and `ADMIN_PASSWORD` in `.env` and run `docker compose --profile ops run --rm admin-setup` once.
 
 ---
 
@@ -266,4 +274,4 @@ Start the MCP server separately when an MCP client needs it:
 npm run mcp:start
 ```
 
-To enable HTTP MCP, configure `WA_AKG_MCP_ENABLED=true` and `WA_AKG_MCP_HTTP_TOKEN` (a random secret of at least 32 characters) in the WA-AKG server environment, then restart WA-AKG. Clients must send `Authorization: Bearer <token>`. The endpoint is served by the same process and port as the app, normally `http://127.0.0.1:3030/mcp`. Configure `WA_AKG_API_BASE_URL` and, where required, `WA_AKG_API_KEY` for tool calls. Write operations remain disabled unless individually enabled with `WA_AKG_MCP_WRITE_ALLOWLIST`. See `mcp/wa-akg-mcp/README.md` for configuration and security details.
+To enable HTTP MCP, configure `OAUTH_ISSUER_URL` and `WA_AKG_MCP_ENABLED=true`, then create an OAuth client in **Dashboard → OAuth Access**. MCP clients use OAuth user delegation; no static HTTP bearer token is configured. The endpoint is served by the same process and port as the app, normally `https://your-domain/mcp`. Configure `WA_AKG_API_BASE_URL` for tool calls. Write operations require both the user's `mcp:write` grant and an exact `WA_AKG_MCP_WRITE_ALLOWLIST` entry. See [OAuth and MCP authorization](docs/OAUTH.md) and `mcp/wa-akg-mcp/README.md` for details.

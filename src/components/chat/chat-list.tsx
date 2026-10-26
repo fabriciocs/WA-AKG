@@ -7,8 +7,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
-import { MessageSquarePlus, Search, MessageCircle, X, Tag, MoreHorizontal, CornerUpLeft, Trash2, Info, Check } from "lucide-react";
+import { MessageSquarePlus, Search, MessageCircle, X, Tag, Info, Check } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
@@ -34,6 +33,13 @@ interface LabelData {
     id: string;
     name: string;
     colorHex: string;
+}
+
+interface IncomingChatMessage {
+    remoteJid?: string;
+    content: string | null;
+    timestamp: string;
+    type: string;
 }
 
 interface ChatListProps {
@@ -110,7 +116,12 @@ function LabelAssignPopover({ sessionId, jid, children }: { sessionId: string; j
 
             if (labelRes.ok) setLabels(labelData.data?.labels || []);
             if (assignedRes.ok) {
-                setAssigned(new Set((assignedData.data || []).map((cl: any) => cl.labelId)));
+                const assignments: unknown[] = Array.isArray(assignedData.data) ? assignedData.data : [];
+                const labelIds = assignments.flatMap((item) => {
+                    if (typeof item !== "object" || item === null || !("labelId" in item)) return [];
+                    return typeof item.labelId === "string" ? [item.labelId] : [];
+                });
+                setAssigned(new Set(labelIds));
             }
         } catch (e) {
             console.error("Failed to fetch labels", e);
@@ -134,12 +145,13 @@ function LabelAssignPopover({ sessionId, jid, children }: { sessionId: string; j
             if (res.ok) {
                 setAssigned(prev => {
                     const next = new Set(prev);
-                    isAssigned ? next.delete(labelId) : next.add(labelId);
+                    if (isAssigned) next.delete(labelId);
+                    else next.add(labelId);
                     return next;
                 });
                 toast.success(isAssigned ? "Label removed" : "Label assigned");
             }
-        } catch (e) {
+        } catch {
             toast.error("Failed to update label");
         }
     };
@@ -177,7 +189,7 @@ function LabelAssignPopover({ sessionId, jid, children }: { sessionId: string; j
 
 // ─── Context Menu ──────────────────
 interface CtxMenuState { x: number; y: number; jid: string; name: string; }
-function ChatContextMenu({ state, onClose, sessionId, onSelect }: { state: CtxMenuState; onClose: () => void; sessionId: string; onSelect: (jid: string, name?: string) => void }) {
+function ChatContextMenu({ state, onClose, onSelect }: { state: CtxMenuState; onClose: () => void; onSelect: (jid: string, name?: string) => void }) {
     const ref = useRef<HTMLDivElement>(null);
     useEffect(() => {
         const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) onClose(); };
@@ -219,7 +231,7 @@ function ChatRow({
     return (
         <>
             {ctxMenu && (
-                <ChatContextMenu state={ctxMenu} onClose={() => setCtxMenu(null)} sessionId={sessionId} onSelect={onSelect} />
+                <ChatContextMenu state={ctxMenu} onClose={() => setCtxMenu(null)} onSelect={onSelect} />
             )}
             <div
                 className={cn(
@@ -306,7 +318,6 @@ export function ChatList({ sessionId, onSelectChat, selectedJid }: ChatListProps
 
     const { getSocket, joinSession } = useSocket();
     const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-    const cursorRef = useRef<string | undefined>(undefined);
     const chatsRef = useRef<ChatContact[]>(chats);
     chatsRef.current = chats;
     const fetchingRef = useRef(false);
@@ -331,12 +342,12 @@ export function ChatList({ sessionId, onSelectChat, selectedJid }: ChatListProps
         const requestId = requestIdRef.current;
         try {
             if (!cursor) setLoading(true);
-            const rawChats: any = await getChatsStatus(sessionId, PAGE_SIZE, cursor || undefined, searchQuery || undefined, filter);
+            const rawChats = await getChatsStatus(sessionId, PAGE_SIZE, cursor || undefined, searchQuery || undefined, filter);
             if (requestId !== requestIdRef.current) return;
             
             const processChats = (newChatsList: ChatContact[], existingChatsList: ChatContact[] = []) => {
                 const merged = new Map(existingChatsList.map(c => [c.jid, c]));
-                (newChatsList || []).forEach((c: any) => {
+                (newChatsList || []).forEach((c) => {
                     const existing = merged.get(c.jid);
                     if (!existing || (c.lastMessage?.timestamp && (!existing.lastMessage?.timestamp || new Date(c.lastMessage.timestamp) > new Date(existing.lastMessage.timestamp)))) {
                         merged.set(c.jid, c);
@@ -376,7 +387,7 @@ export function ChatList({ sessionId, onSelectChat, selectedJid }: ChatListProps
         const onConnect = () => joinSession(sessionId);
         if (socket.connected) joinSession(sessionId);
         socket.on("connect", onConnect);
-        const handler = async (incoming: any[]) => {
+        const handler = async (incoming: IncomingChatMessage[]) => {
             const newMessages = incoming.filter(msg => msg.remoteJid && matchesFilter(msg.remoteJid, filter));
             if (newMessages.length === 0) return;
             let needsReload = false;

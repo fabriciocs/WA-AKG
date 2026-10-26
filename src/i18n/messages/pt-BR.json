@@ -81,6 +81,7 @@
       "sessionAccess": "Acesso às Sessões",
       "users": "Usuários",
       "settings": "Configurações",
+    "oauthAccess": "Acesso OAuth",
       "systemMonitor": "Monitor do Sistema",
       "notifications": "Notificações"
     }
@@ -1131,5 +1132,45 @@
     "statCategories": "Categorias",
     "statPost": "Endpoints POST",
     "statGet": "Endpoints GET"
+  },
+  "oauth": {
+    "security": "Segurança",
+    "title": "Acesso OAuth",
+    "subtitle": "Gerencie clientes conectados e revogue o acesso deles à sua conta WA-AKG.",
+    "loadError": "Não foi possível carregar o acesso OAuth.",
+    "createError": "Não foi possível criar o cliente.",
+    "updateError": "Não foi possível atualizar o cliente.",
+    "revokeError": "Não foi possível revogar o acesso.",
+    "connectedClients": "Clientes conectados",
+    "noActiveGrants": "Nenhuma autorização OAuth ativa.",
+    "limitedSessions": "Limitado a {count} sessões",
+    "allSessions": "Todas as sessões às quais você tem acesso",
+    "revokeAccess": "Revogar acesso",
+    "accessRevoked": "Acesso revogado.",
+    "clients": "Clientes OAuth",
+    "clientName": "Nome do cliente",
+    "redirectUri": "URI de redirecionamento",
+    "redirectPlaceholder": "https://cliente.exemplo/callback",
+    "allowedScopes": "Escopos permitidos",
+    "mcpWriteHint": "As ferramentas de escrita MCP também exigem api:write e precisam estar habilitadas na lista permitida do servidor.",
+    "mcpReadHint": "As ferramentas de leitura MCP exigem mcp:read junto com api:read, ou sessions:read para listar sessões.",
+    "publicClientHint": "Isso cria um cliente público com PKCE. O fluxo de código de autorização não expõe um segredo de cliente.",
+    "createClient": "Criar cliente",
+    "creatingClient": "Criando cliente…",
+    "clientId": "ID do cliente",
+    "clientCreated": "Cliente criado: {name}. O ID público do cliente está abaixo.",
+    "active": "Ativo",
+    "disabled": "Desativado",
+    "disable": "Desativar",
+    "enable": "Ativar"
+  },
+  "oauthConsent": {
+    "eyebrow": "Autorização OAuth",
+    "allowClient": "Permitir {name}?",
+    "requesting": "Este cliente está solicitando:",
+    "limitSessions": "Limitar o acesso às sessões selecionadas do WhatsApp",
+    "sessionHint": "Deixe todas as caixas desmarcadas para permitir que o cliente use qualquer sessão acessível a você.",
+    "deny": "Negar",
+    "allow": "Permitir"
   }
 }

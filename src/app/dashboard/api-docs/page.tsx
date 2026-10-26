@@ -10,7 +10,7 @@ import { useTranslations } from "next-intl";
 export default function ApiDocsPage() {
     const t = useTranslations("apiDocs");
     const tCommon = useTranslations("common");
-    const { data: session, status } = useSession();
+    const { status } = useSession();
     const router = useRouter();
     const [filter, setFilter] = useState("");
     const [selectedCategory, setSelectedCategory] = useState("All");

@@ -1,7 +1,8 @@
 import { NextResponse, NextRequest } from "next/server";
 import { waManager } from "@/modules/whatsapp/manager";
-import { getAuthenticatedUser, canAccessSession } from "@/lib/api-auth";
+import { getAuthenticatedUser, isSessionOwner } from "@/lib/api-auth";
 import { prisma } from "@/lib/prisma";
+import { errorMessage } from "@/lib/error-message";
 
 export async function POST(
     request: NextRequest,
@@ -18,8 +19,8 @@ export async function POST(
         const action = resolvedParams.action;
 
         // Verify access
-        const canAccess = await canAccessSession(user.id, user.role, sessionId);
-        if (!canAccess) {
+        const isOwner = await isSessionOwner(user.id, user.role, sessionId);
+        if (!isOwner) {
             return NextResponse.json({ status: false, message: "Forbidden - Cannot access this session", error: "Forbidden - Cannot access this session" }, { status: 403 });
         }
 
@@ -66,8 +67,8 @@ export async function POST(
 
         return NextResponse.json({ status: true, message: `Session ${action}ed successfully` });
 
-    } catch (error) {
+    } catch (error: unknown) {
         console.error("Session action error:", error);
-        return NextResponse.json({ error: `Failed to ${(error as any).message || "perform action"}` }, { status: 500 });
+        return NextResponse.json({ error: `Failed to ${errorMessage(error, "perform action")}` }, { status: 500 });
     }
 }

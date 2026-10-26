@@ -31,9 +31,7 @@ import {
     Loader2,
     History,
     Phone,
-    Layers,
-    Info,
-    ArrowRight
+    Layers
 } from "lucide-react";
 import { toast } from "sonner";
 import { useSession } from "@/components/dashboard/session-provider";
@@ -48,6 +46,16 @@ interface TriggerLog {
     type: string;
     status: "success" | "error";
     error?: string;
+}
+
+function getPreviewButtonLabel(button: unknown): string {
+    if (typeof button !== "object" || button === null || Array.isArray(button)) return "";
+    if (!("displayText" in button) && !("buttonText" in button) && !("title" in button)) return "";
+    const fields = button as { displayText?: unknown; buttonText?: unknown; title?: unknown };
+    for (const value of [fields.displayText, fields.buttonText, fields.title]) {
+        if (typeof value === "string") return value;
+    }
+    return "";
 }
 
 export default function InteractivePage() {
@@ -221,9 +229,10 @@ function InteractiveContent() {
                 },
                 ...prev.slice(0, 19)
             ]);
-        } catch (error: any) {
+        } catch (error) {
             console.error("Test trigger error:", error);
-            toast.error(error.message || t("failedToast", { error: "" }));
+            const errorMessage = error instanceof Error ? error.message : t("failedToast", { error: "" });
+            toast.error(errorMessage);
             setTriggerLogs(prev => [
                 {
                     id: String(Date.now()),
@@ -231,7 +240,7 @@ function InteractiveContent() {
                     target: targetPhone,
                     type: preset.title,
                     status: "error",
-                    error: error.message
+                    error: errorMessage
                 },
                 ...prev.slice(0, 19)
             ]);
@@ -257,7 +266,7 @@ function InteractiveContent() {
         setButtons(prev => prev.filter(b => b.id !== id));
     };
 
-    const handleUpdateButton = (id: string, field: keyof InteractiveButtonItem, value: any) => {
+    const handleUpdateButton = (id: string, field: keyof InteractiveButtonItem, value: string) => {
         setButtons(prev =>
             prev.map(b => {
                 if (b.id !== id) return b;
@@ -341,9 +350,10 @@ function InteractiveContent() {
                 },
                 ...prev.slice(0, 19)
             ]);
-        } catch (error: any) {
+        } catch (error) {
             console.error("Custom interactive send error:", error);
-            toast.error(error.message || t("failedToast", { error: "" }));
+            const errorMessage = error instanceof Error ? error.message : t("failedToast", { error: "" });
+            toast.error(errorMessage);
             setTriggerLogs(prev => [
                 {
                     id: String(Date.now()),
@@ -351,7 +361,7 @@ function InteractiveContent() {
                     target: targetPhone,
                     type: `Custom (${buttons.length})`,
                     status: "error",
-                    error: error.message
+                    error: errorMessage
                 },
                 ...prev.slice(0, 19)
             ]);
@@ -464,7 +474,7 @@ function InteractiveContent() {
                                         </div>
 
                                         <div className="pt-2 border-t border-border/40 space-y-1.5">
-                                            {preset.payload.buttons.map((b: any, idx) => (
+                                            {preset.payload.buttons.map((b, idx) => (
                                                 <div
                                                     key={idx}
                                                     className="text-xs font-medium py-1.5 px-3 rounded-lg bg-background border border-border/60 text-center text-primary flex items-center justify-center gap-2 shadow-2xs"
@@ -474,7 +484,7 @@ function InteractiveContent() {
                                                     {b.type === "cta_copy" && <Copy className="h-3.5 w-3.5" />}
                                                     {b.type === "single_select" && <ListFilter className="h-3.5 w-3.5" />}
                                                     {b.type === "quick_reply" && <MousePointerClick className="h-3.5 w-3.5" />}
-                                                    <span>{b.displayText || b.buttonText || b.title}</span>
+                                                    <span>{getPreviewButtonLabel(b)}</span>
                                                 </div>
                                             ))}
                                         </div>

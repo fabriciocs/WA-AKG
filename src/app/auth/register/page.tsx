@@ -75,8 +75,8 @@ export default function RegisterPage() {
                 router.push('/auth/login');
             }, 2000);
 
-        } catch (err: any) {
-            setError(err.message || t('unexpectedError'));
+        } catch (err) {
+            setError(err instanceof Error ? err.message : t('unexpectedError'));
         } finally {
             setLoading(false);
         }

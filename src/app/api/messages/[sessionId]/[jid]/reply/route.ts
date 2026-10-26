@@ -3,6 +3,7 @@ import { waManager } from "@/modules/whatsapp/manager";
 import { getAuthenticatedUser, canAccessSession } from "@/lib/api-auth";
 import { fireSentWebhook } from "@/lib/webhook";
 import { prisma } from "@/lib/prisma";
+import type { WAMessage, WAMessageContent, WAMessageKey } from "@whiskeysockets/baileys";
 
 /**
  * POST /api/messages/{sessionId}/{jid}/reply
@@ -23,7 +24,7 @@ export async function POST(
         const jid = decodeURIComponent(rawJid);
 
         const body = await request.json();
-        const { messageId, message, mentions, fromMe } = body;
+        const { messageId, message, mentions } = body;
 
         if (!messageId) {
             return NextResponse.json({ status: false, message: "messageId is required", error: "messageId is required" }, { status: 400 });
@@ -45,13 +46,13 @@ export async function POST(
         }
 
         // Construct the quoted message key
-        const quotedMsgKey: any = {
+        const quotedMsgKey: WAMessageKey = {
             remoteJid: jid,
             fromMe: false, // Default fallback, overridden by DB
             id: messageId
         };
 
-        let quotedMessageContent: any = { extendedTextMessage: { text: "" } }; // Default fallback
+        let quotedMessageContent: WAMessageContent = { extendedTextMessage: { text: "" } }; // Default fallback
         let resolvedParticipant: string | undefined = undefined;
         let originalMsgTimestamp: number | undefined = undefined;
         let originalMsgPushName: string | undefined = undefined;
@@ -142,7 +143,7 @@ export async function POST(
             console.warn("Could not fetch original message for quoted reply context:", dbError);
         }
 
-        const quotedMsg = {
+        const quotedMsg: WAMessage = {
             key: quotedMsgKey,
             message: quotedMessageContent,
             participant: resolvedParticipant,
@@ -151,7 +152,7 @@ export async function POST(
         };
 
         // Process message payload (same as /send)
-        let msgPayload = message;
+        const msgPayload = message;
 
         if (msgPayload.text && mentions && Array.isArray(mentions)) {
             msgPayload.mentions = mentions;
@@ -159,7 +160,7 @@ export async function POST(
 
         // Send the reply with quoted reference
         const sendResult = await instance.socket.sendMessage(jid, msgPayload, {
-            quoted: quotedMsg as any
+            quoted: quotedMsg
         });
 
         // Fire webhook for sent message (non-blocking)

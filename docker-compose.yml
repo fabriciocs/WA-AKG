@@ -8,6 +8,8 @@ services:
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Defina MYSQL_ROOT_PASSWORD no arquivo .env}
       MYSQL_DATABASE: ${MYSQL_DATABASE:-wa_akg}
+      MYSQL_USER: ${MYSQL_APP_USER:-wa_akg_app}
+      MYSQL_PASSWORD: ${MYSQL_APP_PASSWORD:?Defina MYSQL_APP_PASSWORD no arquivo .env}
     ports:
       - "127.0.0.1:3307:3306"
     volumes:
@@ -23,6 +25,7 @@ services:
       - wa-akg-network
 
   app:
+    image: ${WA_AKG_IMAGE:-wa-akg:local}
     build:
       context: .
       dockerfile: Dockerfile
@@ -30,12 +33,16 @@ services:
     restart: unless-stopped
     init: true
     ports:
-      - "${PORT:-43000}:${PORT:-43000}"
+      - "127.0.0.1:${PORT:-43000}:${PORT:-43000}"
     environment:
       NODE_ENV: production
       PORT: ${PORT:-43000}
       HOSTNAME: 0.0.0.0
-      DATABASE_URL: mysql://root:${MYSQL_ROOT_PASSWORD}@db:3306/${MYSQL_DATABASE:-wa_akg}
+      MYSQL_HOST: db
+      MYSQL_PORT: "3306"
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-wa_akg}
+      MYSQL_APP_USER: ${MYSQL_APP_USER:-wa_akg_app}
+      MYSQL_APP_PASSWORD: ${MYSQL_APP_PASSWORD:?Defina MYSQL_APP_PASSWORD no arquivo .env}
       AUTH_SECRET: ${AUTH_SECRET:?Defina AUTH_SECRET no arquivo .env}
       BASE_URL: ${BASE_URL:-http://localhost:43000}
       NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:43000}
@@ -44,10 +51,8 @@ services:
       AUTH_TRUST_HOST: ${AUTH_TRUST_HOST:-true}
       BAILEYS_LOG_LEVEL: ${BAILEYS_LOG_LEVEL:-error}
       NEXT_PUBLIC_SWAGGER_ENABLED: ${NEXT_PUBLIC_SWAGGER_ENABLED:-true}
-      NEXT_PUBLIC_SWAGGER_USERNAME: ${NEXT_PUBLIC_SWAGGER_USERNAME:-admin}
-      NEXT_PUBLIC_SWAGGER_PASSWORD: ${NEXT_PUBLIC_SWAGGER_PASSWORD:?Defina NEXT_PUBLIC_SWAGGER_PASSWORD no arquivo .env}
-      ADMIN_EMAIL: ${ADMIN_EMAIL:?Defina ADMIN_EMAIL no arquivo .env}
-      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?Defina ADMIN_PASSWORD no arquivo .env}
+      SWAGGER_USERNAME: ${SWAGGER_USERNAME:-admin}
+      SWAGGER_PASSWORD: ${SWAGGER_PASSWORD:-}
       TZ: ${TZ:-America/Sao_Paulo}
       LOCALE: ${LOCALE:-pt-BR}
       DEFAULT_LANGUAGE: ${DEFAULT_LANGUAGE:-en}
@@ -67,6 +72,66 @@ services:
     volumes:
       - app_data:/app/data
       - uploads_data:/app/uploads
+    networks:
+      - wa-akg-network
+
+  migrate:
+    image: ${WA_AKG_IMAGE:-wa-akg:local}
+    build:
+      context: .
+      dockerfile: Dockerfile
+    profiles: ["ops"]
+    command: ["node", "scripts/container-start.js", "migrate"]
+    environment:
+      MYSQL_HOST: db
+      MYSQL_PORT: "3306"
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-wa_akg}
+      MYSQL_APP_USER: ${MYSQL_APP_USER:-wa_akg_app}
+      MYSQL_APP_PASSWORD: ${MYSQL_APP_PASSWORD:?Defina MYSQL_APP_PASSWORD no arquivo .env}
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - wa-akg-network
+
+  admin-setup:
+    image: ${WA_AKG_IMAGE:-wa-akg:local}
+    build:
+      context: .
+      dockerfile: Dockerfile
+    profiles: ["ops"]
+    command: ["node", "scripts/container-start.js", "make-admin"]
+    environment:
+      MYSQL_HOST: db
+      MYSQL_PORT: "3306"
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-wa_akg}
+      MYSQL_APP_USER: ${MYSQL_APP_USER:-wa_akg_app}
+      MYSQL_APP_PASSWORD: ${MYSQL_APP_PASSWORD:?Defina MYSQL_APP_PASSWORD no arquivo .env}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:?Defina ADMIN_EMAIL no arquivo .env}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?Defina ADMIN_PASSWORD no arquivo .env}
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - wa-akg-network
+
+  baseline:
+    image: ${WA_AKG_IMAGE:-wa-akg:local}
+    build:
+      context: .
+      dockerfile: Dockerfile
+    profiles: ["ops"]
+    command: ["node", "scripts/container-start.js", "baseline"]
+    environment:
+      MYSQL_HOST: db
+      MYSQL_PORT: "3306"
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-wa_akg}
+      MYSQL_APP_USER: ${MYSQL_APP_USER:-wa_akg_app}
+      MYSQL_APP_PASSWORD: ${MYSQL_APP_PASSWORD:?Defina MYSQL_APP_PASSWORD no arquivo .env}
+      PRISMA_BASELINE_MIGRATION: ${PRISMA_BASELINE_MIGRATION:-}
+    depends_on:
+      db:
+        condition: service_healthy
     networks:
       - wa-akg-network
 

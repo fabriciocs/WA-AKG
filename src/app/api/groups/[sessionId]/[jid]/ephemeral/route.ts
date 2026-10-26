@@ -1,6 +1,7 @@
 import { NextResponse, NextRequest } from "next/server";
 import { waManager } from "@/modules/whatsapp/manager";
 import { getAuthenticatedUser, canAccessSession } from "@/lib/api-auth";
+import { errorMessage } from "@/lib/error-message";
 
 // PUT: Toggle ephemeral/disappearing messages
 export async function PUT(
@@ -56,10 +57,10 @@ export async function PUT(
             expirationLabel: expirationLabels[expiration]
         });
 
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error("Toggle ephemeral error:", error);
-        
-        if (error.message?.includes("not-admin") || error.message?.includes("forbidden")) {
+        const message = errorMessage(error, "");
+        if (message.includes("not-admin") || message.includes("forbidden")) {
             return NextResponse.json({ status: false, message: "Bot must be admin to toggle ephemeral messages", error: "Bot must be admin to toggle ephemeral messages" }, { status: 403 });
         }
         

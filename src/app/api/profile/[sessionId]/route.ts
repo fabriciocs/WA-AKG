@@ -30,14 +30,18 @@ export async function GET(
         // Fetch status/about safely
         let status = "Hey there! I am using WhatsApp.";
         try {
-            const statusResult = await (instance.socket as any).fetchStatus(myJid);
+            const socketWithStatus = instance.socket as unknown as {
+                fetchStatus: (jid: string) => Promise<unknown>;
+            };
+            const statusResult = await socketWithStatus.fetchStatus(myJid);
             if (statusResult) {
                 // Baileys might return an array or an object depending on version
                 if (Array.isArray(statusResult)) {
-                    const first = statusResult[0];
-                    if (first?.status) status = first.status;
-                } else if (statusResult.status) {
-                    status = statusResult.status;
+                    const first = statusResult[0] as { status?: unknown } | undefined;
+                    if (typeof first?.status === "string") status = first.status;
+                } else if (typeof statusResult === "object" && statusResult !== null) {
+                    const statusValue = (statusResult as { status?: unknown }).status;
+                    if (typeof statusValue === "string") status = statusValue;
                 }
             }
         } catch (e) {
@@ -48,7 +52,7 @@ export async function GET(
         let pictureUrl = "";
         try {
             pictureUrl = await instance.socket.profilePictureUrl(myJid, 'image') || "";
-        } catch (e) {
+        } catch {
             // No profile picture set
         }
 
@@ -62,8 +66,8 @@ export async function GET(
             }
         });
 
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error("Fetch profile error:", error);
-        return NextResponse.json({ status: false, message: error.message }, { status: 500 });
+        return NextResponse.json({ status: false, message: error instanceof Error ? error.message : "Failed to fetch profile" }, { status: 500 });
     }
 }

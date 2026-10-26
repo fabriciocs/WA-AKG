@@ -1,4 +1,5 @@
 import { prisma } from "./prisma";
+import { sanitizeWebhookUrl } from "./webhook-redaction";
 
 // Role hierarchy for permission checks
 export const ROLE_HIERARCHY = {
@@ -8,6 +9,70 @@ export const ROLE_HIERARCHY = {
 } as const;
 
 export type Role = keyof typeof ROLE_HIERARCHY;
+
+/** Webhook metadata safe to expose in session responses. Never select `secret`. */
+export const SAFE_WEBHOOK_SELECT = {
+    id: true,
+    userId: true,
+    sessionId: true,
+    name: true,
+    url: true,
+    events: true,
+    filters: true,
+    isActive: true,
+    createdAt: true,
+    updatedAt: true
+} as const;
+
+/** Defense-in-depth serializer for session payloads from current/future queries. */
+export function sanitizeSessionWebhooks<T extends { webhooks?: unknown }>(session: T): T {
+    if (!Array.isArray(session.webhooks)) return session;
+    const webhooks = session.webhooks.map(webhook => {
+        if (!webhook || typeof webhook !== "object") return webhook;
+        const safeWebhook = { ...(webhook as Record<string, unknown>) };
+        delete safeWebhook.secret;
+        return safeWebhook;
+    });
+    return { ...session, webhooks } as T;
+}
+
+/** Remove connection credentials from a session shared with a non-owner. */
+export function sanitizeSharedSession<T>(session: T): T {
+    const safeSession: Record<string, unknown> = { ...(session as object) };
+    delete safeSession.qr;
+
+    if (Array.isArray(safeSession.webhooks)) {
+        safeSession.webhooks = safeSession.webhooks.map(webhook => {
+            if (!webhook || typeof webhook !== "object") return webhook;
+            const safeWebhook = { ...(webhook as Record<string, unknown>) };
+            if (typeof safeWebhook.url === "string") safeWebhook.url = sanitizeWebhookUrl(safeWebhook.url);
+            return safeWebhook;
+        });
+    }
+
+    const botConfig = safeSession.botConfig;
+    if (botConfig && typeof botConfig === "object" && !Array.isArray(botConfig)) {
+        const safeBotConfig = { ...(botConfig as Record<string, unknown>) };
+        delete safeBotConfig.removeBgApiKey;
+        safeSession.botConfig = safeBotConfig;
+    }
+
+    return safeSession as T;
+}
+
+/** Pure ownership rule used by route guards and their tests. */
+export function mayManageSession(userId: string, userRole: string, ownerId: string): boolean {
+    return isAdmin(userRole) || userId === ownerId;
+}
+
+function safeSessionInclude() {
+    return {
+        user: { select: { name: true, email: true } },
+        botConfig: true,
+        webhooks: { select: SAFE_WEBHOOK_SELECT },
+        _count: { select: { contacts: true, messages: true, groups: true, autoReplies: true, scheduledMessages: true } }
+    };
+}
 
 /**
  * Check if user has required role level
@@ -90,7 +155,7 @@ export async function isSessionOwner(userId: string, userRole: string, sessionId
         }
     });
 
-    return !!session;
+    return !!session && mayManageSession(userId, userRole, session.userId);
 }
 
 /**
@@ -100,28 +165,11 @@ export async function isSessionOwner(userId: string, userRole: string, sessionId
  */
 export async function getAccessibleSessions(userId: string, userRole: string) {
     if (isAdmin(userRole)) {
-        return prisma.session.findMany({
+        const sessions = await prisma.session.findMany({
             orderBy: { createdAt: 'desc' },
-            include: {
-                user: {
-                    select: {
-                        name: true,
-                        email: true
-                    }
-                },
-                botConfig: true,
-                webhooks: true,
-                _count: {
-                    select: {
-                        contacts: true,
-                        messages: true,
-                        groups: true,
-                        autoReplies: true,
-                        scheduledMessages: true
-                    }
-                }
-            }
+            include: safeSessionInclude()
         });
+        return sessions.map(sanitizeSessionWebhooks);
     }
 
     // Get sessions owned by user + sessions shared with user
@@ -129,25 +177,7 @@ export async function getAccessibleSessions(userId: string, userRole: string) {
         prisma.session.findMany({
             where: { userId },
             orderBy: { createdAt: 'desc' },
-            include: {
-                user: {
-                    select: {
-                        name: true,
-                        email: true
-                    }
-                },
-                botConfig: true,
-                webhooks: true,
-                _count: {
-                    select: {
-                        contacts: true,
-                        messages: true,
-                        groups: true,
-                        autoReplies: true,
-                        scheduledMessages: true
-                    }
-                }
-            }
+            include: safeSessionInclude()
         }),
         prisma.sessionAccess.findMany({
             where: { userId },
@@ -155,45 +185,22 @@ export async function getAccessibleSessions(userId: string, userRole: string) {
         })
     ]);
 
-    if (sharedAccess.length === 0) return ownedSessions;
+    if (sharedAccess.length === 0) return ownedSessions.map(sanitizeSessionWebhooks);
 
     const sharedSessionIds = sharedAccess.map(a => a.sessionId);
     const ownedIds = new Set(ownedSessions.map(s => s.id));
     const missingIds = sharedSessionIds.filter(id => !ownedIds.has(id));
 
-    if (missingIds.length === 0) return ownedSessions;
+    if (missingIds.length === 0) return ownedSessions.map(sanitizeSessionWebhooks);
 
     const sharedSessions = await prisma.session.findMany({
         where: { id: { in: missingIds } },
         orderBy: { createdAt: 'desc' },
-        include: {
-            user: {
-                select: {
-                    name: true,
-                    email: true
-                }
-            },
-            botConfig: true,
-            webhooks: true,
-            _count: {
-                select: {
-                    contacts: true,
-                    messages: true,
-                    groups: true,
-                    autoReplies: true,
-                    scheduledMessages: true
-                }
-            }
-        }
+        include: safeSessionInclude()
     });
 
-    const sanitizedShared = sharedSessions.map(session => ({
-        ...session,
-        webhooks: (session.webhooks || []).map((wh: any) => {
-            const { secret, ...safeWh } = wh;
-            return safeWh;
-        })
-    }));
-
-    return [...ownedSessions, ...sanitizedShared];
+    return [
+        ...ownedSessions.map(sanitizeSessionWebhooks),
+        ...sharedSessions.map(session => sanitizeSessionWebhooks(sanitizeSharedSession(session)))
+    ];
 }

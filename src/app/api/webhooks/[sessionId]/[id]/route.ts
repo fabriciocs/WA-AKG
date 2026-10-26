@@ -1,7 +1,7 @@
 import { NextResponse, NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
-import { getAuthenticatedUser, canAccessSession } from "@/lib/api-auth";
+import { getAuthenticatedUser, isSessionOwner } from "@/lib/api-auth";
 import { getWebhookFilterUpdate } from "@/lib/webhook-filters";
 
 export async function PUT(
@@ -15,8 +15,8 @@ export async function PUT(
     
     const { sessionId, id } = await params;
 
-    const hasAccess = await canAccessSession(user.id, user.role, sessionId);
-    if (!hasAccess) {
+    const isOwner = await isSessionOwner(user.id, user.role, sessionId);
+    if (!isOwner) {
         return NextResponse.json({ status: false, message: "Forbidden - Cannot access this session", error: "Forbidden - Cannot access this session" }, { status: 403 });
     }
 
@@ -77,7 +77,8 @@ export async function PUT(
             }
         });
 
-        const { secret: _secret, ...safeWebhook } = webhook;
+        const safeWebhook = { ...webhook };
+        delete (safeWebhook as { secret?: string | null }).secret;
         return NextResponse.json(safeWebhook);
     } catch (error) {
         console.error("Update webhook error:", error);
@@ -96,8 +97,8 @@ export async function DELETE(
     
     const { sessionId, id } = await params;
 
-    const hasAccess = await canAccessSession(user.id, user.role, sessionId);
-    if (!hasAccess) {
+    const isOwner = await isSessionOwner(user.id, user.role, sessionId);
+    if (!isOwner) {
         return NextResponse.json({ status: false, message: "Forbidden - Cannot access this session", error: "Forbidden - Cannot access this session" }, { status: 403 });
     }
 

@@ -1,6 +1,7 @@
 import { NextResponse, NextRequest } from "next/server";
 import { waManager } from "@/modules/whatsapp/manager";
 import { getAuthenticatedUser, canAccessSession } from "@/lib/api-auth";
+import type { AnyMessageContent } from "@whiskeysockets/baileys";
 
 // POST: Send formatted text message with options (List/Button alternative)
 export async function POST(
@@ -53,14 +54,15 @@ export async function POST(
             });
         } else {
             // Modern WhatsApp Native Flow single_select interactive message
-            const rows = options.map((opt: any, idx: number) => {
+            const rows = options.map((option: unknown, idx: number) => {
+                const opt = typeof option === "string" ? option : (option && typeof option === "object" ? option as Record<string, unknown> : {});
                 if (typeof opt === "string") {
                     return { id: `opt_${idx + 1}`, title: opt, description: "" };
                 }
                 return {
-                    id: opt.id || `opt_${idx + 1}`,
-                    title: opt.title || String(opt),
-                    description: opt.description || ""
+                    id: typeof opt.id === "string" ? opt.id : `opt_${idx + 1}`,
+                    title: typeof opt.title === "string" ? opt.title : String(opt),
+                    description: typeof opt.description === "string" ? opt.description : ""
                 };
             });
 
@@ -81,7 +83,7 @@ export async function POST(
                         }
                     ]
                 }
-            } as any);
+            } as unknown as AnyMessageContent);
         }
 
         return NextResponse.json({ status: true, message: "Operation successful" });

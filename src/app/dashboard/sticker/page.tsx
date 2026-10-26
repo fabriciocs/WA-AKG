@@ -1,8 +1,11 @@
 "use client";
 import { apiUrl } from "@/lib/api-url";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import Image from "next/image";
 import { useTranslations } from "next-intl";
+
+const passthroughMediaLoader = ({ src }: { src: string }) => src;
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -39,7 +42,7 @@ export default function StickerPage() {
     const handleSend = async () => {
         if (!sessionId || !target || !file) return toast.error(t("toastFillFields"));
 
-        let jid = target.includes('@') ? target : `${target}@s.whatsapp.net`;
+        const jid = target.includes('@') ? target : `${target}@s.whatsapp.net`;
         const encodedJid = encodeURIComponent(jid);
 
         setLoading(true);
@@ -165,7 +168,7 @@ export default function StickerPage() {
                         <CardContent className="flex flex-col items-center justify-center h-[300px] bg-slate-100/50 rounded-lg m-6 mt-0">
                             {preview ? (
                                 <div className="relative w-64 h-64 flex items-center justify-center">
-                                    <img src={preview} alt="Preview" className={`max-w-full max-h-full object-contain shadow-lg ${type === 'circle' ? 'rounded-full' : 'rounded-none'}`} />
+                                    <Image src={preview} alt="Preview" fill sizes="256px" loader={passthroughMediaLoader} unoptimized className={`max-w-full max-h-full object-contain shadow-lg ${type === 'circle' ? 'rounded-full' : 'rounded-none'}`} />
                                     {/* Mock overlay for crop if needed, but styling is enough for now */}
                                 </div>
                             ) : (

@@ -1,17 +1,20 @@
 "use client";
 import { apiUrl } from "@/lib/api-url";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import moment from "moment-timezone";
 import { Clock } from "lucide-react";
+
+const subscribeToHydration = () => () => {};
+const getHydratedSnapshot = () => true;
+const getServerSnapshot = () => false;
 
 export function RealtimeClock() {
     const [time, setTime] = useState("");
     const [timezone, setTimezone] = useState("Asia/Jakarta");
-    const [mounted, setMounted] = useState(false);
+    const mounted = useSyncExternalStore(subscribeToHydration, getHydratedSnapshot, getServerSnapshot);
 
     useEffect(() => {
-        setMounted(true);
         // Fetch global timezone
         fetch(apiUrl('/api/settings/system'))
             .then(r => r.json())

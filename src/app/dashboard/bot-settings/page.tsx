@@ -17,14 +17,13 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
-import { RefreshCw, Save, AlertCircle, Bot, X, Plus, ShieldCheck, Zap, UserCheck, MessageSquarePlus } from "lucide-react";
+import { RefreshCw, Save, AlertCircle, X, Plus, ShieldCheck, Zap, UserCheck, MessageSquarePlus } from "lucide-react";
 import { toast } from "sonner";
 import { SessionGuard } from "@/components/dashboard/session-guard";
 import { useTranslations } from "next-intl";
 
 export default function BotSettingsPage() {
     const t = useTranslations("botSettings");
-    const tCommon = useTranslations("common");
     const { sessionId } = useSessionProvider();
 
     const [botConfig, setBotConfig] = useState({
@@ -175,7 +174,6 @@ export default function BotSettingsPage() {
         }));
     };
 
-    const inputClass = "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50";
 
     return (
         <SessionGuard>
@@ -221,7 +219,7 @@ export default function BotSettingsPage() {
                                     <Label>{t("botInteractionMode")}</Label>
                                     <Select
                                         value={botConfig.botMode}
-                                        onValueChange={(v: any) => setBotConfig(prev => ({ ...prev, botMode: v }))}
+                                        onValueChange={(v) => setBotConfig(prev => ({ ...prev, botMode: v }))}
                                     >
                                         <SelectTrigger>
                                             <SelectValue placeholder="Select Mode" />

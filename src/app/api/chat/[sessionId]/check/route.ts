@@ -52,7 +52,7 @@ export async function POST(
                         exists: result?.exists || false,
                         jid: result?.jid || null
                     };
-                } catch (error) {
+        } catch {
                     return {
                         number,
                         exists: false,

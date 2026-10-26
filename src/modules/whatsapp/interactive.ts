@@ -5,7 +5,11 @@ import {
     prepareWAMessageMedia,
     jidNormalizedUser,
     WASocket,
-    WAMessage
+    WAMessage,
+    BinaryNode,
+    AnyMessageContent,
+    MiscMessageGenerationOptions,
+    WAMediaUploadFunction
 } from "@whiskeysockets/baileys";
 import crypto from "crypto";
 import { logger } from "@/lib/logger";
@@ -79,12 +83,13 @@ export interface InteractiveHeaderMedia {
     fileName?: string;
     mimetype?: string;
     jpegThumbnail?: Buffer | { url: string };
+    title?: string;
 }
 
 export interface InteractiveMessagePayload {
     title?: string;
-    body?: string;
-    footer?: string;
+    body?: string | { text?: string };
+    footer?: string | { text?: string };
     header?: string | InteractiveHeaderMedia;
     thumbnail?: string;
     image?: Buffer | { url: string };
@@ -94,16 +99,139 @@ export interface InteractiveMessagePayload {
     mimetype?: string;
     jpegThumbnail?: Buffer | { url: string };
     buttons?: AnyInteractiveButton[];
-    nativeFlowMessage?: any;
-    contextInfo?: any;
-    externalAdReply?: any;
+    nativeFlowMessage?: NativeFlowPayload;
+    contextInfo?: Record<string, unknown>;
+    externalAdReply?: ExternalAdReplyPayload;
+    interactiveMessage?: InteractiveMessagePayload;
+}
+
+export interface NativeFlowPayload {
+    buttons?: AnyInteractiveButton[];
+    messageParamsJson?: string;
+    messageVersion?: number;
+    [key: string]: unknown;
+}
+
+export interface ExternalAdReplyPayload extends Record<string, unknown> {
+    title?: string;
+    body?: string;
+    mediaType?: number;
+    thumbnailUrl?: string;
+    mediaUrl?: string;
+    sourceUrl?: string;
+    showAdAttribution?: boolean;
+    renderLargerThumbnail?: boolean;
 }
 
 export interface AlbumItem {
     image?: Buffer | { url: string };
     video?: Buffer | { url: string };
     caption?: string;
-    [key: string]: any;
+    [key: string]: unknown;
+}
+
+interface ButtonInput {
+    name?: string;
+    buttonParamsJson?: string | Record<string, unknown>;
+    type?: string;
+    display_text?: string;
+    text?: string;
+    merchant_url?: string;
+    phone_number?: string;
+    copy_code?: string;
+}
+
+interface LegacyListRow {
+    title?: string;
+    description?: string;
+    rowId?: string;
+    id?: string;
+}
+
+interface LegacyListSection {
+    title?: string;
+    rows?: LegacyListRow[];
+}
+
+interface LegacyListMessage {
+    buttonText?: string;
+    sections?: LegacyListSection[];
+    description?: string;
+    footerText?: string;
+    title?: string;
+    contextInfo?: Record<string, unknown>;
+}
+
+interface LegacyButtonsMessage {
+    buttons?: Array<{
+        buttonText?: { displayText?: string } | string;
+        buttonId?: string;
+    }>;
+    imageMessage?: unknown;
+    videoMessage?: unknown;
+    documentMessage?: unknown;
+    text?: string;
+    contentText?: string;
+    footerText?: string;
+    contextInfo?: Record<string, unknown>;
+}
+
+interface LegacyHydratedButton {
+    quickReplyButton?: { displayText?: string; id?: string };
+    urlButton?: { displayText?: string; url?: string };
+    callButton?: { displayText?: string; phoneNumber?: string };
+}
+
+interface LegacyHydratedTemplate {
+    hydratedButtons?: LegacyHydratedButton[];
+    imageMessage?: unknown;
+    videoMessage?: unknown;
+    documentMessage?: unknown;
+    hydratedTitleText?: string;
+    hydratedContentText?: string;
+    contentText?: string;
+    hydratedFooterText?: string;
+    contextInfo?: Record<string, unknown>;
+}
+
+interface LegacyTemplateMessage {
+    hydratedTemplate?: LegacyHydratedTemplate;
+    fourRowTemplate?: LegacyHydratedTemplate;
+}
+
+interface LegacyInteractiveContent extends Record<string, unknown> {
+    listMessage?: LegacyListMessage;
+    buttonsMessage?: LegacyButtonsMessage;
+    templateMessage?: LegacyTemplateMessage;
+    interactiveMessage?: InteractiveMessagePayload;
+    albumMessage?: AlbumItem[] | { items?: AlbumItem[] };
+    eventMessage?: EventMessagePayload;
+    productMessage?: ProductMessagePayload;
+}
+
+interface ProductMessagePayload extends Record<string, unknown> {
+    title?: string;
+    description?: string;
+    thumbnail?: Buffer | string;
+    productId?: string;
+    retailerId?: string;
+    url?: string;
+    body?: string;
+    footer?: string;
+    buttons?: AnyInteractiveButton[];
+    priceAmount1000?: number | null;
+    currencyCode?: string;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+    return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function getRequiredUserJid(sock: WASocket): string {
+    if (!sock.user?.id) {
+        throw new Error("WhatsApp socket is not authenticated");
+    }
+    return sock.user.id;
 }
 
 export interface EventMessagePayload {
@@ -125,8 +253,8 @@ export interface EventMessagePayload {
  * Checks if the message content is an interactive or extended type
  * (compatible with Lekzo Baileys detectType)
  */
-export function isInteractiveContent(content: any): boolean {
-    if (!content || typeof content !== "object") return false;
+export function isInteractiveContent(content: unknown): boolean {
+    if (!isRecord(content)) return false;
     return Boolean(
         content.interactiveMessage ||
         content.albumMessage ||
@@ -141,10 +269,11 @@ export function isInteractiveContent(content: any): boolean {
 /**
  * Normalizes and converts diverse button shapes into standard WhatsApp Native Flow buttons
  */
-export function formatNativeButtons(buttons: AnyInteractiveButton[]): any[] {
+export function formatNativeButtons(buttons: AnyInteractiveButton[]): Array<{ name: string; buttonParamsJson: string }> {
     if (!Array.isArray(buttons)) return [];
 
     return buttons.map(btn => {
+        const input = btn as ButtonInput;
         // If already in standard { name, buttonParamsJson } format
         if (btn.name && typeof btn.buttonParamsJson === "string") {
             return {
@@ -152,18 +281,18 @@ export function formatNativeButtons(buttons: AnyInteractiveButton[]): any[] {
                 buttonParamsJson: btn.buttonParamsJson
             };
         }
-        if (btn.name && typeof (btn as any).buttonParamsJson === "object" && (btn as any).buttonParamsJson !== null) {
+        if (input.name && typeof input.buttonParamsJson === "object" && input.buttonParamsJson !== null) {
             return {
-                name: btn.name,
-                buttonParamsJson: JSON.stringify((btn as any).buttonParamsJson)
+                name: input.name,
+                buttonParamsJson: JSON.stringify(input.buttonParamsJson)
             };
         }
 
-        const type = (btn as any).type || btn.name;
+        const type = input.type || btn.name;
 
         if (type === "quick_reply") {
             const b = btn as NativeButtonQuickReply;
-            const displayText = b.displayText || (btn as any).display_text || (btn as any).text || "";
+            const displayText = b.displayText || input.display_text || input.text || "";
             const id = b.id || displayText;
             return {
                 name: "quick_reply",
@@ -176,9 +305,9 @@ export function formatNativeButtons(buttons: AnyInteractiveButton[]): any[] {
 
         if (type === "cta_url") {
             const b = btn as NativeButtonCtaUrl;
-            const displayText = b.displayText || (btn as any).display_text || "";
+            const displayText = b.displayText || input.display_text || "";
             const url = b.url || "";
-            const merchantUrl = b.merchantUrl || (btn as any).merchant_url || url;
+            const merchantUrl = b.merchantUrl || input.merchant_url || url;
             return {
                 name: "cta_url",
                 buttonParamsJson: JSON.stringify({
@@ -191,8 +320,8 @@ export function formatNativeButtons(buttons: AnyInteractiveButton[]): any[] {
 
         if (type === "cta_call") {
             const b = btn as NativeButtonCtaCall;
-            const displayText = b.displayText || (btn as any).display_text || "";
-            const phoneNumber = b.phoneNumber || (btn as any).phone_number || "";
+            const displayText = b.displayText || input.display_text || "";
+            const phoneNumber = b.phoneNumber || input.phone_number || "";
             return {
                 name: "cta_call",
                 buttonParamsJson: JSON.stringify({
@@ -204,8 +333,8 @@ export function formatNativeButtons(buttons: AnyInteractiveButton[]): any[] {
 
         if (type === "cta_copy") {
             const b = btn as NativeButtonCtaCopy;
-            const displayText = b.displayText || (btn as any).display_text || "Copy";
-            const copyCode = b.copyCode || (btn as any).copy_code || "";
+            const displayText = b.displayText || input.display_text || "Copy";
+            const copyCode = b.copyCode || input.copy_code || "";
             return {
                 name: "cta_copy",
                 buttonParamsJson: JSON.stringify({
@@ -249,21 +378,22 @@ export function formatNativeButtons(buttons: AnyInteractiveButton[]): any[] {
  * Converts legacy WhatsApp message formats (listMessage, buttonsMessage, templateMessage)
  * into modern interactiveMessage with Native Flow buttons.
  */
-export function convertLegacyToInteractive(content: any): any {
-    if (!content || typeof content !== "object") return content;
+export function convertLegacyToInteractive(content: unknown): unknown {
+    if (!isRecord(content)) return content;
+    const legacyContent = content as LegacyInteractiveContent;
 
     // Legacy listMessage
-    if (content.listMessage) {
-        const list = content.listMessage;
+    if (legacyContent.listMessage) {
+        const list = legacyContent.listMessage;
         const nativeButtons = [
             {
                 name: "single_select",
                 buttonParamsJson: JSON.stringify({
                     title: list.buttonText || "Select",
-                    sections: (list.sections || []).map((sec: any) => ({
+                    sections: (list.sections || []).map((sec) => ({
                         title: sec.title || "",
                         highlight_label: "",
-                        rows: (sec.rows || []).map((row: any) => ({
+                        rows: (sec.rows || []).map((row) => ({
                             header: "",
                             title: row.title || "",
                             description: row.description || "",
@@ -290,17 +420,17 @@ export function convertLegacyToInteractive(content: any): any {
     }
 
     // Legacy buttonsMessage
-    if (content.buttonsMessage) {
-        const bMsg = content.buttonsMessage;
-        const nativeButtons = (bMsg.buttons || []).map((btn: any) => ({
+    if (legacyContent.buttonsMessage) {
+        const bMsg = legacyContent.buttonsMessage;
+        const nativeButtons = (bMsg.buttons || []).map((btn) => ({
             name: "quick_reply",
             buttonParamsJson: JSON.stringify({
-                display_text: btn.buttonText?.displayText || btn.buttonText || "",
-                id: btn.buttonId || btn.buttonText?.displayText || ""
+                display_text: typeof btn.buttonText === "string" ? btn.buttonText : btn.buttonText?.displayText || "",
+                id: btn.buttonId || (typeof btn.buttonText === "string" ? btn.buttonText : btn.buttonText?.displayText) || ""
             })
         }));
 
-        let header: any = undefined;
+        let header: Record<string, unknown> | undefined;
         if (bMsg.imageMessage) {
             header = { hasMediaAttachment: true, imageMessage: bMsg.imageMessage };
         } else if (bMsg.videoMessage) {
@@ -327,11 +457,11 @@ export function convertLegacyToInteractive(content: any): any {
     }
 
     // Legacy templateMessage
-    if (content.templateMessage) {
-        const tmpl = content.templateMessage.hydratedTemplate || content.templateMessage.fourRowTemplate;
+    if (legacyContent.templateMessage) {
+        const tmpl = legacyContent.templateMessage.hydratedTemplate || legacyContent.templateMessage.fourRowTemplate;
         if (tmpl) {
             const nativeButtons = (tmpl.hydratedButtons || [])
-                .map((hBtn: any) => {
+                .map((hBtn) => {
                     if (hBtn.quickReplyButton) {
                         return {
                             name: "quick_reply",
@@ -362,7 +492,7 @@ export function convertLegacyToInteractive(content: any): any {
                 })
                 .filter(Boolean);
 
-            let header: any = undefined;
+            let header: Record<string, unknown> | undefined;
             if (tmpl.imageMessage) {
                 header = { hasMediaAttachment: true, imageMessage: tmpl.imageMessage };
             } else if (tmpl.videoMessage) {
@@ -397,9 +527,9 @@ export function convertLegacyToInteractive(content: any): any {
  */
 export async function buildInteractiveMessage(
     sock: WASocket,
-    payload: any
-): Promise<any> {
-    const raw = payload?.interactiveMessage || payload || {};
+    payload: InteractiveMessagePayload
+): Promise<{ interactiveMessage: Record<string, unknown> }> {
+    const raw = payload.interactiveMessage || payload;
     const {
         title,
         body,
@@ -422,10 +552,10 @@ export async function buildInteractiveMessage(
     const footerText = typeof footer === "object" ? footer?.text : footer;
 
     // 1. Prepare Header (media or text)
-    let headerMedia: any = null;
-    let headerText = typeof header === "string" ? header : (typeof header === "object" ? header?.title : "");
+    let headerMedia: Awaited<ReturnType<typeof prepareWAMessageMedia>> | null = null;
+    const headerText = typeof header === "string" ? header : (typeof header === "object" ? header?.title : "");
 
-    const uploadFn = (sock as any).waUploadToServer;
+    const uploadFn = (sock as unknown as { waUploadToServer: WAMediaUploadFunction }).waUploadToServer;
 
     if (thumbnail) {
         headerMedia = await prepareWAMessageMedia(
@@ -443,26 +573,28 @@ export async function buildInteractiveMessage(
             { upload: uploadFn }
         );
     } else if (document) {
-        const docPayload: any = { document };
+        const docPayload: { document: typeof document; jpegThumbnail?: typeof jpegThumbnail; fileName?: string; mimetype: string } = {
+            document,
+            mimetype: mimetype || "application/octet-stream"
+        };
         if (jpegThumbnail) docPayload.jpegThumbnail = jpegThumbnail;
         if (fileName) docPayload.fileName = fileName;
-        if (mimetype) docPayload.mimetype = mimetype;
 
         headerMedia = await prepareWAMessageMedia(docPayload, { upload: uploadFn });
         if (fileName && headerMedia?.documentMessage) {
             headerMedia.documentMessage.fileName = fileName;
         }
-        if (mimetype && headerMedia?.documentMessage) {
-            headerMedia.documentMessage.mimetype = mimetype;
+        if (headerMedia?.documentMessage) {
+            headerMedia.documentMessage.mimetype = docPayload.mimetype;
         }
     } else if (typeof header === "object" && header !== null) {
         const hMedia = header as InteractiveHeaderMedia;
-        if (hMedia.image || hMedia.video || hMedia.document) {
-            headerMedia = await prepareWAMessageMedia(hMedia as any, { upload: uploadFn });
-        }
+        if (hMedia.image) headerMedia = await prepareWAMessageMedia({ image: hMedia.image }, { upload: uploadFn });
+        else if (hMedia.video) headerMedia = await prepareWAMessageMedia({ video: hMedia.video }, { upload: uploadFn });
+        else if (hMedia.document) headerMedia = await prepareWAMessageMedia({ document: hMedia.document, mimetype: hMedia.mimetype || "application/octet-stream" }, { upload: uploadFn });
     }
 
-    const interactiveHeader: any = headerMedia
+    const interactiveHeader = headerMedia
         ? {
               title: headerText || "",
               hasMediaAttachment: true,
@@ -490,7 +622,7 @@ export async function buildInteractiveMessage(
     };
 
     // 3. Prepare Context Info
-    let finalContextInfo: any = {};
+    let finalContextInfo: Record<string, unknown> = {};
     if (contextInfo) {
         finalContextInfo = { ...contextInfo };
     }
@@ -508,7 +640,7 @@ export async function buildInteractiveMessage(
         };
     }
 
-    const interactiveMessage: any = {
+    const interactiveMessage: Record<string, unknown> = {
         body: { text: bodyText },
         footer: footerText ? { text: footerText } : undefined,
         header: interactiveHeader,
@@ -537,7 +669,7 @@ export async function sendAlbumMessage(
         throw new Error("Album items must be a non-empty array");
     }
 
-    const uploadFn = (sock as any).waUploadToServer;
+    const uploadFn = (sock as unknown as { waUploadToServer: WAMediaUploadFunction }).waUploadToServer;
     const messageSecret = crypto.randomBytes(32);
     const expectedImageCount = items.filter(a => !!a.image).length;
     const expectedVideoCount = items.filter(a => !!a.video).length;
@@ -553,9 +685,9 @@ export async function sendAlbumMessage(
                 expectedImageCount,
                 expectedVideoCount
             }
-        },
+        } as unknown as proto.IMessage,
         {
-            userJid: (sock as any).user?.id,
+            userJid: getRequiredUserJid(sock),
             quoted: options.quoted
         }
     );
@@ -569,13 +701,13 @@ export async function sendAlbumMessage(
         const item = items[i];
         const itemCaption = item.caption || (i === 0 ? options.caption : undefined) || "";
 
-        const mediaContent: any = {};
+        const mediaContent: Record<string, unknown> = {};
         if (item.image) mediaContent.image = item.image;
         else if (item.video) mediaContent.video = item.video;
         if (itemCaption) mediaContent.caption = itemCaption;
 
-        const mediaMsg = await generateWAMessage(jid, mediaContent, {
-            userJid: (sock as any).user?.id,
+        const mediaMsg = await generateWAMessage(jid, mediaContent as AnyMessageContent, {
+            userJid: getRequiredUserJid(sock),
             upload: uploadFn
         });
 
@@ -626,8 +758,8 @@ export async function sendEventMessage(
         }
     };
 
-    const msg = await generateWAMessageFromContent(jid, eventContent, {
-        userJid: (sock as any).user?.id,
+    const msg = await generateWAMessageFromContent(jid, eventContent as unknown as proto.IMessage, {
+        userJid: getRequiredUserJid(sock),
         quoted: options.quoted
     });
 
@@ -657,11 +789,11 @@ export function normalizeTargetJid(jid: string): string {
  * Builds binary nodes required by WhatsApp servers and clients
  * to render Native Flow interactive buttons natively.
  */
-export function buildNativeFlowAdditionalNodes(targetJid: string, buttonName: string = "mixed"): any[] {
+export function buildNativeFlowAdditionalNodes(targetJid: string, buttonName: string = "mixed"): BinaryNode[] {
     const isGroup = targetJid.endsWith("@g.us");
     const isNewsletter = targetJid.endsWith("@newsletter");
 
-    const nodes: any[] = [
+    const nodes: BinaryNode[] = [
         {
             tag: "biz",
             attrs: {
@@ -715,7 +847,7 @@ export function buildNativeFlowAdditionalNodes(targetJid: string, buttonName: st
 export async function sendProductMessage(
     sock: WASocket,
     jid: string,
-    productData: any,
+    productData: ProductMessagePayload,
     options: { quoted?: WAMessage } = {}
 ): Promise<WAMessage> {
     const {
@@ -732,8 +864,8 @@ export async function sendProductMessage(
         currencyCode = "IDR"
     } = productData;
 
-    let productImage: any = null;
-    const uploadFn = (sock as any).waUploadToServer;
+    let productImage: unknown = null;
+    const uploadFn = (sock as unknown as { waUploadToServer: WAMediaUploadFunction }).waUploadToServer;
 
     if (thumbnail) {
         const thumbData = Buffer.isBuffer(thumbnail) ? thumbnail : { url: thumbnail };
@@ -762,7 +894,7 @@ export async function sendProductMessage(
                         url: url || "",
                         productImageCount: productImage ? 1 : 0
                     },
-                    businessOwnerJid: (sock as any).user?.id ? jidNormalizedUser((sock as any).user.id) : "0@s.whatsapp.net"
+                    businessOwnerJid: sock.user?.id ? jidNormalizedUser(sock.user.id) : "0@s.whatsapp.net"
                 }
             },
             nativeFlowMessage: {
@@ -774,13 +906,13 @@ export async function sendProductMessage(
     };
 
     const targetJid = normalizeTargetJid(jid);
-    const userJid = (sock as any).user?.id ? jidNormalizedUser((sock as any).user.id) : undefined;
+    const userJid = jidNormalizedUser(getRequiredUserJid(sock));
     const additionalNodes = buildNativeFlowAdditionalNodes(targetJid, "mixed");
 
-    const msg = await generateWAMessageFromContent(targetJid, productContent, {
-        ...(userJid ? { userJid } : {}),
+    const msg = await generateWAMessageFromContent(targetJid, productContent as unknown as proto.IMessage, {
+        userJid,
         quoted: options.quoted
-    } as any);
+    });
 
     await sock.relayMessage(targetJid, msg.message!, {
         messageId: msg.key.id!,
@@ -806,27 +938,31 @@ export async function sendProductMessage(
 export async function handleInteractiveMessageDispatch(
     sock: WASocket,
     jid: string,
-    content: any,
-    options: any = {}
-): Promise<any> {
+    content: unknown,
+    options: MiscMessageGenerationOptions = {}
+): Promise<WAMessage | null> {
+    if (!isRecord(content)) return null;
+    const messageContent = content as LegacyInteractiveContent;
     // 1. Check if legacy and convert to interactive
-    const converted = convertLegacyToInteractive(content);
+    const convertedValue = convertLegacyToInteractive(content);
+    if (!isRecord(convertedValue)) return null;
+    const converted = convertedValue as LegacyInteractiveContent;
 
     // 2. Handle interactiveMessage
     if (converted.interactiveMessage) {
         const interactivePayload = converted.interactiveMessage;
         const fullInteractive = await buildInteractiveMessage(sock, interactivePayload);
         const targetJid = normalizeTargetJid(jid);
-        const userJid = (sock as any).user?.id ? jidNormalizedUser((sock as any).user.id) : undefined;
+        const userJid = jidNormalizedUser(getRequiredUserJid(sock));
 
         const rawBtns = interactivePayload.buttons || interactivePayload.nativeFlowMessage?.buttons || [];
         const buttonName = (rawBtns.length === 1 && rawBtns[0]?.name) ? rawBtns[0].name : "mixed";
         const additionalNodes = buildNativeFlowAdditionalNodes(targetJid, buttonName);
 
-        const msg = await generateWAMessageFromContent(targetJid, fullInteractive, {
-            ...(userJid ? { userJid } : {}),
+        const msg = await generateWAMessageFromContent(targetJid, fullInteractive as unknown as proto.IMessage, {
+            userJid,
             quoted: options.quoted
-        } as any);
+        });
 
         await sock.relayMessage(targetJid, msg.message!, {
             messageId: msg.key.id!,
@@ -847,35 +983,36 @@ export async function handleInteractiveMessageDispatch(
     }
 
     // 3. Handle albumMessage
-    if (content.albumMessage) {
-        const items: AlbumItem[] = Array.isArray(content.albumMessage)
-            ? content.albumMessage
-            : content.albumMessage.items || [];
+    if (messageContent.albumMessage) {
+        const album = messageContent.albumMessage;
+        const items: AlbumItem[] = Array.isArray(album)
+            ? album
+            : album.items || [];
         const msg = await sendAlbumMessage(sock, jid, items, options);
         try {
             sock.ev.emit("messages.upsert", {
                 messages: [msg],
                 type: "append"
             });
-        } catch (e) {}
+        } catch {}
         return msg;
     }
 
     // 4. Handle eventMessage
-    if (content.eventMessage) {
-        const msg = await sendEventMessage(sock, jid, content.eventMessage, options);
+    if (messageContent.eventMessage) {
+        const msg = await sendEventMessage(sock, jid, messageContent.eventMessage, options);
         try {
             sock.ev.emit("messages.upsert", {
                 messages: [msg],
                 type: "append"
             });
-        } catch (e) {}
+        } catch {}
         return msg;
     }
 
     // 5. Handle productMessage
-    if (content.productMessage) {
-        return await sendProductMessage(sock, jid, content.productMessage, options);
+    if (messageContent.productMessage) {
+        return await sendProductMessage(sock, jid, messageContent.productMessage, options);
     }
 
     return null;
