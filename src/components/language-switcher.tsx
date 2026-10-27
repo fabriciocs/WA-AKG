@@ -1,7 +1,7 @@
 "use client";
 
 import { useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { useAppRouter as useRouter } from "@/components/app-base-path";
 import { useLocale, useTranslations } from "next-intl";
 import { Languages } from "lucide-react";
 import { toast } from "sonner";

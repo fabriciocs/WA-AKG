@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState, useSyncExternalStore } from 'react';
-import Link from 'next/link';
+import Link from '@/components/app-link';
 import { AlertTriangle, RotateCcw, Home, ChevronRight, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 

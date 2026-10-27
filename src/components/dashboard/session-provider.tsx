@@ -3,7 +3,7 @@ import { apiUrl } from "@/lib/api-url";
 
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { getCookie, setCookie } from "@/lib/client-cookie";
-import { useRouter } from "next/navigation";
+import { useAppRouter as useRouter } from "@/components/app-base-path";
 import { toast } from "sonner";
 
 interface Session {

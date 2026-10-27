@@ -17,7 +17,7 @@ import pkg from "../../package.json";
 const dev = process.env.NODE_ENV !== "production";
 const hostname = process.env.HOSTNAME || "localhost";
 const port = parseInt(process.env.PORT || "3030", 10);
-const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
+const basePath = "";
 
 const INSECURE_AUTH_SECRETS = [
   "change-me",
@@ -80,18 +80,24 @@ app.prepare().then(async () => {
     }
   });
 
-  const allowedOrigin = process.env.BASE_URL || `http://${hostname}:${port}`;
+  const allowedOrigins = new Set(
+    [process.env.BASE_URL, process.env.NEXTAUTH_URL, `http://${hostname}:${port}`]
+      .filter((value): value is string => Boolean(value))
+      .map((value) => {
+        try { return new URL(value).origin; } catch { return ""; }
+      })
+      .filter(Boolean),
+  );
   const io = new Server(server, {
-    path: basePath + "/api/socket/io",
+    path: "/api/socket/io",
     addTrailingSlash: false,
     cors: {
       origin: (origin, callback) => {
         if (
           !origin ||
-          origin === allowedOrigin ||
+          allowedOrigins.has(origin) ||
           origin.startsWith("http://localhost:") ||
-          origin.startsWith("http://127.0.0.1:") ||
-          origin === process.env.NEXTAUTH_URL
+          origin.startsWith("http://127.0.0.1:")
         ) {
           callback(null, true);
         } else {

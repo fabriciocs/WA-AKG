@@ -4,7 +4,7 @@ O WA-AKG funciona como Authorization Server OAuth para usuários já cadastrados
 
 ## Configuração
 
-`OAUTH_ISSUER_URL` é opcional e, quando definido, deve conter a URL pública canônica do Authorization Server, incluindo caminho explícito se houver. Sem essa variável, o issuer usa a origem de `BASE_URL` (ou a origem validada da requisição) e acrescenta `NEXT_PUBLIC_BASE_PATH` uma vez. `NEXTAUTH_URL` configura somente o NextAuth e não é usado como issuer OAuth. Em produção, mantenha a origem em HTTPS.
+`OAUTH_ISSUER_URL` é opcional e, quando definido, deve conter a URL pública canônica do Authorization Server, incluindo caminho explícito se houver. Sem essa variável, o issuer usa a origem de `BASE_URL` (ou a origem encaminhada e validada pela requisição) e acrescenta o prefixo recebido em `X-Forwarded-Prefix` uma vez. `NEXTAUTH_URL` configura somente o NextAuth e não é usado como issuer OAuth. Em produção, mantenha a origem em HTTPS.
 
 Os registros OAuth ficam no banco Prisma. Aplique a atualização aditiva do schema pelo procedimento de banco já usado na instalação antes de habilitar os endpoints. A configuração de migrations não apaga dados existentes.
 

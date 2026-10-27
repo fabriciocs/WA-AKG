@@ -1,8 +1,8 @@
 'use client';
 
 import React, { useSyncExternalStore } from 'react';
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import Link from '@/components/app-link';
+import { useAppRouter as useRouter } from '@/components/app-base-path';
 import { ArrowLeft, Home, FileQuestion } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 

@@ -7,7 +7,7 @@ import { proxy } from "@/proxy";
 import { resourceMatchesPublicOrigin } from "../oauth/discovery.mjs";
 
 test("authorization-server metadata advertises only implemented grants", async (t) => {
-  const keys = ["OAUTH_ISSUER_URL", "BASE_URL", "NEXT_PUBLIC_BASE_PATH"] as const;
+  const keys = ["OAUTH_ISSUER_URL", "BASE_URL"] as const;
   const previous = new Map(keys.map((key) => [key, process.env[key]]));
   t.after(() => {
     for (const key of keys) {
@@ -18,7 +18,6 @@ test("authorization-server metadata advertises only implemented grants", async (
   });
   delete process.env.OAUTH_ISSUER_URL;
   process.env.BASE_URL = "https://wa-akg.example.test";
-  process.env.NEXT_PUBLIC_BASE_PATH = "";
 
   const response = getAuthorizationServerMetadata(new NextRequest("https://wa-akg.example.test/.well-known/oauth-authorization-server"));
   assert.equal(response.status, 200);
@@ -62,7 +61,7 @@ test("authorization-server metadata is reachable without an authenticated sessio
 });
 
 test("discovery routes share the BASE_URL issuer and include basePath once", async (t) => {
-  const keys = ["OAUTH_ISSUER_URL", "NEXTAUTH_URL", "BASE_URL", "NEXT_PUBLIC_BASE_PATH"] as const;
+  const keys = ["OAUTH_ISSUER_URL", "NEXTAUTH_URL", "BASE_URL"] as const;
   const previous = new Map(keys.map((key) => [key, process.env[key]]));
   t.after(() => {
     for (const key of keys) {
@@ -74,10 +73,11 @@ test("discovery routes share the BASE_URL issuer and include basePath once", asy
 
   delete process.env.OAUTH_ISSUER_URL;
   process.env.NEXTAUTH_URL = "http://localhost:8080/wa-akg/api/auth";
-  process.env.BASE_URL = "https://wa-akg.example.test/wa-akg/api/auth";
-  process.env.NEXT_PUBLIC_BASE_PATH = "/wa-akg";
+  process.env.BASE_URL = "https://wa-akg.example.test";
 
-  const request = new NextRequest("http://localhost:8080/wa-akg/.well-known/oauth-authorization-server");
+  const request = new NextRequest("http://127.0.0.1:43000/.well-known/oauth-authorization-server", {
+    headers: { "x-forwarded-prefix": "/wa-akg", "x-forwarded-proto": "https", "x-forwarded-host": "wa-akg.example.test" },
+  });
   const authorizationResponse = getAuthorizationServerMetadata(request);
   const authorization = await authorizationResponse.json();
   const resourceResponse = getProtectedResourceMetadata(request);

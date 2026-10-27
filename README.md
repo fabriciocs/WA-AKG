@@ -32,6 +32,8 @@ WA-AKG comes with extensive documentation designed for both developers and users
 - **[API Quick Reference](docs/API-QUICK-REFERENCE.md)**: Instantly jumpstart your integration with ready-to-use cURL/JavaScript snippets.
 - **[OAuth and MCP authorization](docs/OAUTH.md)**: OAuth clients, user consent, session scopes, and MCP setup.
 - **[Environment Variables](docs/ENVIRONMENT_VARIABLES.md)**: Configuration and security guide.
+- **[Setup and execution guide](docs/SETUP.md)**: Cross-platform wizard, migration, backups and execution modes.
+- **[Reverse proxy under `/wa-akg`](docs/REVERSE_PROXY.md)**: Required path, forwarded headers, static asset and WebSocket behavior.
 - **[Internationalization (i18n)](docs/I18N.md)**: How UI languages work and how to add or translate one.
 
 ---
@@ -110,71 +112,64 @@ WA-AKG natively supports **n8n**! You can build complex, no-code/low-code WhatsA
 
 ### 1. Prerequisites
 - Node.js 20+ (Node.js 22 recommended)
-- MySQL or PostgreSQL
-- Git
-- PM2 (Installed globally: `npm install -g pm2`)
+- MySQL or PostgreSQL, unless using the Docker Compose database
+- Git (for installation and updates)
+- Docker Desktop or Docker Engine + Compose, only for Docker mode
 
-### 2. Setup
+### 2. Setup with the cross-platform wizard
 ```bash
 # Clone and install
 git clone https://github.com/mrifqidaffaaditya/WA-AKG.git
 cd WA-AKG
 npm install
 
-# Configure environment
-cp .env.example .env
-# Edit .env with your DATABASE_URL, AUTH_SECRET, PORT, etc.
-
-# Push schema and generate Prisma Client
-npm run db:push
-
-# Create SuperAdmin account
-npm run make-admin admin@example.com password123
+# Configure a new instance, or migrate/review an existing configuration
+npm run setup
 ```
+
+The wizard works from Windows PowerShell/Command Prompt, Linux and macOS. On a first run it creates the local configuration interactively. On later runs it detects the existing configuration and offers to keep it, reconfigure it, or cancel. When the format is from an older version, it creates a timestamped backup before applying a preserving migration. It does not print secret values.
+
+After setup, create the initial administrator only when needed:
+
+```bash
+npm run make-admin admin@example.com
+```
+
+See [Setup and execution guide](docs/SETUP.md) for platform-specific commands, migration recovery and security limits.
 
 ### 3. Run (Development)
 ```bash
 npm run dev
 ```
 
-### 4. Run (Production with PM2 - Recommended)
-We recommend deploying with **PM2** to run the app in the background and ensure it restarts automatically if the server rebooted or crashed.
+### 4. Run in production
+The portable production wizard validates the environment, asks for the binding, confirms the database migration, runs the migration and build, and only then starts the server:
 
-#### Option A: Automatic Setup Script (Easiest)
-We provide a built-in [start.sh](file:///home/aditya/project/WA-AKG/start.sh) script that automates everything: checking the configuration, installing dependencies, syncing the database schema, compiling production assets, and starting or reloading PM2:
 ```bash
-./start.sh
+node scripts/setup.mjs --mode=production
 ```
 
-#### Option B: Manual Setup
-1. **Build the application**:
-   ```bash
-   npm run build
-   ```
+For non-interactive automation, migration authorization must be explicit:
 
-2. **Start with PM2**:
-   Using the built-in [ecosystem.config.js](file:///home/aditya/project/WA-AKG/ecosystem.config.js) configuration file:
-   ```bash
-   pm2 start ecosystem.config.js
-   ```
+```bash
+node scripts/setup.mjs --mode=production --non-interactive --apply-migrations
+```
 
-3. **Manage the process**:
-   - View status: `pm2 status`
-   - View logs: `pm2 logs wa-akg`
-   - Stop process: `pm2 stop wa-akg`
-   - Restart process: `pm2 restart wa-akg`
+The default binding should be `127.0.0.1`; use a TLS reverse proxy for external access. Before production migration, back up the database and verify the target. The wizard stops on migration, port or build errors and does not install a process supervisor.
 
-4. **Enable auto-start on server boot**:
-   ```bash
-   pm2 startup
-   # Copy-paste the command outputted by the command above
-   pm2 save
-   ```
+The individual commands remain available when the operational procedure requires them:
+
+```bash
+npm run build
+npm start
+```
+
+Use a process supervisor such as PM2, systemd, Windows Service Manager or launchd only if it is already part of your operational environment; the wizard does not install or configure global services.
 
 ---
 
 ### 🐋 Alternative: Docker Deployment
-Although **PM2 is highly recommended**, you can also deploy using Docker Compose:
+Docker Compose is an alternative execution mode:
 
 1. **Prepare Environment**:
    ```bash

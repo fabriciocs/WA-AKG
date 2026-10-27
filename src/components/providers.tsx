@@ -2,13 +2,15 @@
 
 import { SessionProvider } from "next-auth/react";
 import { SocketProvider } from "@/components/chat/socket-context";
+import { AppBasePathProvider } from "@/components/app-base-path";
+import { withBasePath } from "@/lib/base-path";
 
-export function Providers({ children }: { children: React.ReactNode }) {
+export function Providers({ children, basePath }: { children: React.ReactNode; basePath: string }) {
   return (
-    <SessionProvider basePath={(process.env.NEXT_PUBLIC_BASE_PATH || "") + "/api/auth"}>
-      <SocketProvider>
-        {children}
-      </SocketProvider>
-    </SessionProvider>
+    <AppBasePathProvider basePath={basePath}>
+      <SessionProvider basePath={withBasePath("/api/auth", basePath)}>
+        <SocketProvider>{children}</SocketProvider>
+      </SessionProvider>
+    </AppBasePathProvider>
   );
 }

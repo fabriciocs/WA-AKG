@@ -3,21 +3,23 @@ import { auth } from "@/lib/auth";
 import { bindAuthorizationRequest } from "@/lib/oauth";
 import { prisma } from "@/lib/prisma";
 import { getTranslations } from "next-intl/server";
+import { headers } from "next/headers";
+import { requestBasePath, withBasePath } from "@/lib/base-path";
 
 export const dynamic = "force-dynamic";
 
 export default async function OAuthConsentPage({ searchParams }: { searchParams: Promise<{ requestId?: string }> }) {
   const { requestId } = await searchParams;
   const session = await auth();
-  const basePath = (process.env.NEXT_PUBLIC_BASE_PATH || "").replace(/\/$/, "");
+  const basePath = requestBasePath(await headers());
   if (!session?.user?.id) {
-    const callbackUrl = `${basePath}/auth/oauth/consent?requestId=${encodeURIComponent(requestId ?? "")}`;
+    const callbackUrl = withBasePath(`/auth/oauth/consent?requestId=${encodeURIComponent(requestId ?? "")}`, basePath);
     const login = new URLSearchParams({ callbackUrl });
-    redirect(`${basePath}/auth/login?${login.toString()}`);
+    redirect(withBasePath(`/auth/login?${login.toString()}`, basePath));
   }
   const account = await prisma.user.findUnique({ where: { id: session.user.id }, select: { emailVerified: true } });
-  if (!account?.emailVerified) redirect(`${basePath}/auth/login?emailVerificationRequired=1`);
-  const dashboardPath = `${basePath}/dashboard`;
+  if (!account?.emailVerified) redirect(withBasePath("/auth/login?emailVerificationRequired=1", basePath));
+  const dashboardPath = withBasePath("/dashboard", basePath);
   if (!requestId) redirect(dashboardPath);
   const authorization = await bindAuthorizationRequest(requestId, session.user.id);
   if (!authorization) redirect(`${dashboardPath}?oauth_error=expired_request`);
@@ -55,7 +57,7 @@ export default async function OAuthConsentPage({ searchParams }: { searchParams:
             </div>
           </fieldset>
         )}
-        <form id="oauth-consent" action={`${basePath}/api/oauth/authorize/decision`} method="post" className="mt-6 flex gap-3">
+        <form id="oauth-consent" action={withBasePath("/api/oauth/authorize/decision", basePath)} method="post" className="mt-6 flex gap-3">
           <input type="hidden" name="requestId" value={requestId} />
           <button name="decision" value="deny" className="rounded-md border px-4 py-2 text-sm">{t("deny")}</button>
           <button name="decision" value="approve" className="rounded-md bg-primary px-4 py-2 text-sm text-primary-foreground">{t("allow")}</button>

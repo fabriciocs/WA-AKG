@@ -1,6 +1,7 @@
 import { createHash, randomBytes } from "node:crypto";
 import nodemailer from "nodemailer";
 import { prisma } from "@/lib/prisma";
+import { normalizeBasePath, withBasePath } from "@/lib/base-path";
 
 const TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
 const HOURLY_LIMIT = 3;
@@ -18,6 +19,7 @@ export async function sendVerificationEmail(
   user: { id: string; email: string; name: string | null },
   requestUrl: URL,
   transportFactory: typeof nodemailer.createTransport = nodemailer.createTransport,
+  requestBasePath = "",
 ) {
   const now = new Date();
   const [hourlyCount, dailyCount] = await Promise.all([
@@ -34,8 +36,8 @@ export async function sendVerificationEmail(
   if (!configuredPublicUrl && process.env.NODE_ENV === "production") throw new Error("BASE_URL must be configured in production");
   const publicUrl = configuredPublicUrl ? new URL(configuredPublicUrl) : requestUrl;
   if (process.env.NODE_ENV === "production" && publicUrl.protocol !== "https:") throw new Error("Verification links require HTTPS in production");
-  const configuredPath = (process.env.NEXT_PUBLIC_BASE_PATH || publicUrl.pathname || "").replace(/\/$/, "");
-  const link = new URL(`${configuredPath}/auth/verify-email`, publicUrl.origin);
+  const configuredPath = normalizeBasePath(publicUrl.pathname) || normalizeBasePath(requestBasePath);
+  const link = new URL(withBasePath("/auth/verify-email", configuredPath), publicUrl.origin);
   link.searchParams.set("token", token);
 
   try {

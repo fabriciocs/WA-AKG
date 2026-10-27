@@ -4,6 +4,8 @@ import { useEffect } from "react";
 import { toast } from "sonner";
 import { ShieldAlert } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { useAppBasePath } from "@/components/app-base-path";
+import { withBasePath } from "@/lib/base-path";
 
 interface RegistrationWarningProps {
     role?: string;
@@ -12,6 +14,7 @@ interface RegistrationWarningProps {
 
 export function RegistrationWarning({ role, registrationEnabled }: RegistrationWarningProps) {
     const t = useTranslations("settings");
+    const basePath = useAppBasePath();
 
     useEffect(() => {
         if (role === "SUPERADMIN" && registrationEnabled) {
@@ -24,14 +27,14 @@ export function RegistrationWarning({ role, registrationEnabled }: RegistrationW
                     position: "top-center",
                     action: {
                         label: t("registrationWarningAction"),
-                        onClick: () => window.location.href = "/dashboard/settings"
+                        onClick: () => window.location.href = withBasePath("/dashboard/settings", basePath)
                     }
                 });
             }, 1000);
 
             return () => clearTimeout(timer);
         }
-    }, [role, registrationEnabled, t]);
+    }, [role, registrationEnabled, t, basePath]);
 
     return null;
 }

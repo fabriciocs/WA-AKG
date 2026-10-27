@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import Link from 'next/link';
+import Link from '@/components/app-link';
 import { DocsClient } from './docs-client';
 
 export const metadata = {

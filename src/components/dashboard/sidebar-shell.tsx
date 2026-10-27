@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import { LogOut } from "lucide-react";
 import { signOut } from "next-auth/react";
 import { useTranslations } from "next-intl";
+import { useAppBasePath } from "@/components/app-base-path";
+import { withBasePath } from "@/lib/base-path";
 
 interface SidebarShellProps {
     appName: string;
@@ -17,6 +19,7 @@ interface SidebarShellProps {
 export function SidebarShell({ appName, userName, userEmail, version }: SidebarShellProps) {
     const { isCollapsed } = useSidebar();
     const t = useTranslations("common");
+    const basePath = useAppBasePath();
 
     return (
         <aside
@@ -60,7 +63,7 @@ export function SidebarShell({ appName, userName, userEmail, version }: SidebarS
                             {userName?.charAt(0)?.toUpperCase() || "U"}
                         </div>
                         <button
-                            onClick={() => signOut({ callbackUrl: "/auth/login" })}
+                            onClick={() => signOut({ callbackUrl: withBasePath("/auth/login", basePath) })}
                             aria-label={t("signOut")}
                             title={t("signOut")}
                             className="p-2 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
@@ -86,7 +89,7 @@ export function SidebarShell({ appName, userName, userEmail, version }: SidebarS
                             variant="outline"
                             size="sm"
                             className="w-full flex items-center justify-center gap-2 text-xs h-8 rounded-lg border-border/40 hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30 transition-colors"
-                            onClick={() => signOut({ callbackUrl: "/auth/login" })}
+                            onClick={() => signOut({ callbackUrl: withBasePath("/auth/login", basePath) })}
                         >
                             <LogOut size={14} /> {t("signOut")}
                         </Button>

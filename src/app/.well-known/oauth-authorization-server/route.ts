@@ -1,13 +1,14 @@
 import { NextRequest } from "next/server";
 import { oauthJson } from "@/lib/oauth/http";
-import { normalizeBasePath, oauthIssuer } from "@/lib/oauth/discovery.mjs";
+import { oauthIssuer } from "@/lib/oauth/discovery.mjs";
+import { requestBasePath, requestPublicOrigin } from "@/lib/base-path";
 
 export function GET(request: NextRequest) {
-  const basePath = normalizeBasePath(process.env.NEXT_PUBLIC_BASE_PATH || request.nextUrl.basePath || "");
+  const basePath = requestBasePath(request.headers);
   const issuer = oauthIssuer({
     configuredIssuer: process.env.OAUTH_ISSUER_URL,
     configuredOrigin: process.env.BASE_URL,
-    requestOrigin: request.nextUrl.origin,
+    requestOrigin: requestPublicOrigin(request.headers, request.url),
     basePath,
   });
   return oauthJson({

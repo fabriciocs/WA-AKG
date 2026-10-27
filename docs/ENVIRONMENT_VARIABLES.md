@@ -16,7 +16,7 @@ These variables are critical for the application to function.
 | `PORT` | string | `3000` | The port on which the server will listen. Ensure this port is free on your server! |
 | `DATABASE_URL` | string | — | The database connection string (e.g. `mysql://user:pass@localhost:3306/db` or `postgresql://user:pass@localhost:5432/db?schema=public`). |
 | `AUTH_SECRET` | string | — | Secure cryptographic key used for JWT session encryption. **Server will exit on startup if this is empty in production!** (Generate with `openssl rand -base64 32`). |
-| `BASE_URL` | string | `http://localhost:3000` | The unified public URL where your application is hosted. Essential for correct authentication callbacks and URL generation. |
+| `BASE_URL` | string | `http://localhost:3000` | The public URL where your application is hosted. Set this to the public HTTPS origin when exposing the same process through a tunnel or reverse proxy. |
 | `NODE_ENV` | string | `development` | Environment mode (`development` \| `production` \| `test`). |
 | `HOSTNAME` | string | `localhost` | Server hostname binding IP or address. |
 
@@ -28,8 +28,8 @@ Settings that manage OAuth flow, reverse proxies, and public-facing URL compilat
 
 | Variable | Type | Default | Description |
 | :--- | :--- | :--- | :--- |
-| `NEXTAUTH_URL` | string | `${BASE_URL}` | The URL pointing to the NextAuth authentication handler. Should match `BASE_URL`. |
-| `OAUTH_ISSUER_URL` | URL | `${BASE_URL origin}${NEXT_PUBLIC_BASE_PATH}` or request origin + base path | Optional canonical OAuth issuer URL; preserve an explicit path when supplied. `NEXTAUTH_URL` is only for NextAuth and is not used as the OAuth issuer. Use HTTPS in production. |
+| `NEXTAUTH_URL` | string | `${BASE_URL}` | The public application origin used by NextAuth. Keep it aligned with `BASE_URL`; the reverse proxy prefix is supplied at runtime through `X-Forwarded-Prefix`. |
+| `OAUTH_ISSUER_URL` | URL | `${BASE_URL origin}${X-Forwarded-Prefix}` or request origin + forwarded prefix | Optional canonical OAuth issuer URL; preserve an explicit path when supplied. `NEXTAUTH_URL` is only for NextAuth and is not used as the OAuth issuer. Use HTTPS in production. |
 | `AUTH_TRUST_HOST` | boolean | `true` | Set to `true` if your application is deployed behind a reverse proxy (e.g. Nginx, Cloudflare, Apache). |
 | `NEXT_PUBLIC_APP_URL` | string | `${BASE_URL}` | Public facing client URL. |
 | `NEXT_PUBLIC_API_URL` | string | `${BASE_URL}/api` | Public facing API endpoint URL. |

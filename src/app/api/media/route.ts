@@ -4,6 +4,7 @@ import path from "path";
 import { existsSync } from "fs";
 import { getAuthenticatedUser, canAccessSession } from "@/lib/api-auth";
 import { prisma } from "@/lib/prisma";
+import { requestBasePath, withBasePath } from "@/lib/base-path";
 
 // Media directory — private, NOT in public/
 const MEDIA_DIR = path.join(process.cwd(), "data", "media");
@@ -117,7 +118,7 @@ export async function GET(request: NextRequest) {
                     fromMe: msgInfo?.fromMe ?? false,
                     createdAt: fileStat.birthtime.toISOString(),
                     modifiedAt: fileStat.mtime.toISOString(),
-                    url: (process.env.NEXT_PUBLIC_BASE_PATH || "") + `/api/media/${encodeURIComponent(name)}`,
+                    url: withBasePath(`/api/media/${encodeURIComponent(name)}`, requestBasePath(request.headers)),
                 };
             })
         );

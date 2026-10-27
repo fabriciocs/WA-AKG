@@ -5,7 +5,8 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { signIn } from 'next-auth/react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
+import { useAppRouter as useRouter, useAppBasePath } from '@/components/app-base-path';
 import { Button } from "@/components/ui/button"
 import {
   Form,
@@ -17,10 +18,11 @@ import {
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { Bot, ArrowRight, Loader2 } from "lucide-react";
-import Link from 'next/link';
+import Link from '@/components/app-link';
 import { useTranslations } from 'next-intl';
 import { LanguageSwitcher } from '@/components/language-switcher';
 import { apiUrl } from '@/lib/api-url';
+import { withBasePath } from '@/lib/base-path';
 
 type LoginValues = { email: string; password: string };
 
@@ -31,8 +33,9 @@ function LoginForm() {
     password: z.string().min(1, t('login.passwordRequired')),
   }), [t]);
   const router = useRouter();
+  const basePath = useAppBasePath();
   const searchParams = useSearchParams();
-  const callbackUrl = searchParams.get('callbackUrl') || (process.env.NEXT_PUBLIC_BASE_PATH || '') + '/dashboard';
+  const callbackUrl = searchParams.get('callbackUrl') || '/dashboard';
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [resending, setResending] = useState(false);
@@ -59,7 +62,7 @@ function LoginForm() {
       if (result?.error) {
         setError(t('login.invalidCredentials'));
       } else {
-        window.location.href = callbackUrl;
+        window.location.href = withBasePath(callbackUrl, basePath);
         router.refresh();
       }
     } catch {

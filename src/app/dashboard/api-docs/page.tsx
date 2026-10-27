@@ -3,7 +3,7 @@ import { apiUrl } from "@/lib/api-url";
 
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
-import { useRouter } from "next/navigation";
+import { useAppRouter as useRouter } from "@/components/app-base-path";
 import { FileText, Code, ExternalLink } from "lucide-react";
 import { useTranslations } from "next-intl";
 

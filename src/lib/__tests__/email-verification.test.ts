@@ -30,12 +30,11 @@ test("SMTP sends a one-time verification link with TLS and authentication settin
       return stored;
     }),
   ];
-  const env = ["BASE_URL", "OAUTH_ISSUER_URL", "NEXT_PUBLIC_BASE_PATH", "SMTP_HOST", "SMTP_PORT", "SMTP_SECURE", "SMTP_USER", "SMTP_PASSWORD", "SMTP_FROM"] as const;
+  const env = ["BASE_URL", "OAUTH_ISSUER_URL", "SMTP_HOST", "SMTP_PORT", "SMTP_SECURE", "SMTP_USER", "SMTP_PASSWORD", "SMTP_FROM"] as const;
   const previousEnv = new Map(env.map((key) => [key, process.env[key]]));
   Object.assign(process.env, {
-    BASE_URL: "https://wa-akg.example.test/deploy",
+    BASE_URL: "https://wa-akg.example.test",
     OAUTH_ISSUER_URL: "",
-    NEXT_PUBLIC_BASE_PATH: "/deploy",
     SMTP_HOST: "smtp.example.test",
     SMTP_PORT: "465",
     SMTP_SECURE: "true",
@@ -48,7 +47,7 @@ test("SMTP sends a one-time verification link with TLS and authentication settin
     return { sendMail: async (message: unknown) => { mail = message as typeof mail; } };
   }) as unknown as typeof nodemailer.createTransport;
   try {
-    const result = await sendVerificationEmail({ id: "user-1", email: "user@example.test", name: "A <B>" }, new URL("https://untrusted.example.test/api/auth/register"), factory);
+    const result = await sendVerificationEmail({ id: "user-1", email: "user@example.test", name: "A <B>" }, new URL("https://untrusted.example.test/api/auth/register"), factory, "/deploy");
     assert.deepEqual(result, { sent: true, limited: false });
     assert.deepEqual(transportOptions, {
       host: "smtp.example.test", port: 465, secure: true,
@@ -83,10 +82,10 @@ test("SMTP delivery failure consumes the generated token so resend can safely re
       return { count: revoked ? 1 : 0 };
     }),
   ];
-  const env = ["BASE_URL", "OAUTH_ISSUER_URL", "NEXT_PUBLIC_BASE_PATH", "SMTP_HOST", "SMTP_PORT", "SMTP_SECURE", "SMTP_USER", "SMTP_PASSWORD", "SMTP_FROM"] as const;
+  const env = ["BASE_URL", "OAUTH_ISSUER_URL", "SMTP_HOST", "SMTP_PORT", "SMTP_SECURE", "SMTP_USER", "SMTP_PASSWORD", "SMTP_FROM"] as const;
   const previousEnv = new Map(env.map((key) => [key, process.env[key]]));
   Object.assign(process.env, {
-    BASE_URL: "https://wa-akg.example.test", OAUTH_ISSUER_URL: "", NEXT_PUBLIC_BASE_PATH: "",
+    BASE_URL: "https://wa-akg.example.test", OAUTH_ISSUER_URL: "",
     SMTP_HOST: "smtp.example.test", SMTP_PORT: "587", SMTP_SECURE: "false",
     SMTP_USER: "", SMTP_PASSWORD: "", SMTP_FROM: "WA-AKG <no-reply@example.test>",
   });

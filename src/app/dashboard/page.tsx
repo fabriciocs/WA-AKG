@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import Link from "next/link";
+import Link from "@/components/app-link";
 import {
     Plus,
     Wifi,
@@ -19,13 +19,16 @@ import { getAccessibleSessions } from "@/lib/api-auth";
 import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { headers } from "next/headers";
+import { requestBasePath, withBasePath } from "@/lib/base-path";
 
 export const dynamic = 'force-dynamic';
 
 export default async function DashboardPage() {
+    const requestHeaders = await headers();
+    const basePath = requestBasePath(requestHeaders);
     const session = await auth();
     if (!session?.user) {
-        redirect("/login");
+        redirect(withBasePath("/auth/login", basePath));
     }
 
     const t = await getTranslations("dashboard");
@@ -40,7 +43,6 @@ export default async function DashboardPage() {
         where: { userId: session.user.id!, revokedAt: null, expiresAt: { gt: new Date() }, scope: { contains: "mcp:read" } },
         select: { id: true },
     });
-    const requestHeaders = await headers();
     const host = requestHeaders.get("x-forwarded-host") || requestHeaders.get("host");
     const protocol = requestHeaders.get("x-forwarded-proto") || "https";
     const configuredOrigin = process.env.OAUTH_ISSUER_URL || process.env.BASE_URL || (host ? `${protocol}://${host}` : "");
@@ -55,7 +57,6 @@ export default async function DashboardPage() {
             origin = configuredOrigin.replace(/\/$/, "");
         }
     }
-    const basePath = (process.env.NEXT_PUBLIC_BASE_PATH || "").replace(/\/$/, "");
     const mcpPath = process.env.WA_AKG_MCP_HTTP_PATH || "/mcp";
     const mcpEnabled = process.env.WA_AKG_MCP_ENABLED === "true";
     const mcpEndpoint = `${origin}${issuerPath || basePath}${mcpPath.startsWith("/") ? mcpPath : `/${mcpPath}`}`;

@@ -6,7 +6,7 @@ import { io } from 'socket.io-client';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { useRouter } from 'next/navigation';
+import { useAppRouter as useRouter } from '@/components/app-base-path';
 import { toast } from "sonner";
 import { Label } from '@/components/ui/label';
 import { Plus, Settings, UserPlus } from 'lucide-react';

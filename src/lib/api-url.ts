@@ -1,7 +1,7 @@
 /** Prefixes same-origin API URLs for reverse-proxy subpath deployments. */
+import { clientBasePath, withBasePath } from "@/lib/base-path";
+
 export function apiUrl(path: string): string {
-  const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
-  const normalizedPath = path.startsWith("/") ? path : "/" + path;
-  if (!basePath || normalizedPath === basePath || normalizedPath.startsWith(basePath + "/")) return normalizedPath;
-  return basePath + normalizedPath;
+  const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+  return withBasePath(normalizedPath, clientBasePath());
 }

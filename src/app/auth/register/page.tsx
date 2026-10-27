@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { Bot, ArrowRight, Loader2 } from "lucide-react";
-import Link from 'next/link';
+import Link from '@/components/app-link';
 import { useTranslations } from 'next-intl';
 import { LanguageSwitcher } from '@/components/language-switcher';
 

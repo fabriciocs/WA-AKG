@@ -5,6 +5,7 @@ import { ChatList } from "./chat-list";
 import { ChatWindow } from "./chat-window";
 import { MessageCircle } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { clientBasePath, withBasePath, withoutBasePath } from "@/lib/base-path";
 
 interface ChatLayoutClientProps {
     sessionId: string;
@@ -26,15 +27,18 @@ export function ChatLayoutClient({ sessionId, initialJid }: ChatLayoutClientProp
     useEffect(() => {
         if (typeof window === "undefined") return;
         const base = "/dashboard/chat";
+        const basePath = clientBasePath();
         if (selectedChat) {
             const number = selectedChat.jid.split("@")[0];
             const newPath = `${base}/${number}`;
-            if (window.location.pathname !== newPath) {
-                window.history.replaceState(null, "", newPath);
+            const prefixedPath = withBasePath(newPath, basePath);
+            if (window.location.pathname !== prefixedPath) {
+                window.history.replaceState(null, "", prefixedPath);
             }
         } else {
-            if (window.location.pathname !== base) {
-                window.history.replaceState(null, "", base);
+            const prefixedPath = withBasePath(base, basePath);
+            if (window.location.pathname !== prefixedPath) {
+                window.history.replaceState(null, "", prefixedPath);
             }
         }
     }, [selectedChat]);
@@ -42,7 +46,7 @@ export function ChatLayoutClient({ sessionId, initialJid }: ChatLayoutClientProp
     // Handle browser back/forward
     useEffect(() => {
         const handlePopState = () => {
-            const path = window.location.pathname;
+            const path = withoutBasePath(window.location.pathname, clientBasePath());
             if (path.startsWith("/dashboard/chat/")) {
                 const rawJid = path.replace("/dashboard/chat/", "");
                 let clean = rawJid.replace(/\D/g, "");
@@ -63,7 +67,7 @@ export function ChatLayoutClient({ sessionId, initialJid }: ChatLayoutClientProp
     const handleBack = () => {
         setSelectedChat(null);
         if (typeof window !== "undefined") {
-            window.history.replaceState(null, "", "/dashboard/chat");
+            window.history.replaceState(null, "", withBasePath("/dashboard/chat", clientBasePath()));
         }
     };
 

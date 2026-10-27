@@ -1,8 +1,9 @@
 'use client';
 
 import React, { Suspense, useSyncExternalStore } from 'react';
-import Link from 'next/link';
-import { useSearchParams, useRouter } from 'next/navigation';
+import Link from '@/components/app-link';
+import { useSearchParams } from 'next/navigation';
+import { useAppRouter as useRouter } from '@/components/app-base-path';
 import { AlertCircle, ShieldAlert, Lock, Hourglass, HelpCircle, ArrowLeft, Home } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 

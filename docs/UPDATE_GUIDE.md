@@ -8,8 +8,18 @@ Keep your **WA-AKG** instance up-to-date with the latest features, security patc
 
 Follow these steps to update your application safely.
 
+### Configuration migration and reconfiguration
+
+After updating the source and dependencies, run the cross-platform configurator:
+
+```bash
+npm run setup
+```
+
+It detects the current configuration format. For an older format it preserves recognized values, asks for newly required settings, and writes a timestamped backup before changing the configuration. For a current format it offers to keep the values, configure again, or cancel. Cancel leaves the existing configuration untouched. Do not delete the backup until the updated instance has been validated.
+
 ### Option A: Automatic Update (Recommended)
-If you are deploying with PM2 and using the built-in [start.sh](file:///home/aditya/project/WA-AKG/start.sh) script, updating is as simple as:
+If you are deploying with PM2 or another existing process supervisor and using the built-in `start.sh` script, updating is as simple as:
 ```bash
 git pull
 ./start.sh
@@ -37,7 +47,7 @@ If the update includes database changes, run:
 npm run db:push
 ```
 > [!NOTE]
-> For production environments requiring strict migration history, use `npx prisma migrate deploy` instead.
+> Do not run database schema changes blindly in production. Back up the database and follow the migration procedure in [Database Setup](DATABASE_SETUP.md). The configurator does not authorize destructive database resets.
 
 #### 4. Build & Restart
 ```bash

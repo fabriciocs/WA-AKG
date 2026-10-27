@@ -1,15 +1,16 @@
 import { NextRequest } from "next/server";
 import { oauthJson } from "@/lib/oauth/http";
-import { normalizeBasePath, protectedResourceMetadata } from "@/lib/oauth/discovery.mjs";
+import { protectedResourceMetadata } from "@/lib/oauth/discovery.mjs";
+import { requestBasePath, requestPublicOrigin } from "@/lib/base-path";
 
 export function GET(request: NextRequest) {
-  const basePath = normalizeBasePath(process.env.NEXT_PUBLIC_BASE_PATH || request.nextUrl.basePath || "");
+  const basePath = requestBasePath(request.headers);
   const metadata = protectedResourceMetadata({
     configuredOrigin: process.env.BASE_URL,
     basePath,
     endpointPath: process.env.WA_AKG_MCP_HTTP_PATH || "/mcp",
     configuredIssuer: process.env.OAUTH_ISSUER_URL,
-    requestOrigin: request.nextUrl.origin,
+    requestOrigin: requestPublicOrigin(request.headers, request.url),
   });
   return oauthJson({
     ...metadata,

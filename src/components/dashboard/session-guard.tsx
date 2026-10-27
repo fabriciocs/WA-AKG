@@ -3,7 +3,7 @@
 import { useSession } from "./session-provider";
 import { QrCode } from "lucide-react";
 import { ReactNode } from "react";
-import Link from "next/link";
+import Link from "@/components/app-link";
 import { Button } from "@/components/ui/button";
 import { useTranslations } from "next-intl";
 

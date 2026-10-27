@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
+import Link from "@/components/app-link";
 import { usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { ChevronDown, PanelLeftClose, PanelLeft } from "lucide-react";

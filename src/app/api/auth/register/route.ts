@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { sendVerificationEmail } from "@/lib/email-verification";
+import { requestBasePath } from "@/lib/base-path";
 
 const registerSchema = z.object({
     name: z.string().trim().min(2).max(120),
@@ -31,7 +32,7 @@ export async function POST(req: Request) {
         });
 
         try {
-            await sendVerificationEmail(newUser, new URL(req.url));
+            await sendVerificationEmail(newUser, new URL(req.url), undefined, requestBasePath(req.headers));
         } catch (error) {
             console.error("Verification email delivery failed", error instanceof Error ? error.name : "unknown");
             return NextResponse.json({ error: "Account created, but the verification email could not be sent. Use resend verification to try again." }, { status: 503 });
@@ -45,7 +46,7 @@ export async function POST(req: Request) {
         if (typeof error === "object" && error !== null && "code" in error && error.code === "P2002") {
             const existing = await prisma.user.findUnique({ where: { email: submittedEmail }, select: { id: true, email: true, name: true, emailVerified: true } });
             if (existing && !existing.emailVerified) {
-                try { await sendVerificationEmail(existing, new URL(req.url)); } catch { /* Keep the response indistinguishable; the resend endpoint supports recovery. */ }
+                try { await sendVerificationEmail(existing, new URL(req.url), undefined, requestBasePath(req.headers)); } catch { /* Keep the response indistinguishable; the resend endpoint supports recovery. */ }
             }
             return NextResponse.json({ success: true, message: "If this address can be registered, a verification email will be sent." }, { status: 202 });
         }

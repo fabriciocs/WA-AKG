@@ -12,6 +12,7 @@ Welcome to the internal documentation portal for **WA-AKG**. Use the links below
 | **[User Guide](./USER_GUIDE.md)** | Step-by-step instructions for dashboard features. |
 | **[Project Architecture](./PROJECT_DOCUMENTATION.md)** | Detailed system logic, diagrams, and database schema. |
 | **[Environment Config](./ENVIRONMENT_VARIABLES.md)** | Secure configuration and server setup. |
+| **[Setup and execution](./SETUP.md)** | Cross-platform wizard, modes, migration, backup and reconfiguration. |
 
 ---
 

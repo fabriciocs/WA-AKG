@@ -6,6 +6,7 @@ import { logger } from "./logger";
 import { authenticateAccessToken } from "./oauth";
 import { hasRequiredOAuthScope, normalizeApiPathname, requiredOAuthScopes } from "./oauth/api-policy";
 import { resourceMatchesPublicOrigin } from "./oauth/discovery.mjs";
+import { requestPublicOrigin } from "./base-path";
 
 /**
  * Validate API key from request header
@@ -43,11 +44,11 @@ export async function getAuthenticatedUser(request?: NextRequest) {
             if (!resourceMatchesPublicOrigin(principal.resource, {
                 configuredIssuer: process.env.OAUTH_ISSUER_URL,
                 configuredOrigin: process.env.BASE_URL,
-                requestOrigin: request!.nextUrl.origin,
+                requestOrigin: requestPublicOrigin(request!.headers, request!.url),
             })) return null;
         }
 
-        const pathname = normalizeApiPathname(request!.nextUrl.pathname, process.env.NEXT_PUBLIC_BASE_PATH || "");
+        const pathname = normalizeApiPathname(request!.nextUrl.pathname, "");
         if (!pathname) return null;
         if (/^\/api\/(?:auth(?:\/|$)|user\/api-key(?:\/|$)|users(?:\/|$)|settings\/system(?:\/|$))/.test(pathname)) return null;
         const method = request!.method.toUpperCase();

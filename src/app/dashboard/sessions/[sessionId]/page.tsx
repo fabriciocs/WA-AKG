@@ -2,13 +2,14 @@
 import { apiUrl } from "@/lib/api-url";
 
 import { useEffect, useState, useCallback } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
+import { useAppRouter as useRouter } from "@/components/app-base-path";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { toast } from "sonner";
 import { ArrowLeft, Play, Square, RotateCcw, LogOut, Trash2, Activity, Wifi, MemoryStick, Copy } from "lucide-react";
-import Link from "next/link";
+import Link from "@/components/app-link";
 import { io } from "socket.io-client";
 import { QRCodeSVG } from "qrcode.react";
 import { useTranslations } from "next-intl";

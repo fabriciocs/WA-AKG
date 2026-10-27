@@ -9,7 +9,7 @@ import { RealtimeClock } from "@/components/dashboard/realtime-clock";
 import { LanguageSwitcher } from "@/components/language-switcher";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Bell, Inbox, Trash2 } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useAppRouter as useRouter } from "@/components/app-base-path";
 import { useFormatter, useNow, useTranslations } from "next-intl";
 import { useSession } from "next-auth/react";
 import { toast } from "sonner";

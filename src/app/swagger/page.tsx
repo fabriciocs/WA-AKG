@@ -3,7 +3,7 @@ import { apiUrl } from "@/lib/api-url";
 
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
-import Link from "next/link";
+import Link from "@/components/app-link";
 import SwaggerUI from "swagger-ui-react";
 import "swagger-ui-react/swagger-ui.css";
 import { ArrowLeft, BookOpen, ShieldCheck } from "lucide-react";

@@ -1,4 +1,4 @@
-import Link from "next/link";
+import Link from "@/components/app-link";
 import { ArrowLeft, Lock, Shield } from "lucide-react";
 
 export const metadata = {
