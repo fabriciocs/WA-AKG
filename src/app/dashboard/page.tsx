@@ -18,6 +18,7 @@ import { auth } from "@/lib/auth";
 import { getAccessibleSessions } from "@/lib/api-auth";
 import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
+import { headers } from "next/headers";
 
 export const dynamic = 'force-dynamic';
 
@@ -30,10 +31,34 @@ export default async function DashboardPage() {
     const t = await getTranslations("dashboard");
 
     const sessions = await getAccessibleSessions(session.user.id!, session.user.role || "USER");
+    const account = await prisma.user.findUnique({ where: { id: session.user.id! }, select: { emailVerified: true } });
 
     const totalSessions = sessions.length;
     const connectedSessions = sessions.filter(s => s.status === 'CONNECTED').length;
     const disconnectedSessions = totalSessions - connectedSessions; // Anything not connected is disconnected
+    const activeMcpGrant = await prisma.oAuthRefreshToken.findFirst({
+        where: { userId: session.user.id!, revokedAt: null, expiresAt: { gt: new Date() }, scope: { contains: "mcp:read" } },
+        select: { id: true },
+    });
+    const requestHeaders = await headers();
+    const host = requestHeaders.get("x-forwarded-host") || requestHeaders.get("host");
+    const protocol = requestHeaders.get("x-forwarded-proto") || "https";
+    const configuredOrigin = process.env.OAUTH_ISSUER_URL || process.env.BASE_URL || (host ? `${protocol}://${host}` : "");
+    let origin = "";
+    let issuerPath = "";
+    if (configuredOrigin) {
+        try {
+            const issuer = new URL(configuredOrigin);
+            origin = issuer.origin;
+            issuerPath = issuer.pathname.replace(/\/$/, "");
+        } catch {
+            origin = configuredOrigin.replace(/\/$/, "");
+        }
+    }
+    const basePath = (process.env.NEXT_PUBLIC_BASE_PATH || "").replace(/\/$/, "");
+    const mcpPath = process.env.WA_AKG_MCP_HTTP_PATH || "/mcp";
+    const mcpEnabled = process.env.WA_AKG_MCP_ENABLED === "true";
+    const mcpEndpoint = `${origin}${issuerPath || basePath}${mcpPath.startsWith("/") ? mcpPath : `/${mcpPath}`}`;
 
     // Fetch auto-reply count for accessible sessions
     let autoReplyCount = 0;
@@ -104,6 +129,35 @@ export default async function DashboardPage() {
                     </Button>
                 </Link>
             </div>
+
+            <Card className="border-primary/20 bg-primary/[0.03]">
+                <CardContent className="space-y-4 p-5">
+                    <div>
+                        <p className="text-xs font-semibold uppercase tracking-widest text-primary">{t("onboarding.eyebrow")}</p>
+                        <h3 className="mt-1 text-lg font-semibold">{t("onboarding.title")}</h3>
+                        <p className="text-sm text-muted-foreground">{t("onboarding.description")}</p>
+                    </div>
+                    <ol className="grid gap-3 md:grid-cols-3">
+                        <li className="rounded-lg border bg-background p-3">
+                            <p className="text-sm font-medium">{t("onboarding.account")}</p>
+                            <p className={`mt-1 text-xs ${account?.emailVerified ? "text-emerald-600" : "text-muted-foreground"}`}>{account?.emailVerified ? t("onboarding.accountComplete") : t("onboarding.accountPending")}</p>
+                            {!account?.emailVerified && <Link className="mt-2 inline-block text-xs font-medium text-primary underline" href="/auth/login">{t("onboarding.resendVerification")}</Link>}
+                        </li>
+                        <li className="rounded-lg border bg-background p-3">
+                            <p className="text-sm font-medium">{t("onboarding.whatsapp", { count: connectedSessions, total: totalSessions })}</p>
+                            <p className="mt-1 text-xs text-muted-foreground">{connectedSessions > 0 ? t("onboarding.whatsappComplete") : t("onboarding.whatsappPending")}</p>
+                            <Link className="mt-2 inline-block text-xs font-medium text-primary underline" href="/dashboard/sessions">{totalSessions ? t("onboarding.manageSessions") : t("onboarding.createSession")}</Link>
+                        </li>
+                        <li className="rounded-lg border bg-background p-3">
+                            <p className="text-sm font-medium">{t("onboarding.mcp")}</p>
+                            <p className="mt-1 text-xs text-muted-foreground">{!mcpEnabled ? t("onboarding.mcpDisabled") : activeMcpGrant ? t("onboarding.mcpComplete") : t("onboarding.mcpPending")}</p>
+                            {mcpEndpoint && <p className="mt-2 text-xs text-muted-foreground">{t("onboarding.endpoint")}: <code className="break-all font-mono">{mcpEndpoint}</code></p>}
+                            <p className="mt-1 text-xs text-muted-foreground">{t("onboarding.mcpHint")}</p>
+                            <Link className="mt-2 inline-block text-xs font-medium text-primary underline" href="/dashboard/oauth">{t("onboarding.connectMcp")}</Link>
+                        </li>
+                    </ol>
+                </CardContent>
+            </Card>
 
             {/* Stats Grid */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">

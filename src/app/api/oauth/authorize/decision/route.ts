@@ -7,6 +7,8 @@ import { prisma } from "@/lib/prisma";
 export async function POST(request: NextRequest) {
   const session = await auth();
   if (!session?.user?.id) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  const account = await prisma.user.findUnique({ where: { id: session.user.id }, select: { emailVerified: true } });
+  if (!account?.emailVerified) return NextResponse.json({ error: "email_not_verified" }, { status: 403, headers: { "Cache-Control": "no-store" } });
   const origin = request.headers.get("origin");
   if (origin && origin !== request.nextUrl.origin) return NextResponse.json({ error: "forbidden" }, { status: 403 });
   try {

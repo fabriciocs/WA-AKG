@@ -72,9 +72,9 @@ export async function getAuthenticatedUser(request?: NextRequest) {
 
         const user = await prisma.user.findUnique({
             where: { id: principal.userId },
-            select: { id: true, email: true, name: true, role: true },
+            select: { id: true, email: true, name: true, role: true, emailVerified: true },
         });
-        if (user) return { ...user, authMethod: "oauth" as const, oauthScopes: principal.scope, oauthSessionScope: principal.sessionScope };
+        if (user?.emailVerified) return { ...user, authMethod: "oauth" as const, oauthScopes: principal.scope, oauthSessionScope: principal.sessionScope };
         return null;
     }
 

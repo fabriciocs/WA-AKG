@@ -34,6 +34,19 @@ Settings that manage OAuth flow, reverse proxies, and public-facing URL compilat
 | `NEXT_PUBLIC_APP_URL` | string | `${BASE_URL}` | Public facing client URL. |
 | `NEXT_PUBLIC_API_URL` | string | `${BASE_URL}/api` | Public facing API endpoint URL. |
 
+### Email verification (SMTP)
+
+Public registration requires email confirmation. Configure an SMTP server to deliver verification links. Set `SMTP_SECURE=true` for implicit TLS (typically port 465); otherwise Nodemailer uses SMTP submission and STARTTLS when offered (typically port 587). Authentication is used only when both username and password are set. Resend is limited to 3 messages per account per hour and 10 per day.
+
+| Variable | Type | Default | Description |
+| :--- | :--- | :--- | :--- |
+| `SMTP_HOST` | hostname | — | SMTP server host. Required to send verification email. |
+| `SMTP_PORT` | number | `587` | SMTP server port. |
+| `SMTP_SECURE` | boolean | `false` | Use implicit TLS when `true`; otherwise Nodemailer may negotiate STARTTLS. |
+| `SMTP_USER` | string | — | Optional SMTP authentication username. Set together with `SMTP_PASSWORD`. |
+| `SMTP_PASSWORD` | string | — | Optional SMTP authentication password. Never expose this value to clients. |
+| `SMTP_FROM` | address | — | Required sender address, for example `WA-AKG <no-reply@example.com>`. |
+
 ---
 
 ## 🎨 3. Branding & General Settings

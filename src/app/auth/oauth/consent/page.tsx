@@ -15,6 +15,8 @@ export default async function OAuthConsentPage({ searchParams }: { searchParams:
     const login = new URLSearchParams({ callbackUrl });
     redirect(`${basePath}/auth/login?${login.toString()}`);
   }
+  const account = await prisma.user.findUnique({ where: { id: session.user.id }, select: { emailVerified: true } });
+  if (!account?.emailVerified) redirect(`${basePath}/auth/login?emailVerificationRequired=1`);
   const dashboardPath = `${basePath}/dashboard`;
   if (!requestId) redirect(dashboardPath);
   const authorization = await bindAuthorizationRequest(requestId, session.user.id);

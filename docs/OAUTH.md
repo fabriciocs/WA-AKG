@@ -35,7 +35,7 @@ O login OAuth usa as contas já existentes. A tela de consentimento mostra clien
 ## Scopes
 
 - `api:read`, `api:write`: leitura e escrita da API.
-- `mcp:read`, `mcp:write`: leitura e escrita através do MCP. MCP exige `api:read` junto com `mcp:read`; escrita também exige `api:write` e `mcp:write`.
+- `mcp:read`, `mcp:write`: leitura e escrita através do MCP. MCP exige `api:read` junto com `mcp:read`; escrita também exige `api:write` e `mcp:write`. O registro dinâmico aceita esses escopos quando solicitados explicitamente; por padrão, registra acesso somente de leitura.
 - `sessions:read`: leitura de sessões.
 
 As rotas mantêm suas verificações atuais de role, proprietário e `SessionAccess`. Tokens OAuth também precisam do scope apropriado. Scopes não elevam privilégios nem substituem a autorização por sessão.
@@ -52,7 +52,7 @@ WA_AKG_MCP_WRITE_ALLOWLIST=
 WA_AKG_MCP_ALLOW_REMOTE_API=false
 ```
 
-O MCP usa o `Authorization: Bearer` OAuth do usuário, valida o token em cada requisição MCP e o encaminha às operações de API. Clientes devem obter o recurso em `/.well-known/oauth-protected-resource` e o Authorization Server em `/.well-known/oauth-authorization-server`. Registre previamente o redirect URI exato do cliente MCP no painel. Dê `mcp:read`; conceda `mcp:write` somente quando necessário e habilite cada ferramenta de escrita por uma entrada exata `METHOD /path` em `WA_AKG_MCP_WRITE_ALLOWLIST`.
+O MCP usa o `Authorization: Bearer` OAuth do usuário, valida o token em cada requisição MCP e o encaminha às operações de API. Clientes devem obter o recurso em `/.well-known/oauth-protected-resource` e o Authorization Server em `/.well-known/oauth-authorization-server`. O cliente MCP faz descoberta e registro dinâmico, e a autorização exige confirmação do e-mail da conta. Cada concessão inclui todas as sessões próprias ou compartilhadas que o usuário pode acessar, a menos que ele selecione uma lista menor na tela de consentimento. O WA-AKG reavalia as permissões atuais em cada chamada, então sessões compartilhadas removidas deixam de funcionar. Conceda `mcp:write` somente quando necessário e habilite cada ferramenta de escrita por uma entrada exata `METHOD /path` em `WA_AKG_MCP_WRITE_ALLOWLIST`.
 
 As sessões de transporte MCP vivem em memória, expiram após 30 minutos sem atividade e têm limite de 500 sessões por processo. Refresh de OAuth pode continuar a sessão quando o mesmo usuário e cliente fazem a próxima chamada. Reiniciar o servidor encerra essas sessões de transporte; o cliente MCP deve inicializar outra sessão.
 

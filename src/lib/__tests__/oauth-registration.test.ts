@@ -106,7 +106,18 @@ test("DCR defaults to public authorization-code and refresh-token client metadat
   assert.deepEqual(persisted[0].allowedScopes, readScope);
 });
 
-test("DCR rejects invalid redirects, unsupported grants, methods and write scopes", async () => {
+test("DCR permits explicitly requested compatible write scopes", async () => {
+  const writeScopes = [...readScope, OAuthScope.MCP_WRITE, OAuthScope.API_WRITE];
+  const { handler, persisted } = makeHandler();
+  const response = await handler(registrationRequest({ ...validMetadata, scope: writeScopes.join(" ") }));
+  const body = await response.json();
+
+  assert.equal(response.status, 201);
+  assert.equal(body.scope, writeScopes.join(" "));
+  assert.deepEqual(persisted[0].allowedScopes, writeScopes);
+});
+
+test("DCR rejects invalid redirects, unsupported grants, methods and incompatible scopes", async () => {
   const invalidCases = [
     { ...validMetadata, redirect_uris: [] },
     { ...validMetadata, redirect_uris: ["http://public.example.test/callback"] },
@@ -117,7 +128,7 @@ test("DCR rejects invalid redirects, unsupported grants, methods and write scope
     { ...validMetadata, grant_types: ["client_credentials"] },
     { ...validMetadata, response_types: ["token"] },
     { ...validMetadata, token_endpoint_auth_method: "client_secret_basic" },
-    { ...validMetadata, scope: "mcp:read api:read api:write" },
+    { ...validMetadata, scope: "mcp:read mcp:write api:read" },
     { ...validMetadata, scope: "mcp:read" },
   ];
 

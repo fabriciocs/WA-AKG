@@ -20,6 +20,7 @@ import { Bot, ArrowRight, Loader2 } from "lucide-react";
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import { LanguageSwitcher } from '@/components/language-switcher';
+import { apiUrl } from '@/lib/api-url';
 
 type LoginValues = { email: string; password: string };
 
@@ -34,6 +35,8 @@ function LoginForm() {
   const callbackUrl = searchParams.get('callbackUrl') || (process.env.NEXT_PUBLIC_BASE_PATH || '') + '/dashboard';
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [resending, setResending] = useState(false);
+  const [resendMessage, setResendMessage] = useState("");
 
   const form = useForm<LoginValues>({
     resolver: zodResolver(formSchema),
@@ -63,6 +66,28 @@ function LoginForm() {
       setError(t('unexpectedError'));
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function resendVerification() {
+    const email = form.getValues("email");
+    if (!z.string().email().safeParse(email).success) {
+      setResendMessage(t('verify.enterEmail'));
+      return;
+    }
+    setResending(true);
+    setResendMessage("");
+    try {
+      const response = await fetch(apiUrl('/api/auth/resend-verification'), {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email }),
+      });
+      await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(t('verify.resendFailed'));
+      setResendMessage(t('verify.resendSent'));
+    } catch (err) {
+      setResendMessage(err instanceof Error ? err.message : t('verify.resendFailed'));
+    } finally {
+      setResending(false);
     }
   }
 
@@ -143,6 +168,12 @@ function LoginForm() {
               </Button>
             </form>
           </Form>
+          <div className="mt-5 border-t pt-4 text-center">
+            <button type="button" onClick={resendVerification} disabled={resending} className="text-sm text-primary underline disabled:opacity-50">
+              {resending ? t('verify.resending') : t('verify.resend')}
+            </button>
+            {resendMessage && <p role="status" className="mt-2 text-xs text-muted-foreground">{resendMessage}</p>}
+          </div>
         </div>
 
         <div className="mt-8 text-center text-sm text-muted-foreground">

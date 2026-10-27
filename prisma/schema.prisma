@@ -42,6 +42,7 @@ model User {
   password  String
   role      Role     @default(USER)
   apiKey    String?  @unique // API Key for authentication
+  emailVerified Boolean @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -55,6 +56,21 @@ model User {
   oauthAccessTokens          OAuthAccessToken[]
   oauthRefreshTokens         OAuthRefreshToken[]
   oidcIdentities             OIDCIdentity[]
+  emailVerificationTokens    EmailVerificationToken[]
+}
+
+model EmailVerificationToken {
+  id         String    @id @default(cuid())
+  userId     String
+  tokenHash  String    @unique
+  expiresAt  DateTime
+  consumedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([expiresAt, consumedAt])
 }
 
 model Session {

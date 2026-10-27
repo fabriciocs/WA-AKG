@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { getClient, createAuthorizationRequest, OAuthError } from "@/lib/oauth";
 import { parseScopeString } from "@/lib/oauth/scopes";
 import { normalizeBasePath, oauthIssuer } from "@/lib/oauth/discovery.mjs";
+import { prisma } from "@/lib/prisma";
 
 const noStore = { "Cache-Control": "no-store", Pragma: "no-cache" };
 export const dynamic = "force-dynamic";
@@ -45,6 +46,10 @@ export async function GET(request: NextRequest) {
     });
     const session = await auth();
     const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
+    if (session?.user?.id) {
+      const user = await prisma.user.findUnique({ where: { id: session.user.id }, select: { emailVerified: true } });
+      if (!user?.emailVerified) return NextResponse.json({ error: "email_not_verified" }, { status: 403, headers: noStore });
+    }
     const pathWithBase = request.nextUrl.pathname.startsWith(basePath) ? request.nextUrl.pathname : `${basePath}${request.nextUrl.pathname}`;
     if (!session?.user?.id) {
       const login = new URL(`${basePath}/auth/login`, request.url);

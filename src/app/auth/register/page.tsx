@@ -5,7 +5,6 @@ import { useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button"
 import {
     Form,
@@ -34,10 +33,11 @@ export default function RegisterPage() {
         message: t('register.passwordMismatch'),
         path: ["confirmPassword"],
     }), [t]);
-    const router = useRouter();
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState(false);
     const [loading, setLoading] = useState(false);
+    const [resending, setResending] = useState(false);
+    const [notice, setNotice] = useState("");
 
     const form = useForm<RegisterValues>({
         resolver: zodResolver(formSchema),
@@ -65,20 +65,40 @@ export default function RegisterPage() {
                 }),
             });
 
+            if (response.status === 503) {
+                setSuccess(true);
+                setNotice(t('verify.resendFailed'));
+                return;
+            }
             if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.error || t('register.failed'));
+                await response.json().catch(() => ({}));
+                throw new Error(t('register.failed'));
             }
 
             setSuccess(true);
-            setTimeout(() => {
-                router.push('/auth/login');
-            }, 2000);
 
         } catch (err) {
             setError(err instanceof Error ? err.message : t('unexpectedError'));
         } finally {
             setLoading(false);
+        }
+    }
+
+    async function resendVerification() {
+        const email = form.getValues("email");
+        setResending(true);
+        setNotice("");
+        try {
+            const response = await fetch(apiUrl('/api/auth/resend-verification'), {
+                method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email }),
+            });
+            await response.json().catch(() => ({}));
+            if (!response.ok) throw new Error(t('verify.resendFailed'));
+            setNotice(t('verify.resendSent'));
+        } catch (err) {
+            setNotice(err instanceof Error ? err.message : t('verify.resendFailed'));
+        } finally {
+            setResending(false);
         }
     }
 
@@ -92,6 +112,11 @@ export default function RegisterPage() {
                     </div>
                     <h2 className="text-2xl font-bold text-foreground mb-2">{t('register.successTitle')}</h2>
                     <p className="text-muted-foreground">{t('register.successDescription')}</p>
+                    <Button type="button" variant="outline" className="mt-5" disabled={resending} onClick={resendVerification}>
+                        {resending ? t('verify.resending') : t('verify.resend')}
+                    </Button>
+                    {notice && <p role="status" className="mt-3 text-sm text-muted-foreground">{notice}</p>}
+                    <Link className="mt-4 text-sm text-primary underline" href="/auth/login">{t('register.signIn')}</Link>
                 </div>
             </div>
         );

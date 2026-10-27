@@ -8,7 +8,8 @@ import { oauthJson } from "./http";
 const MAX_REGISTRATION_BODY_BYTES = 16 * 1024;
 const MAX_REDIRECT_URIS = 20;
 const MAX_REDIRECT_URI_LENGTH = 2048;
-const READ_SCOPES = [OAuthScope.MCP_READ, OAuthScope.API_READ, OAuthScope.SESSIONS_READ];
+const DEFAULT_SCOPES = [OAuthScope.MCP_READ, OAuthScope.API_READ, OAuthScope.SESSIONS_READ];
+const SUPPORTED_SCOPES = Object.values(OAuthScope);
 const SUPPORTED_GRANTS = ["authorization_code", "refresh_token"] as const;
 
 const registrationSchema = z.object({
@@ -66,15 +67,15 @@ function validatedMetadata(input: unknown) {
   }
 
   const requestedScopes = metadata.scope === undefined
-    ? READ_SCOPES
+    ? DEFAULT_SCOPES
     : metadata.scope.trim().split(/\s+/).filter(Boolean);
   if (
     !requestedScopes.length ||
     new Set(requestedScopes).size !== requestedScopes.length ||
-    requestedScopes.some((scope) => !READ_SCOPES.includes(scope as (typeof READ_SCOPES)[number])) ||
+    requestedScopes.some((scope) => !SUPPORTED_SCOPES.includes(scope as (typeof SUPPORTED_SCOPES)[number])) ||
     !hasCompatibleScopeSet(requestedScopes)
   ) {
-    throw invalidMetadata("Only compatible read-only WA-AKG scopes are supported");
+    throw invalidMetadata("Only compatible WA-AKG API and MCP scopes are supported");
   }
 
   return {
