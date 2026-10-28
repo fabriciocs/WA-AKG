@@ -1,8 +1,8 @@
-# WA-AKG API Documentation
+# ConectaFlow API Documentation
 
-# WhatsApp AI Gateway — Complete API Reference
+# ConectaFlow — Complete API Reference
 
-Professional WhatsApp Gateway REST API with **86 routes** for complete WhatsApp automation.
+Professional WhatsApp REST API for complete automation across sessions, messaging, contacts, media, and webhooks.
 
 ## 🔐 Authentication
 
@@ -2119,7 +2119,7 @@ Content-Type: application/json
 {
   "title": "Interactive Message Title",
   "body": "Hello! Please select one of the options below:",
-  "footer": "Powered by WA-AKG",
+  "footer": "Powered by ConectaFlow",
   "header": {
     "title": "Announcement",
     "image": {
@@ -2188,7 +2188,7 @@ Content-Type: application/json
 curl -X POST "http://localhost:3000/api/messages/session-01/628123456789@s.whatsapp.net/interactive" \
   -H "X-API-Key: your-api-key" \
   -H "Content-Type: application/json" \
-  -d '{"title":"Interactive Message Title","body":"Hello! Please select one of the options below:","footer":"Powered by WA-AKG","header":{"title":"Announcement","image":{"url":"https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800"}},"buttons":[{"type":"quick_reply","displayText":"Confirm Order","id":"btn_confirm","url":"https://example.com","phoneNumber":"+628123456789","copyCode":"PROMO2026","title":"Menu List","sections":[{"title":"Available Packages","rows":[{"id":"pkg_basic","title":"Basic Plan","description":"Affordable starter package"}]}]}]}'
+  -d '{"title":"Interactive Message Title","body":"Hello! Please select one of the options below:","footer":"Powered by ConectaFlow","header":{"title":"Announcement","image":{"url":"https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800"}},"buttons":[{"type":"quick_reply","displayText":"Confirm Order","id":"btn_confirm","url":"https://example.com","phoneNumber":"+628123456789","copyCode":"PROMO2026","title":"Menu List","sections":[{"title":"Available Packages","rows":[{"id":"pkg_basic","title":"Basic Plan","description":"Affordable starter package"}]}]}]}'
 ```
 
 ---
@@ -3220,7 +3220,7 @@ Content-Type: application/json
 | Field | Type | Required | Description |
 | :--- | :--- | :--- | :--- |
 | `file` | string (binary) | ✅ Yes | — |
-| `pack` | string | No | Sticker pack name (default: WA-AKG) |
+| `pack` | string | No | Sticker pack name (default: ConectaFlow) |
 | `author` | string | No | Sticker author name (default: User) |
 | `type` | string | No | Sticker crop type (default: full) **Options:** `full`, `crop`, `circle` |
 | `quality` | integer | No | Image quality (default: 50) |
@@ -4850,8 +4850,10 @@ Content-Type: application/json
 | Field | Type | Required | Description |
 | :--- | :--- | :--- | :--- |
 | `name` | string | ✅ Yes | — |
-| `url` | string | ✅ Yes | — |
+| `url` | string | ✅ Yes | HTTP or HTTPS destination URL. HTTP/private-network destinations require `allowLocal: true`. |
 | `secret` | string | No | — |
+| `allowLocal` | boolean | No | Allow localhost, private-network, or other local destinations. Defaults to `false`. |
+| `requestHeaders` | string (multiline) | No | One `Header-Name: value` pair per line; sent with every webhook request. |
 | `events` | array of string | ✅ Yes | — |
 | `filters` | object or null | No | Optional exact-match criteria. All configured criteria are ANDed. Blank strings/null/omitted values mean no criterion; `fromMe` and `isGroup` preserve explicit `false`. |
 
@@ -4859,11 +4861,14 @@ Content-Type: application/json
 
 ```json
 {
-  "name": "string",
-  "url": "string",
+  "name": "CRM Integration",
+  "url": "https://example.com/webhook",
   "secret": "string",
+  "allowLocal": false,
+  "requestHeaders": "X-Integration-Key: your-value\nX-Source: whatsapp",
   "events": [
-    "string"
+    "message.received",
+    "message.sent"
   ],
   "filters": {
     "sessionId": "session-01",
@@ -4878,6 +4883,8 @@ Content-Type: application/json
 ```
 
 Filter enum values: `messageType` is `TEXT|IMAGE|VIDEO|AUDIO|DOCUMENT|STICKER|LOCATION|CONTACT|INTERACTIVE_RESPONSE|BUTTON_RESPONSE|LIST_RESPONSE`; `chatType` is `PERSONAL|GROUP|STATUS|NEWSLETTER|UNKNOWN`. Message received/sent payloads expose additive `data.senderJid` and `data.chatJid` fields preserving the original sender/chat JIDs before LID/phone normalization; filters prefer these fields and fall back to the legacy sender/participant and `key.remoteJid` fields. `messageType`, `fromMe`, `isGroup`, and `chatType` are available on `message.received`/`message.sent` payloads. `chatJid` is also available on `message.status`/`message.edited`/`message.deleted` when the event contains `data.remoteJid`; other events without a supported field do not match that criterion. JIDs are exact; LID and phone JIDs remain distinct. `sessionId` is limited to 191 characters and JID filters to 512 characters. Omit `filters` in PUT to preserve; send `{}` or `null` to clear, or an object to replace.
+
+Webhook destinations must use `http://` or `https://`. Set `allowLocal` to `true` only when delivery to localhost, a private-network address, or another local destination is intentional; keep it `false` for public HTTPS endpoints. `requestHeaders` is a multiline string with one `Header-Name: value` pair per line.
 
 #### Responses
 
@@ -4894,7 +4901,7 @@ Filter enum values: `messageType` is `TEXT|IMAGE|VIDEO|AUDIO|DOCUMENT|STICKER|LO
 curl -X POST "http://localhost:3000/api/webhooks/session-01" \
   -H "X-API-Key: your-api-key" \
   -H "Content-Type: application/json" \
-  -d '{"name":"string","url":"string","secret":"string","events":["string"]}'
+  -d '{"name":"CRM Integration","url":"https://example.com/webhook","secret":"your-webhook-secret","allowLocal":false,"requestHeaders":"X-Integration-Key: your-value\nX-Source: whatsapp","events":["message.received","message.sent"]}'
 ```
 
 ---
@@ -4951,8 +4958,10 @@ Content-Type: application/json
 | Field | Type | Required | Description |
 | :--- | :--- | :--- | :--- |
 | `name` | string | No | — |
-| `url` | string | No | — |
+| `url` | string | No | HTTP or HTTPS destination URL. HTTP/private-network destinations require `allowLocal: true`. |
 | `secret` | string | No | — |
+| `allowLocal` | boolean | No | Allow localhost, private-network, or other local destinations. |
+| `requestHeaders` | string (multiline) | No | One `Header-Name: value` pair per line; send an empty string to clear configured headers. |
 | `events` | array of string | No | — |
 | `isActive` | boolean | No | — |
 | `filters` | object or null | No | Omitted preserves existing filters; `{}` or `null` clears all filters; object replaces them. |
@@ -4961,13 +4970,9 @@ Content-Type: application/json
 
 ```json
 {
-  "name": "string",
-  "url": "string",
-  "secret": "string",
-  "events": [
-    "string"
-  ],
-  "isActive": true
+  "url": "http://localhost:3000/webhook",
+  "allowLocal": true,
+  "requestHeaders": "X-Integration-Key: updated-value\nX-Source: whatsapp"
 }
 ```
 
@@ -4986,7 +4991,7 @@ Content-Type: application/json
 curl -X PUT "http://localhost:3000/api/webhooks/session-01/abc123" \
   -H "X-API-Key: your-api-key" \
   -H "Content-Type: application/json" \
-  -d '{"name":"string","url":"string","secret":"string","events":["string"],"isActive":true}'
+  -d '{"url":"http://localhost:3000/webhook","allowLocal":true,"requestHeaders":"X-Integration-Key: updated-value\nX-Source: whatsapp"}'
 ```
 
 ---
@@ -5164,11 +5169,11 @@ curl -X GET "http://localhost:3000/api/webhooks/session-01/abc123/logs?limit=val
 
 ## 🔐 Webhook HMAC Verification
 
-WA-AKG signs every webhook request with HMAC-SHA256 when you set a `secret` on your webhook. Receiver **must** verify signature before processing payload.
+ConectaFlow signs every webhook request with HMAC-SHA256 when you set a `secret` on your webhook. Receiver **must** verify signature before processing payload.
 
 ### How It Works
 
-When secret set, WA-AKG sends header:
+When secret set, ConectaFlow sends header:
 
 ```
 X-Webhook-Signature: sha256=<hex-encoded-hmac>
@@ -5183,7 +5188,7 @@ Signature = HMAC-SHA256(webhook-secret, raw-request-body).
 ```javascript
 import crypto from "crypto";
 
-const WEBHOOK_SECRET = "your-webhook-secret"; // same as set in WA-AKG
+const WEBHOOK_SECRET = "your-webhook-secret"; // same as set in ConectaFlow
 
 app.post("/webhook", express.raw({ type: "application/json" }), (req, res) => {
   const sig = req.headers["x-webhook-signature"];
@@ -5248,7 +5253,7 @@ import hashlib
 from flask import Flask, request, abort
 
 app = Flask(__name__)
-WEBHOOK_SECRET = b"your-webhook-secret"  # same as set in WA-AKG
+WEBHOOK_SECRET = b"your-webhook-secret"  # same as set in ConectaFlow
 
 @app.route("/webhook", methods=["POST"])
 def webhook():
@@ -5359,7 +5364,7 @@ func webhookHandler(w http.ResponseWriter, r *http.Request) {
 
 ### Testing Your Webhook Receiver
 
-WA-AKG includes built-in webhook test payload. You can also trigger test event manually:
+ConectaFlow includes a built-in webhook test payload. You can also trigger the test event manually:
 
 ```bash
 # Create webhook with secret
@@ -5382,7 +5387,7 @@ Then send a message to a WhatsApp session. Check your server logs — should sho
 
 ## 🎯 Webhook Payload Examples
 
-When WA-AKG sends a POST to your webhook URL, the body has this structure:
+When ConectaFlow sends a POST to your webhook URL, the body has this structure:
 
 ```json
 {
@@ -6804,7 +6809,7 @@ curl -X POST "http://localhost:3000/api/settings/system" \
 ```json
 {
   "id": "default",
-  "appName": "WA-AKG",
+  "appName": "ConectaFlow",
   "logoUrl": "https://example.com/logo.png",
   "timezone": "Asia/Jakarta"
 }
@@ -7269,9 +7274,11 @@ curl -X POST "http://localhost:3000/api/contacts/session-01/628123456789@s.whats
 | :--- | :--- | :--- | :--- |
 | `id` | string | No | — |
 | `sessionId` | string | No | — |
-| `url` | string | No | — |
+| `url` | string | No | HTTP or HTTPS destination URL. HTTP/private-network destinations require `allowLocal: true`. |
 | `events` | array of string | No | Events to subscribe to: message.received, message.sent, message.status, connection.update, group.update, contact.update, status.update, group.participant, message.deleted, message.edited or '*' |
 | `secret` | string | No | — |
+| `allowLocal` | boolean | No | Allow localhost, private-network, or other local destinations. Defaults to `false`. |
+| `requestHeaders` | string (multiline) | No | One `Header-Name: value` pair per line; sent with every webhook request. |
 
 **Example:**
 
@@ -7279,11 +7286,14 @@ curl -X POST "http://localhost:3000/api/contacts/session-01/628123456789@s.whats
 {
   "id": "string",
   "sessionId": "string",
-  "url": "string",
+  "url": "https://example.com/webhook",
   "events": [
-    "string"
+    "message.received",
+    "message.sent"
   ],
-  "secret": "string"
+  "secret": "string",
+  "allowLocal": false,
+  "requestHeaders": "X-Integration-Key: your-value\nX-Source: whatsapp"
 }
 ```
 

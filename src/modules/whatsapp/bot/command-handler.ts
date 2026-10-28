@@ -9,6 +9,8 @@ import os from "os";
 import { exec } from "child_process";
 import { promisify } from "util";
 import { logger } from "@/lib/logger";
+import { getBrandConfig } from "@/lib/branding-server";
+import { resolveBotDisplayName } from "@/lib/branding";
 
 const execAsync = promisify(exec);
 
@@ -37,7 +39,7 @@ const DEFAULT_CONFIG = {
     maxStickerDuration: 10,
     enablePing: true,
     enableUptime: true,
-    botName: "WA-AKG Bot",
+    botName: "",
     prefix: "#",
     removeBgApiKey: null as string | null
 };
@@ -96,6 +98,12 @@ export async function handleBotCommand(
     // Now check prefix with loaded config
     const prefix = config.prefix || "#";
     if (!text.startsWith(prefix)) return;
+
+    let operationalBrand: Awaited<ReturnType<typeof getBrandConfig>> | undefined;
+    const getOperationalBrand = async () => {
+        operationalBrand ??= await getBrandConfig();
+        return operationalBrand;
+    };
 
     // Verify Access Permissions
     const botMode = config.botMode || 'OWNER'; // Default to OWNER if missing
@@ -201,7 +209,7 @@ export async function handleBotCommand(
                 const isVideo = !!msgContent?.videoMessage;
 
                 if (!isImage && !isVideo) {
-                    await sock.sendMessage(remoteJid, { text: "❌ Please reply to an image/video or send media with caption #sticker" }, { quoted: msg });
+                    await sock.sendMessage(remoteJid, { text: "❌ Reply to an image/video or send media with caption " + prefix + "sticker" }, { quoted: msg });
                     return;
                 }
 
@@ -313,9 +321,11 @@ export async function handleBotCommand(
 
 
                     // Convert
+                    const brand = await getOperationalBrand();
+                    const botName = resolveBotDisplayName(config.botName, brand.name);
                     const sticker = new Sticker(buffer as Buffer, {
-                        pack: config.botName || "WA-AKG Bot",
-                        author: "By " + (config.botName || "WA-AKG Bot"),
+                        pack: botName,
+                        author: "By " + botName,
                         type: "full", // full, crop, circle
                         quality: 15 // Extreme quality reduction for size
                     });
@@ -335,7 +345,8 @@ export async function handleBotCommand(
 
             case "menu":
             case "help": {
-                const botName = config.botName || "WA-AKG Bot";
+                const brand = await getOperationalBrand();
+                const botName = resolveBotDisplayName(config.botName, brand.name);
                 const menu = `
 🤖 *${botName} Menu* 🤖
 
@@ -347,7 +358,7 @@ export async function handleBotCommand(
 • *${prefix}uptime*: Check Session Uptime
 • *${prefix}id*: Get Chat ID
 
-_Made with ❤️_
+_Powered by ${brand.name}_
 `;
                 await sock.sendMessage(remoteJid, { text: menu }, { quoted: msg });
                 break;

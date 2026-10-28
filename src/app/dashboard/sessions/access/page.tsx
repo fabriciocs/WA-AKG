@@ -180,8 +180,8 @@ export default function SessionAccessPage() {
     const getRoleIcon = (role: string) => {
         switch (role) {
             case "SUPERADMIN": return <ShieldAlert className="h-4 w-4 text-red-500" />;
-            case "STAFF": return <ShieldCheck className="h-4 w-4 text-blue-500" />;
-            default: return <User className="h-4 w-4 text-gray-500" />;
+            case "STAFF": return <ShieldCheck className="h-4 w-4 text-primary" />;
+            default: return <User className="h-4 w-4 text-muted-foreground" />;
         }
     };
 
@@ -238,7 +238,7 @@ export default function SessionAccessPage() {
                                 {sessions.map(s => (
                                     <SelectItem key={s.sessionId} value={s.sessionId}>
                                         <div className="flex items-center gap-2">
-                                            <span className={`h-2 w-2 rounded-full ${s.status === "CONNECTED" ? "bg-green-500" : "bg-gray-400"}`} />
+                                            <span className={`h-2 w-2 rounded-full ${s.status === "CONNECTED" ? "bg-emerald-500" : "bg-muted-foreground"}`} />
                                             {s.name} <span className="text-muted-foreground">({s.sessionId})</span>
                                         </div>
                                     </SelectItem>
@@ -316,7 +316,7 @@ export default function SessionAccessPage() {
                                         className="flex items-center justify-between p-3 rounded-lg border bg-card hover:bg-muted/30 transition-colors"
                                     >
                                         <div className="flex items-center gap-3 min-w-0">
-                                            <div className="h-9 w-9 rounded-full bg-gradient-to-br from-primary/20 to-blue-500/20 flex items-center justify-center text-sm font-bold text-primary flex-shrink-0">
+                                            <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center text-sm font-bold text-primary flex-shrink-0">
                                                 {entry.user.name?.charAt(0)?.toUpperCase() || entry.user.email.charAt(0).toUpperCase()}
                                             </div>
                                             <div className="min-w-0">

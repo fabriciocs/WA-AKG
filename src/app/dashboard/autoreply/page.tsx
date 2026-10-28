@@ -349,7 +349,7 @@ export default function AutoReplyPage() {
                                     {rule.response}
                                 </div>
                                 {rule.isMedia && (
-                                    <div className="mt-3 text-xs flex items-center gap-1 text-blue-600 bg-blue-50 px-2 py-1 rounded w-fit">
+                                    <div className="mt-3 text-xs flex items-center gap-1 text-primary bg-primary/10 px-2 py-1 rounded w-fit">
                                         <ImageIcon className="w-3 h-3" /> {t("includesMedia")}
                                     </div>
                                 )}

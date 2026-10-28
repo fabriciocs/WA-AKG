@@ -39,16 +39,17 @@ curl -s -X POST "$BASE_URL/autoreplies" \
     "matchType": "EXACT"
   }' | head -c 500
 
-# 5. Create Webhook (with Session ID)
-sep "5. POST /webhooks"
-curl -s -X POST "$BASE_URL/webhooks" \
+# 5. Create Webhook for the test session
+sep "5. POST /webhooks/{sessionId}"
+curl -s -X POST "$BASE_URL/webhooks/api-test-1" \
   -H "x-api-key: $API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
     "name": "Test Webhook",
     "url": "https://example.com/webhook",
-    "events": ["message.upsert"],
-    "sessionId": "api-test-1"
+    "events": ["message.received"],
+    "allowLocal": false,
+    "requestHeaders": "X-Test-Source: endpoint-script"
   }' | head -c 500
 
 # 6. Post Status (New Endpoint)

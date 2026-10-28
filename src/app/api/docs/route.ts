@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 import { getApiDocs } from "@/lib/swagger";
+import { getBrandConfig } from "@/lib/branding-server";
 import { isValidSwaggerAuthToken, SWAGGER_AUTH_COOKIE } from "@/lib/swagger-auth";
 import { getAuthenticatedUser } from "@/lib/api-auth";
 
@@ -19,6 +20,7 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const spec = getApiDocs();
+  const brand = await getBrandConfig();
+  const spec = getApiDocs(brand);
   return NextResponse.json(spec, { headers: { "Cache-Control": "no-store, max-age=0" } });
 }

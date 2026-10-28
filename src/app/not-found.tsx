@@ -2,6 +2,8 @@
 
 import React, { useSyncExternalStore } from 'react';
 import Link from '@/components/app-link';
+import { BrandMark } from '@/components/auth/brand-mark';
+import { useBranding } from '@/components/branding-provider';
 import { useAppRouter as useRouter } from '@/components/app-base-path';
 import { ArrowLeft, Home, FileQuestion } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -12,6 +14,7 @@ const getServerSnapshot = () => false;
 
 export default function NotFound() {
   const router = useRouter();
+  const brand = useBranding();
   const mounted = useSyncExternalStore(subscribeToHydration, getClientSnapshot, getServerSnapshot);
 
   if (!mounted) {
@@ -23,19 +26,21 @@ export default function NotFound() {
   }
 
   return (
-    <div className="flex-1 flex items-center justify-center p-4 sm:p-6 md:p-8 min-h-[80vh] w-full" suppressHydrationWarning>
+    <main aria-labelledby="not-found-title" className="flex min-h-[80vh] w-full flex-1 items-center justify-center p-4 sm:p-6 md:p-8" suppressHydrationWarning>
       <div className="w-full max-w-lg bg-background/50 dark:bg-background/20 backdrop-blur-3xl border border-primary/20 shadow-2xl shadow-primary/5 rounded-3xl p-8 sm:p-12 flex flex-col items-center relative overflow-hidden" suppressHydrationWarning>
         {/* Glow Effect behind the card content */}
         <div className="absolute inset-0 bg-gradient-to-b from-primary/10 to-transparent pointer-events-none" suppressHydrationWarning />
         
         {/* Decorative Icon */}
         <div className="relative w-24 h-24 bg-primary/10 text-primary rounded-full flex items-center justify-center mb-8 ring-8 ring-primary/5" suppressHydrationWarning>
-          <FileQuestion className="size-12 animate-pulse" />
+          <FileQuestion className="size-12 animate-pulse motion-reduce:animate-none" />
         </div>
 
         {/* Text Content */}
         <div className="relative text-center mb-10 w-full" suppressHydrationWarning>
-          <h1 className="text-7xl font-black tracking-tight text-primary font-mono mb-3 drop-shadow-sm" suppressHydrationWarning>
+          <BrandMark className="mb-5 h-12 w-12 rounded-xl text-sm" />
+          <p className="mb-2 text-sm font-semibold text-primary">{brand.name}</p>
+          <h1 id="not-found-title" className="text-7xl font-black tracking-tight text-primary font-mono mb-3 drop-shadow-sm" suppressHydrationWarning>
             404
           </h1>
           <h2 className="text-xl font-bold text-foreground mb-4" suppressHydrationWarning>
@@ -68,6 +73,6 @@ export default function NotFound() {
           </Button>
         </div>
       </div>
-    </div>
+    </main>
   );
 }

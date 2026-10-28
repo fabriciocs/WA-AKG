@@ -3,6 +3,8 @@ import type { AnyMessageContent, WASocket } from "@whiskeysockets/baileys";
 import { normalizeMessageContent } from "@whiskeysockets/baileys";
 import type { BotConfig } from "@prisma/client";
 import { logger } from "@/lib/logger";
+import { getBrandConfig } from "@/lib/branding-server";
+import { getDefaultBotName } from "@/lib/branding";
 
 const DEDUPE_TTL_MS = 5 * 60 * 1000;
 const processedMessages = new Map<string, number>();
@@ -100,12 +102,14 @@ export async function bindAutoReply(sock: WASocket, sessionId: string) {
 
         if (!config) {
             logger.warn("AutoReply", "No config found, creating default...");
+            const brand = await getBrandConfig();
             config = await prisma.botConfig.create({
                 data: {
                     sessionId: session.id,
                     enabled: true,
                     botMode: 'OWNER',
-                    autoReplyMode: 'ALL'
+                    autoReplyMode: 'ALL',
+                    botName: getDefaultBotName(brand.name)
                 }
             });
         }

@@ -14,6 +14,7 @@ import { useFormatter, useNow, useTranslations } from "next-intl";
 import { useSession } from "next-auth/react";
 import { toast } from "sonner";
 import { io } from "socket.io-client";
+import { useBranding } from "@/components/branding-provider";
 
 interface NavbarProps {
     appName?: string;
@@ -38,6 +39,8 @@ export function Navbar({ appName }: NavbarProps) {
     const [notifications, setNotifications] = useState<Notification[]>([]);
     const [unreadCount, setUnreadCount] = useState(0);
     const [isOpen, setIsOpen] = useState(false);
+    const brand = useBranding();
+    const resolvedAppName = brand.name || appName || "ConectaFlow";
 
     const fetchNotifications = async () => {
         try {
@@ -146,7 +149,7 @@ export function Navbar({ appName }: NavbarProps) {
     return (
         <header className="bg-background/40 backdrop-blur-2xl border-b border-border/50 h-16 flex items-center justify-between px-4 sm:px-6 sticky top-0 z-30 w-full shadow-sm">
             <div className="flex items-center gap-3">
-                <MobileNav appName={appName} />
+                <MobileNav appName={resolvedAppName} />
             </div>
 
             <div className="flex items-center gap-2 sm:gap-4 min-w-0">
@@ -157,7 +160,7 @@ export function Navbar({ appName }: NavbarProps) {
 
                 <Popover open={isOpen} onOpenChange={setIsOpen}>
                     <PopoverTrigger asChild>
-                        <Button variant="ghost" size="icon" className="relative hover:bg-muted/50 rounded-full h-10 w-10">
+                        <Button variant="ghost" size="icon" className="relative hover:bg-muted/50 rounded-full h-10 w-10" aria-label={t("title")} title={t("title")}>
                             <Bell className={`h-5 w-5 transition-colors ${unreadCount > 0 ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`} />
                             {unreadCount > 0 && (
                                 <span className="absolute top-1.5 right-2.5 h-2.5 w-2.5 bg-red-500 rounded-full animate-pulse border-2 border-background" />
@@ -185,9 +188,9 @@ export function Navbar({ appName }: NavbarProps) {
                         </div>
                         <div className="max-h-[300px] overflow-y-auto">
                             {notifications.length === 0 ? (
-                                <div className="min-h-[150px] flex flex-col items-center justify-center text-center p-4">
-                                    <div className="bg-slate-100 p-3 rounded-full mb-3">
-                                        <Inbox className="h-6 w-6 text-slate-400" />
+                                <div className="min-h-[150px] flex flex-col items-center justify-center text-center p-4" role="status">
+                                    <div className="bg-muted p-3 rounded-full mb-3">
+                                        <Inbox className="h-6 w-6 text-muted-foreground" />
                                     </div>
                                     <p className="text-sm font-medium">{t("emptyTitle")}</p>
                                     <p className="text-xs text-muted-foreground max-w-[180px]">{t("emptyDescription")}</p>
@@ -197,35 +200,46 @@ export function Navbar({ appName }: NavbarProps) {
                                     {notifications.map(n => (
                                         <div
                                             key={n.id}
-                                            className={`p-4 hover:bg-slate-50 transition-colors ${!n.read ? 'bg-blue-50/50' : ''}`}
+                                            className={`p-4 hover:bg-muted/50 transition-colors ${!n.read ? 'bg-primary/5' : ''}`}
                                         >
                                             <div className="flex justify-between items-start gap-3">
                                                 <div
-                                                    className="flex-1 space-y-1 cursor-pointer"
+                                                    className="flex-1 space-y-1 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-md"
+                                                    role="button"
+                                                    tabIndex={0}
+                                                    aria-label={`${n.title}: ${n.message}`}
+                                                    onKeyDown={(event) => {
+                                                        if (event.key === "Enter" || event.key === " ") {
+                                                            event.preventDefault();
+                                                            handleNotificationClick(n);
+                                                        }
+                                                    }}
                                                     onClick={() => handleNotificationClick(n)}
                                                 >
-                                                    <p className={`text-sm font-medium leading-none ${!n.read ? 'text-blue-700' : 'text-slate-900'}`}>
+                                                    <p className={`text-sm font-medium leading-none ${!n.read ? 'text-primary' : 'text-foreground'}`}>
                                                         {n.title}
                                                     </p>
                                                     <p className="text-xs text-muted-foreground whitespace-normal break-words">
                                                         {n.message}
                                                     </p>
-                                                    <p className="text-[10px] text-slate-400">
+                                                    <p className="text-[10px] text-muted-foreground">
                                                         {format.relativeTime(new Date(n.createdAt), now)}
                                                     </p>
                                                 </div>
                                                 <div className="flex items-center gap-2">
-                                                    {!n.read && <span className="h-2 w-2 bg-blue-500 rounded-full flex-shrink-0" />}
+                                                    {!n.read && <span className="h-2 w-2 bg-primary rounded-full flex-shrink-0" />}
                                                     <Button
                                                         variant="ghost"
                                                         size="icon"
-                                                        className="h-8 w-8"
+                                                        className="h-10 w-10"
+                                                        aria-label={t("deleteTitle")}
+                                                        title={t("deleteTitle")}
                                                         onClick={(e) => {
                                                             e.stopPropagation();
                                                             deleteNotification(n.id);
                                                         }}
                                                     >
-                                                        <Trash2 className="h-4 w-4 text-red-500" />
+                                                        <Trash2 className="h-4 w-4 text-destructive" />
                                                     </Button>
                                                 </div>
                                             </div>

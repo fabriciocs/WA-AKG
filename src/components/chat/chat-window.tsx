@@ -489,7 +489,7 @@ export function ChatWindow({ sessionId, jid, name, onBack }: ChatWindowProps) {
                                         {msg.quoted && (
                                             <div 
                                                 className={cn(
-                                                    "mb-1.5 px-2 py-1 rounded-lg border-l-4 text-xs select-none cursor-pointer text-left bg-muted/40",
+                                                    "mb-1.5 px-2 py-1 rounded-lg border border-border/50 text-xs select-none cursor-pointer text-left bg-muted/40",
                                                     msg.fromMe 
                                                         ? "border-primary-foreground/30 bg-primary-foreground/10 text-primary-foreground/90 hover:bg-primary-foreground/15" 
                                                         : "border-primary bg-muted text-muted-foreground hover:bg-muted/60"
@@ -595,7 +595,7 @@ export function ChatWindow({ sessionId, jid, name, onBack }: ChatWindowProps) {
             {/* New message badge */}
             {newMsgBadge && (
                 <button onClick={() => { scrollToBottom(true); setNewMsgBadge(false); }}
-                    className="absolute bottom-[90px] right-6 z-20 flex items-center gap-2 rounded-full bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground shadow-lg hover:bg-primary/90 transition-all animate-bounce">
+                    className="absolute bottom-[90px] right-6 z-20 flex items-center gap-2 rounded-full bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground shadow-lg hover:bg-primary/90 transition-all motion-reduce:transition-none">
                     <ArrowDown className="h-4 w-4" /> {t("newMessagesBadge")}
                 </button>
             )}
@@ -635,7 +635,7 @@ export function ChatWindow({ sessionId, jid, name, onBack }: ChatWindowProps) {
                     <div className="flex-1">
                         {/* Reply preview bar */}
                         {replyingTo && (
-                            <div className="mb-2 flex items-start gap-2 px-2 py-1.5 rounded-lg bg-muted/50 border-l-2 border-amber-500 text-xs animate-in slide-in-from-bottom-1 overflow-hidden">
+                            <div className="mb-2 flex items-start gap-2 px-2 py-1.5 rounded-lg bg-muted/50 border border-amber-500/30 text-xs animate-in slide-in-from-bottom-1 overflow-hidden motion-reduce:animate-none">
                                 <div className="flex-1 min-w-0 overflow-hidden">
                                     <span className="font-semibold text-amber-500 block text-[10px]">{t("replyingTo", { name: replyingTo.fromMe ? t("you") : (replyingTo.pushName || jid.split('@')[0]) })}</span>
                                     <span className="text-muted-foreground truncate block w-full">{replyingTo.content || `[${replyingTo.type}]`}</span>

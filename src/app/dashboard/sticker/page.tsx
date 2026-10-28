@@ -4,6 +4,7 @@ import { apiUrl } from "@/lib/api-url";
 import { useState } from "react";
 import Image from "next/image";
 import { useTranslations } from "next-intl";
+import { useBranding } from "@/components/branding-provider";
 
 const passthroughMediaLoader = ({ src }: { src: string }) => src;
 import { Button } from "@/components/ui/button";
@@ -18,6 +19,7 @@ import { SessionGuard } from "@/components/dashboard/session-guard";
 
 export default function StickerPage() {
     const t = useTranslations("sticker");
+    const brand = useBranding();
     const { sessionId } = useSession();
     const [target, setTarget] = useState("");
     const [file, setFile] = useState<File | null>(null);
@@ -25,7 +27,7 @@ export default function StickerPage() {
     const [loading, setLoading] = useState(false);
 
     // Advanced options
-    const [pack, setPack] = useState("WA-AKG");
+    const [pack, setPack] = useState(brand.name);
     const [author, setAuthor] = useState("User");
     const [quality, setQuality] = useState(50);
     const [type, setType] = useState("full");
@@ -104,8 +106,8 @@ export default function StickerPage() {
                                 <div className="flex items-center justify-center w-full">
                                     <label htmlFor="dropzone-file" className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer bg-slate-50 hover:bg-slate-100">
                                         <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                                            <ImageIcon className="w-8 h-8 mb-2 text-gray-500" />
-                                            <p className="text-sm text-gray-500"><span className="font-semibold">{t("clickToUpload")}</span> {t("orDragDrop")}</p>
+                                            <ImageIcon className="w-8 h-8 mb-2 text-muted-foreground" />
+                                            <p className="text-sm text-muted-foreground"><span className="font-semibold text-foreground">{t("clickToUpload")}</span> {t("orDragDrop")}</p>
                                         </div>
                                         <input id="dropzone-file" type="file" className="hidden" accept="image/*" onChange={handleFileChange} />
                                     </label>

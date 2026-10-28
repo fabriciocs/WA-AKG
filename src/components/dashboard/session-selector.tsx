@@ -16,7 +16,7 @@ export function SessionSelector() {
             <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground hidden lg:inline">{t("label")}</span>
             <div className="w-[140px] sm:w-[200px]">
                 <Select value={sessionId} onValueChange={setSessionId} disabled={loading || sessions.length === 0}>
-                    <SelectTrigger className="h-9 border border-border/60 bg-background/50 hover:bg-muted/30 transition-colors rounded-xl shadow-sm focus:ring-1 focus:ring-primary/20">
+                    <SelectTrigger aria-label={t("label")} className="h-10 border border-border/60 bg-background/50 hover:bg-muted/30 transition-colors rounded-xl shadow-sm focus:ring-1 focus:ring-primary/20">
                         <SelectValue placeholder={loading ? t("loading") : t("placeholder")}>
                             {selectedSession ? (
                                 <div className="flex items-center gap-2 text-left">
@@ -56,7 +56,7 @@ export function SessionSelector() {
                     </SelectContent>
                 </Select>
             </div>
-            <Button variant="ghost" size="icon" className="h-9 w-9 hover:bg-muted/50 rounded-xl" onClick={refreshSessions} title={t("refresh")} disabled={loading}>
+            <Button variant="ghost" size="icon" className="h-10 w-10 hover:bg-muted/50 rounded-xl" onClick={refreshSessions} title={t("refresh")} aria-label={t("refresh")} disabled={loading}>
                 <RefreshCw className={`h-4 w-4 text-muted-foreground hover:text-foreground ${loading ? 'animate-spin' : ''}`} />
             </Button>
         </div>

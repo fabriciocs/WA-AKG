@@ -1,12 +1,24 @@
 import { OAuthScope } from "./types";
+import { DEFAULT_BRAND_NAME } from "@/lib/branding";
+import { getBrandConfig } from "@/lib/branding-server";
 
-export const SCOPE_DESCRIPTIONS: Record<string, string> = {
-  [OAuthScope.API_READ]: "Read WA-AKG API resources",
-  [OAuthScope.API_WRITE]: "Create and update WA-AKG API resources",
-  [OAuthScope.MCP_READ]: "Use read-only MCP tools",
-  [OAuthScope.MCP_WRITE]: "Use enabled write MCP tools",
-  [OAuthScope.SESSIONS_READ]: "Read authorized WhatsApp sessions",
-};
+export function getScopeDescriptions(brandName = DEFAULT_BRAND_NAME): Record<string, string> {
+  const name = brandName.trim() || DEFAULT_BRAND_NAME;
+  return {
+    [OAuthScope.API_READ]: "Read " + name + " API resources",
+    [OAuthScope.API_WRITE]: "Create and update " + name + " API resources",
+    [OAuthScope.MCP_READ]: "Use read-only MCP tools",
+    [OAuthScope.MCP_WRITE]: "Use enabled write MCP tools",
+    [OAuthScope.SESSIONS_READ]: "Read authorized WhatsApp sessions",
+  };
+}
+
+export const SCOPE_DESCRIPTIONS: Record<string, string> = getScopeDescriptions();
+
+export async function getRuntimeScopeDescriptions(): Promise<Record<string, string>> {
+  const brand = await getBrandConfig();
+  return getScopeDescriptions(brand.name);
+}
 
 export function parseScopeString(scope: string): string[] {
   return [...new Set(scope.trim().split(/\s+/).filter(Boolean))];

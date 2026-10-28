@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Trash2, Plus, Copy, RefreshCw, Webhook, Key, Eye, EyeOff, Play, History, Loader2 } from "lucide-react";
 import { toast } from "sonner";
@@ -37,6 +38,8 @@ interface WebhookConfig {
     name: string;
     url: string;
     secret?: string;
+    allowLocal?: boolean;
+    requestHeaders?: string | null;
     sessionId?: string;
     events: string[];
     filters?: WebhookFilters | null;
@@ -79,6 +82,8 @@ interface WebhookPayload {
     events: string[];
     filters: WebhookFilters;
     secret?: string;
+    allowLocal: boolean;
+    requestHeaders: string;
 }
 
 const AVAILABLE_EVENTS: EventDef[] = [
@@ -116,6 +121,8 @@ export default function WebhooksPage() {
     const [newName, setNewName] = useState("");
     const [newUrl, setNewUrl] = useState("");
     const [newSecret, setNewSecret] = useState("");
+    const [newAllowLocal, setNewAllowLocal] = useState(false);
+    const [newRequestHeaders, setNewRequestHeaders] = useState("");
     const [newEvents, setNewEvents] = useState<string[]>(["message.received", "message.sent"]);
     const [newFilters, setNewFilters] = useState<WebhookFilters>({});
 
@@ -223,6 +230,8 @@ export default function WebhooksPage() {
     const [editName, setEditName] = useState("");
     const [editUrl, setEditUrl] = useState("");
     const [editSecret, setEditSecret] = useState("");
+    const [editAllowLocal, setEditAllowLocal] = useState(false);
+    const [editRequestHeaders, setEditRequestHeaders] = useState("");
     const [editEvents, setEditEvents] = useState<string[]>([]);
     const [editFilters, setEditFilters] = useState<WebhookFilters>({});
 
@@ -231,6 +240,8 @@ export default function WebhooksPage() {
         setEditName(webhook.name);
         setEditUrl(webhook.url);
         setEditSecret(webhook.secret || "");
+        setEditAllowLocal(webhook.allowLocal === true);
+        setEditRequestHeaders(webhook.requestHeaders || "");
         setEditEvents(webhook.events);
         setEditFilters(webhook.filters || {});
         setIsEditOpen(true);
@@ -246,7 +257,14 @@ export default function WebhooksPage() {
             return;
         }
         try {
-            const payload: WebhookPayload = { name: newName, url: newUrl, events: newEvents, filters: newFilters };
+            const payload: WebhookPayload = {
+                name: newName,
+                url: newUrl,
+                events: newEvents,
+                filters: newFilters,
+                allowLocal: newAllowLocal,
+                requestHeaders: newRequestHeaders,
+            };
             if (newSecret) payload.secret = newSecret;
             const res = await fetch(apiUrl(`/api/webhooks/${sessionId}`), {
                 method: "POST",
@@ -259,6 +277,8 @@ export default function WebhooksPage() {
                 setNewName("");
                 setNewUrl("");
                 setNewSecret("");
+                setNewAllowLocal(false);
+                setNewRequestHeaders("");
                 setNewEvents(["message.received", "message.sent"]);
                 setNewFilters({});
                 fetchWebhooks();
@@ -279,7 +299,14 @@ export default function WebhooksPage() {
         try {
             const webhook = webhooks.find(w => w.id === editingId);
             const targetSessionId = webhook?.sessionId || sessionId;
-            const payload: WebhookPayload = { name: editName, url: editUrl, events: editEvents, filters: editFilters };
+            const payload: WebhookPayload = {
+                name: editName,
+                url: editUrl,
+                events: editEvents,
+                filters: editFilters,
+                allowLocal: editAllowLocal,
+                requestHeaders: editRequestHeaders,
+            };
             if (editSecret) payload.secret = editSecret;
             const res = await fetch(apiUrl(`/api/webhooks/${targetSessionId}/${editingId}`), {
                 method: "PUT",
@@ -461,12 +488,32 @@ export default function WebhooksPage() {
                                         </div>
                                         <div className="space-y-2">
                                             <Label>{t("webhookUrl")}</Label>
-                                            <Input placeholder="https://example.com/webhook" value={newUrl} onChange={(e) => setNewUrl(e.target.value)} />
+                                            <Input placeholder={t("urlPlaceholder")} value={newUrl} onChange={(e) => setNewUrl(e.target.value)} />
                                         </div>
                                     </div>
                                     <div className="space-y-2">
                                         <Label>{t("secretKey")}</Label>
                                         <Input placeholder={t("secretPlaceholder")} value={newSecret} onChange={(e) => setNewSecret(e.target.value)} />
+                                    </div>
+                                    <div className="space-y-3 rounded-md border p-3">
+                                        <div className="flex items-center justify-between gap-4">
+                                            <div>
+                                                <Label>{t("allowLocalLabel")}</Label>
+                                                <p className="text-xs text-muted-foreground">{t("allowLocalDescription")}</p>
+                                            </div>
+                                            <Switch checked={newAllowLocal} onCheckedChange={setNewAllowLocal} />
+                                        </div>
+                                        {newAllowLocal && <p className="text-sm text-amber-700 dark:text-amber-400">{t("localDestinationWarning")}</p>}
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label>{t("requestHeadersLabel")}</Label>
+                                        <Textarea
+                                            rows={5}
+                                            placeholder={t("requestHeadersPlaceholder")}
+                                            value={newRequestHeaders}
+                                            onChange={(e) => setNewRequestHeaders(e.target.value)}
+                                        />
+                                        <p className="text-xs text-muted-foreground">{t("requestHeadersDescription")}</p>
                                     </div>
                                     <AdvancedFilterFields value={newFilters} onChange={setNewFilters} t={t} />
                                     <div className="space-y-2">
@@ -630,12 +677,32 @@ export default function WebhooksPage() {
                             </div>
                             <div className="space-y-2">
                                 <Label>{t("webhookUrl")}</Label>
-                                <Input placeholder="https://example.com/webhook" value={editUrl} onChange={(e) => setEditUrl(e.target.value)} />
+                                <Input placeholder={t("urlPlaceholder")} value={editUrl} onChange={(e) => setEditUrl(e.target.value)} />
                             </div>
                         </div>
                         <div className="space-y-2">
                             <Label>{t("secretKey")}</Label>
                             <Input placeholder={t("secretPlaceholder")} value={editSecret} onChange={(e) => setEditSecret(e.target.value)} />
+                        </div>
+                        <div className="space-y-3 rounded-md border p-3">
+                            <div className="flex items-center justify-between gap-4">
+                                <div>
+                                    <Label>{t("allowLocalLabel")}</Label>
+                                    <p className="text-xs text-muted-foreground">{t("allowLocalDescription")}</p>
+                                </div>
+                                <Switch checked={editAllowLocal} onCheckedChange={setEditAllowLocal} />
+                            </div>
+                            {editAllowLocal && <p className="text-sm text-amber-700 dark:text-amber-400">{t("localDestinationWarning")}</p>}
+                        </div>
+                        <div className="space-y-2">
+                            <Label>{t("requestHeadersLabel")}</Label>
+                            <Textarea
+                                rows={5}
+                                placeholder={t("requestHeadersPlaceholder")}
+                                value={editRequestHeaders}
+                                onChange={(e) => setEditRequestHeaders(e.target.value)}
+                            />
+                            <p className="text-xs text-muted-foreground">{t("requestHeadersDescription")}</p>
                         </div>
                         <AdvancedFilterFields value={editFilters} onChange={setEditFilters} t={t} />
                         <div className="space-y-2">

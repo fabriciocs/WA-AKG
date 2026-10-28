@@ -123,18 +123,21 @@ curl -X POST http://localhost:3000/api/scheduler \
 ### 8. Create a Webhook
 
 ```bash
-curl -X POST http://localhost:3000/api/webhooks \
+curl -X POST http://localhost:3000/api/webhooks/session-name \
   -H "X-API-Key: your-api-key" \
   -H "Content-Type: application/json" \
   -d '{
     "name": "My Webhook",
     "url": "https://your-server.com/webhook",
     "secret": "webhook-secret",
-    "sessionId": "session-name",
+    "allowLocal": false,
+    "requestHeaders": "X-Integration-Key: your-value\nX-Source: whatsapp",
     "events": ["message.received", "message.sent"],
     "filters": {"fromMe": false, "isGroup": true, "chatType": "GROUP"}
   }'
 ```
+
+Use an `http://` or `https://` URL. Set `allowLocal` to `true` only for localhost or private-network destinations; keep it `false` for public HTTPS endpoints. `requestHeaders` is a multiline string with one `Header-Name: value` pair per line.
 
 ### 9. Get Chat List
 

@@ -2,6 +2,7 @@ import { NextResponse, NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAuthenticatedUser, isSessionOwner } from "@/lib/api-auth";
 import { testWebhook } from "@/lib/webhook";
+import { revealWebhookRequestHeaders } from "@/lib/webhook-headers";
 
 export async function POST(
     request: NextRequest,
@@ -49,7 +50,10 @@ export async function POST(
         return NextResponse.json({ status: false, message: "Webhook not found", error: "Webhook not found" }, { status: 404 });
     }
 
-    const result = await testWebhook(webhook.id, webhook.url, webhook.secret);
+    const result = await testWebhook(webhook.id, webhook.url, webhook.secret, {
+        allowLocal: webhook.allowLocal,
+        requestHeaders: revealWebhookRequestHeaders(webhook.requestHeaders)
+    });
 
     return NextResponse.json({
         status: true,

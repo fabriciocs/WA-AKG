@@ -8,8 +8,20 @@ import { resolveToPhoneJidBySessionId as resolveToPhoneJid } from "./jid-utils";
 import { logger } from "./logger";
 import { waManager } from "@/modules/whatsapp/manager";
 import { matchesWebhookFilters, type WebhookFilters } from "./webhook-filters";
-import { safeRequest, type SafeHttpResponse } from "./security";
+import {
+    mergeRequestHeaders,
+    parseRequestHeaders,
+    safeRequest,
+    type SafeHttpResponse,
+} from "./security";
 import { sanitizeWebhookLog } from "./webhook-redaction";
+import { revealWebhookRequestHeaders } from "./webhook-headers";
+
+export {
+    mergeRequestHeaders,
+    parseRequestHeaders,
+    type ParsedRequestHeaders,
+} from "./security";
 
 // Event types that can trigger webhooks
 export type WebhookEventType =
@@ -50,6 +62,12 @@ interface QuotedWebhookMessage {
     content: string;
     caption?: string;
     fileUrl: string | null;
+}
+
+/** Optional transport settings supplied by webhook configuration consumers. */
+export interface WebhookRequestOptions {
+    requestHeaders?: string | null;
+    allowLocal?: boolean;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -132,8 +150,17 @@ export async function dispatchWebhook(
             }
             if (!matchesWebhookFilters(webhook.filters as unknown as WebhookFilters | null, payload)) continue;
 
+            // Keep transport configuration optional so legacy webhook rows remain compatible.
+            const configuredWebhook = webhook as typeof webhook & {
+                requestHeaders?: string | null;
+                allowLocal?: boolean;
+            };
+
             // Send webhook in background
-            sendWebhookRequest(webhook.url, payload, webhook.secret, webhook.id).catch(err => {
+            sendWebhookRequest(webhook.url, payload, webhook.secret, webhook.id, {
+                requestHeaders: configuredWebhook.requestHeaders,
+                allowLocal: configuredWebhook.allowLocal === true,
+            }).catch(err => {
                 logger.error("Webhook", `Webhook ${webhook.id} failed:`, err);
             });
         }
@@ -169,36 +196,61 @@ function jsonReplacer(_key: string, value: unknown): unknown {
 }
 
 /**
- * Send HTTP POST request to webhook endpoint
- * Records delivery log to database
+ * Builds outbound webhook headers. User headers are parsed before merging and
+ * transport-owned Content-Type, User-Agent and HMAC headers always win.
  */
-async function sendWebhookRequest(url: string, payload: WebhookPayload, secret?: string | null, webhookId?: string) {
-    const startedAt = Date.now();
-    const body = JSON.stringify(payload, jsonReplacer);
-
-    const headers: Record<string, string> = {
+export function buildWebhookRequestHeaders(
+    requestHeaders: string | null | undefined,
+    secret: string | null | undefined,
+    body: string,
+): Record<string, string> {
+    const configured = parseRequestHeaders(revealWebhookRequestHeaders(requestHeaders));
+    const internal: Record<string, string> = {
         "Content-Type": "application/json",
-        "User-Agent": "WA-AKG-Webhook/1.0"
+        "User-Agent": "WA-AKG-Webhook/1.0",
     };
 
-    // Add HMAC signature if secret is provided
     if (secret) {
         const signature = crypto
             .createHmac("sha256", secret)
             .update(body)
             .digest("hex");
-        headers["X-Webhook-Signature"] = `sha256=${signature}`;
+        internal["X-Webhook-Signature"] = `sha256=${signature}`;
     }
+
+    return mergeRequestHeaders(configured, internal);
+}
+
+/**
+ * Send HTTP POST request to webhook endpoint
+ * Records delivery log to database
+ */
+async function sendWebhookRequest(
+    url: string,
+    payload: WebhookPayload,
+    secret?: string | null,
+    webhookId?: string,
+    options: WebhookRequestOptions = {},
+) {
+    const startedAt = Date.now();
+    const body = JSON.stringify(payload, jsonReplacer);
+
+    // Keep internal headers available if parsing user configuration fails, so
+    // the failure log cannot accidentally contain unvalidated header input.
+    let headers = buildWebhookRequestHeaders(undefined, secret, body);
 
     let response: SafeHttpResponse;
     let responseBody: string | undefined;
     let errorMessage: string | undefined;
 
     try {
+        headers = buildWebhookRequestHeaders(options.requestHeaders, secret, body);
         response = await safeRequest(url, {
             method: "POST",
             headers,
             body,
+            allowHttp: true,
+            allowLocal: options.allowLocal === true,
             timeoutMs: 10000,
             maxBytes: 1024 * 1024
         });
@@ -306,7 +358,12 @@ async function cleanupOldLogs(webhookId: string) {
  * Send a test webhook to verify endpoint works
  * Returns result without throwing
  */
-export async function testWebhook(webhookId: string, url: string, secret?: string | null): Promise<{
+export async function testWebhook(
+    webhookId: string,
+    url: string,
+    secret?: string | null,
+    options: WebhookRequestOptions = {},
+): Promise<{
     success: boolean;
     statusCode?: number;
     responseBody?: string;
@@ -326,24 +383,18 @@ export async function testWebhook(webhookId: string, url: string, secret?: strin
     };
 
     const body = JSON.stringify(testPayload, jsonReplacer);
-    const headers: Record<string, string> = {
-        "Content-Type": "application/json",
-        "User-Agent": "WA-AKG-Webhook/1.0"
-    };
-
-    if (secret) {
-        const signature = crypto
-            .createHmac("sha256", secret)
-            .update(body)
-            .digest("hex");
-        headers["X-Webhook-Signature"] = `sha256=${signature}`;
-    }
+    // Keep internal headers available if parsing user configuration fails, so
+    // the failure log cannot accidentally contain unvalidated header input.
+    let headers = buildWebhookRequestHeaders(undefined, secret, body);
 
     try {
+        headers = buildWebhookRequestHeaders(options.requestHeaders, secret, body);
         const response = await safeRequest(url, {
             method: "POST",
             headers,
             body,
+            allowHttp: true,
+            allowLocal: options.allowLocal === true,
             timeoutMs: 15000,
             maxBytes: 1024 * 1024
         });

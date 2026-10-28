@@ -134,7 +134,7 @@ export function SessionManager({ user }: { user?: { id: string } | null }) {
     return (
         <div className="space-y-8">
             {/* Create New Session Card */}
-            <Card className="bg-slate-50 border-dashed border-2">
+            <Card className="bg-muted/30 border-dashed border-2">
                 <CardHeader>
                     <CardTitle className="text-lg flex items-center gap-2">
                         <Plus className="h-5 w-5" /> {t("createTitle")}
@@ -174,13 +174,13 @@ export function SessionManager({ user }: { user?: { id: string } | null }) {
             {/* Sessions Table Card */}
             <div>
                 {sessions.length === 0 ? (
-                    <div className="text-center py-10 text-muted-foreground bg-slate-50 dark:bg-slate-900 rounded-lg border border-border/50">
+                    <div className="text-center py-10 text-muted-foreground bg-muted/30 rounded-lg border border-border/50" role="status">
                         {t("empty")}
                     </div>
                 ) : (
                     <Card className="glass-panel border-border/50 shadow-sm overflow-hidden">
                         <CardHeader className="pb-3 pt-5 px-5">
-                            <CardTitle className="text-base font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+                            <CardTitle className="text-base font-bold text-foreground flex items-center gap-2">
                                 {t("activeTitle", { count: sessions.length })}
                             </CardTitle>
                             <CardDescription>
@@ -201,7 +201,7 @@ export function SessionManager({ user }: { user?: { id: string } | null }) {
                                     {sessions.map(session => (
                                         <TableRow key={session.id} className="hover:bg-muted/20 dark:hover:bg-muted/5 transition-colors">
                                             <TableCell className="px-5 py-3 font-medium">
-                                                <div className="font-semibold text-slate-800 dark:text-slate-200 text-sm">{session.name}</div>
+                                                <div className="font-semibold text-foreground text-sm">{session.name}</div>
                                                 <div className="text-[11px] text-muted-foreground font-mono mt-0.5">{session.sessionId}</div>
                                             </TableCell>
                                             <TableCell className="py-3">
@@ -210,7 +210,7 @@ export function SessionManager({ user }: { user?: { id: string } | null }) {
                                                     className={`text-[10px] font-semibold transition-all px-2 py-0.5 shrink-0 inline-flex items-center ${
                                                         session.status === 'CONNECTED' 
                                                             ? 'bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 hover:bg-emerald-500/20' 
-                                                            : 'bg-slate-100 text-slate-600 border border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700 hover:bg-slate-100'
+                                                            : 'bg-muted text-muted-foreground border border-border hover:bg-muted/80'
                                                     }`}
                                                 >
                                                     <span className={`h-1.5 w-1.5 rounded-full mr-1.5 ${
@@ -222,8 +222,8 @@ export function SessionManager({ user }: { user?: { id: string } | null }) {
                                             <TableCell className="py-3">
                                                 {session.user ? (
                                                     <div className="leading-tight">
-                                                        <div className="font-semibold text-slate-700 dark:text-slate-300 text-xs">{session.user.name || t("noName")}</div>
-                                                        <div className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">{session.user.email}</div>
+                                                        <div className="font-semibold text-foreground text-xs">{session.user.name || t("noName")}</div>
+                                                        <div className="text-[10px] text-muted-foreground mt-0.5">{session.user.email}</div>
                                                     </div>
                                                 ) : (
                                                     <span className="text-xs text-muted-foreground/50">-</span>
@@ -234,7 +234,7 @@ export function SessionManager({ user }: { user?: { id: string } | null }) {
                                                     <Button 
                                                         variant="outline" 
                                                         size="sm" 
-                                                        className="h-8 px-2.5 text-xs rounded-lg hover:bg-primary/5 transition-colors border-border/50"
+                                                        className="h-10 px-2.5 text-xs rounded-lg hover:bg-primary/5 transition-colors border-border/50"
                                                         onClick={() => router.push(`/dashboard/sessions/access?session=${session.sessionId}`)}
                                                     >
                                                         <UserPlus className="h-3.5 w-3.5 mr-1.5 text-muted-foreground" /> {t("share")}
@@ -242,7 +242,7 @@ export function SessionManager({ user }: { user?: { id: string } | null }) {
                                                     <Button 
                                                         variant="outline" 
                                                         size="sm" 
-                                                        className="h-8 px-2.5 text-xs rounded-lg hover:bg-primary/5 transition-colors border-border/50"
+                                                        className="h-10 px-2.5 text-xs rounded-lg hover:bg-primary/5 transition-colors border-border/50"
                                                         onClick={() => handleManageSession(session.sessionId)}
                                                     >
                                                         <Settings className="h-3.5 w-3.5 mr-1.5 text-muted-foreground" /> {t("manage")}

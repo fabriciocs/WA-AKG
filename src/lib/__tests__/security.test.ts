@@ -1,6 +1,14 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { isPrivateOrReservedIp, safeRequest, validateSafeUrl } from "../security";
+import {
+    isExplicitlyAllowedLocalIp,
+    isPrivateOrReservedIp,
+    mergeRequestHeaders,
+    parseRequestHeaders,
+    safeRequest,
+    validateSafeUrl,
+} from "../security";
+import { sanitizeWebhookRequestHeaders } from "../webhook-redaction";
 
 const publicAddress = "93.184.216.34";
 
@@ -81,4 +89,88 @@ test("enforces bounded response bodies even with an injected transport", async (
         lookup: async () => [{ address: publicAddress, family: 4 }],
         request: async () => ({ status: 200, statusText: "OK", headers: new Headers(), body: Buffer.from("12345") })
     }), /size limit/);
+});
+
+test("supports HTTP and explicitly opted-in loopback and RFC1918 destinations", async () => {
+    assert.equal((await validateSafeUrl("http://hooks.example.test/event", { allowHttp: true }, async () => [
+        { address: publicAddress, family: 4 },
+    ])).valid, true);
+
+    assert.equal((await validateSafeUrl("http://127.0.0.1:8080/event", { allowHttp: true })).valid, false);
+    assert.equal((await validateSafeUrl("http://127.0.0.1:8080/event", { allowHttp: true, allowLocal: true })).valid, true);
+    assert.equal((await validateSafeUrl("http://192.168.1.10/event", { allowHttp: true, allowLocal: true })).valid, true);
+    assert.equal((await validateSafeUrl("http://localhost/event", { allowHttp: true, allowLocal: true }, async () => [
+        { address: "127.0.0.1", family: 4 },
+    ])).valid, true);
+
+    assert.equal(isExplicitlyAllowedLocalIp("127.0.0.1"), true);
+    assert.equal(isExplicitlyAllowedLocalIp("192.168.1.10"), true);
+    assert.equal(isExplicitlyAllowedLocalIp("169.254.169.254"), false);
+});
+
+test("keeps metadata, link-local, multicast and reserved destinations blocked with local opt-in", async () => {
+    for (const [address, urlAddress] of [[
+        "169.254.169.254", "169.254.169.254",
+    ], [
+        "224.0.0.1", "224.0.0.1",
+    ], [
+        "0.0.0.0", "0.0.0.0",
+    ], [
+        "fc00::1", "[fc00::1]",
+    ]] as const) {
+        const validation = await validateSafeUrl(`http://${urlAddress}/event`, { allowHttp: true, allowLocal: true });
+        assert.equal(validation.valid, false, `${address} must remain blocked`);
+    }
+});
+
+test("parses bounded multiline request headers and rejects unsafe configuration", () => {
+    assert.deepEqual(parseRequestHeaders(
+        "Authorization: Bearer token\nCookie: session=opaque\nX-API-Key: api-key",
+    ), {
+        Authorization: "Bearer token",
+        Cookie: "session=opaque",
+        "X-API-Key": "api-key",
+    });
+
+    assert.throws(() => parseRequestHeaders("X-Trace: one\n x-trace: two"), /Duplicate/);
+    assert.throws(() => parseRequestHeaders("Authorization: token\r\nX-Trace: value"), /CRLF/);
+    assert.throws(() => parseRequestHeaders("Content-Type: text/plain"), /controlled/);
+    assert.throws(() => parseRequestHeaders("Bad Header: value"), /Invalid HTTP header name/);
+    assert.throws(() => parseRequestHeaders(42), /text value/);
+
+    assert.deepEqual(mergeRequestHeaders(
+        { authorization: "user", "X-Trace": "trace" },
+        { "Content-Type": "application/json", "User-Agent": "WA-AKG-Webhook/1.0" },
+    ), {
+        authorization: "user",
+        "X-Trace": "trace",
+        "Content-Type": "application/json",
+        "User-Agent": "WA-AKG-Webhook/1.0",
+    });
+
+    assert.deepEqual(mergeRequestHeaders(
+        { "content-type": "user-value", "x-webhook-signature": "user-value" },
+        { "Content-Type": "application/json", "X-Webhook-Signature": "internal-value" },
+    ), {
+        "Content-Type": "application/json",
+        "X-Webhook-Signature": "internal-value",
+    });
+});
+
+test("redacts credential-bearing webhook headers without exposing values", () => {
+    const redacted = sanitizeWebhookRequestHeaders({
+        Authorization: "Bearer secret-token",
+        Cookie: "session=secret-cookie",
+        "X-API-Key": "secret-api-key",
+        "X-Trace": "safe-value",
+        "X-Webhook-Signature": "sha256=secret-hmac",
+    });
+
+    assert.deepEqual(redacted, {
+        Authorization: "[REDACTED]",
+        Cookie: "[REDACTED]",
+        "X-API-Key": "[REDACTED]",
+        "X-Trace": "safe-value",
+    });
+    assert.equal(JSON.stringify(redacted).includes("secret"), false);
 });

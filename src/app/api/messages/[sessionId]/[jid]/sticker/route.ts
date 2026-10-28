@@ -2,6 +2,9 @@ import { NextResponse, NextRequest } from "next/server";
 import { waManager } from "@/modules/whatsapp/manager";
 import { getAuthenticatedUser, canAccessSession } from "@/lib/api-auth";
 import { fireSentWebhook } from "@/lib/webhook";
+import { prisma } from "@/lib/prisma";
+import { getBrandConfig } from "@/lib/branding-server";
+import { resolveBotDisplayName } from "@/lib/branding";
 import Sticker from "wa-sticker-formatter";
 
 // POST: Send sticker from image
@@ -39,8 +42,20 @@ export async function POST(
         // Convert File to Buffer
         const buffer = Buffer.from(await file.arrayBuffer());
 
-        const pack = formData.get("pack") as string || "WA-AKG";
-        const author = formData.get("author") as string || user.name || "User";
+        const [brand, sessionConfig] = await Promise.all([
+            getBrandConfig(),
+            prisma.session.findUnique({
+                where: { sessionId },
+                select: { botConfig: { select: { botName: true } } }
+            })
+        ]);
+        const defaultPack = resolveBotDisplayName(sessionConfig?.botConfig?.botName, brand.name);
+        const packValue = formData.get("pack");
+        const authorValue = formData.get("author");
+        const pack = typeof packValue === "string" && packValue.trim() ? packValue.trim() : defaultPack;
+        const author = typeof authorValue === "string" && authorValue.trim()
+            ? authorValue.trim()
+            : user.name || brand.name;
         const type = (formData.get("type") as string) || "full";
         const quality = parseInt(formData.get("quality") as string) || 50;
 

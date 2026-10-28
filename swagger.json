@@ -194,7 +194,9 @@
             "type": "string"
           },
           "url": {
-            "type": "string"
+            "type": "string",
+            "format": "uri",
+            "description": "Webhook destination using http:// or https://. Local/private destinations require allowLocal=true."
           },
           "events": {
             "type": "array",
@@ -205,6 +207,15 @@
           },
           "secret": {
             "type": "string"
+          },
+          "allowLocal": {
+            "type": "boolean",
+            "default": false,
+            "description": "Allow delivery to localhost, private-network, or other local destinations."
+          },
+          "requestHeaders": {
+            "type": "string",
+            "description": "Optional multiline request headers. Use one Header-Name: value pair per line."
           },
           "filters": {
             "$ref": "#/components/schemas/WebhookFilters",
@@ -5754,10 +5765,21 @@
                     "type": "string"
                   },
                   "url": {
-                    "type": "string"
+                    "type": "string",
+                    "format": "uri",
+                    "description": "HTTP or HTTPS webhook destination. HTTP/private destinations require allowLocal=true."
                   },
                   "secret": {
                     "type": "string"
+                  },
+                  "allowLocal": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Allow delivery to localhost, private-network, or other local destinations."
+                  },
+                  "requestHeaders": {
+                    "type": "string",
+                    "description": "Optional multiline request headers. Use one Header-Name: value pair per line."
                   },
                   "events": {
                     "type": "array",
@@ -5770,6 +5792,13 @@
                     "description": "Optional exact-match criteria combined with AND."
                   }
                 }
+              },
+              "example": {
+                "name": "CRM Integration",
+                "url": "https://example.com/webhook",
+                "events": ["message.received", "message.sent"],
+                "allowLocal": false,
+                "requestHeaders": "X-Integration-Key: your-value\nX-Source: whatsapp"
               }
             }
           }
@@ -5862,10 +5891,20 @@
                     "type": "string"
                   },
                   "url": {
-                    "type": "string"
+                    "type": "string",
+                    "format": "uri",
+                    "description": "HTTP or HTTPS webhook destination. HTTP/private destinations require allowLocal=true."
                   },
                   "secret": {
                     "type": "string"
+                  },
+                  "allowLocal": {
+                    "type": "boolean",
+                    "description": "Allow delivery to localhost, private-network, or other local destinations."
+                  },
+                  "requestHeaders": {
+                    "type": "string",
+                    "description": "Optional multiline request headers. Use one Header-Name: value pair per line."
                   },
                   "events": {
                     "type": "array",
@@ -5881,6 +5920,11 @@
                     "description": "Omit to preserve; null or {} clears; object replaces."
                   }
                 }
+              },
+              "example": {
+                "url": "http://localhost:3000/webhook",
+                "allowLocal": true,
+                "requestHeaders": "X-Integration-Key: updated-value\nX-Source: whatsapp"
               }
             }
           }

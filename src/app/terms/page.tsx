@@ -1,22 +1,22 @@
 import Link from "@/components/app-link";
+import type { Metadata } from "next";
 import { ArrowLeft, ShieldCheck, Scale } from "lucide-react";
+import { getBrandConfig } from "@/lib/branding-server";
 
-export const metadata = {
-    title: "Terms of Service | WA-AKG",
-    description: "Terms of Service for WA-AKG self-hosted WhatsApp Gateway. Usage guidelines, security requirements, and acceptable use policy.",
-    openGraph: {
-        title: "Terms of Service | WA-AKG",
-        description: "Terms of Service for WA-AKG self-hosted WhatsApp Gateway.",
-        type: "website",
-    },
-    twitter: {
-        card: "summary_large_image",
-        title: "Terms of Service | WA-AKG",
-        description: "Terms of Service for WA-AKG self-hosted WhatsApp Gateway.",
-    },
-};
+export async function generateMetadata(): Promise<Metadata> {
+    const brand = await getBrandConfig();
+    const title = `Terms of Service | ${brand.name}`;
+    const description = `Terms of Service for ${brand.name}, a self-hosted WhatsApp Gateway. Usage guidelines, security requirements, and acceptable use policy.`;
+    return {
+        title,
+        description,
+        openGraph: { title, description, type: "website" },
+        twitter: { card: "summary_large_image", title, description },
+    };
+}
 
-export default function TermsPage() {
+export default async function TermsPage() {
+    const brand = await getBrandConfig();
     return (
         <div className="min-h-screen bg-background relative overflow-hidden py-24 selection:bg-primary/30 selection:text-primary-foreground">
             {/* Ambient background glows */}
@@ -24,6 +24,15 @@ export default function TermsPage() {
             <div className="fixed bottom-0 right-1/4 translate-x-1/2 translate-y-1/2 w-[30rem] h-[30rem] bg-blue-500/5 dark:bg-blue-600/10 rounded-full blur-[100px] pointer-events-none -z-10" />
 
             <div className="container max-w-4xl px-4 mx-auto relative z-10">
+
+                <div className="flex items-center gap-2 mb-6 text-sm font-semibold text-foreground" aria-label={brand.name}>
+                    {brand.logoUrl ? (
+                        <img src={brand.logoUrl} alt="" className="h-8 w-8 rounded-xl object-cover" />
+                    ) : (
+                        <span className="h-8 w-8 rounded-xl bg-primary text-primary-foreground grid place-items-center text-xs font-bold">{brand.initials}</span>
+                    )}
+                    <span>{brand.name}</span>
+                </div>
 
                 <Link href="/" className="inline-flex items-center text-sm font-medium text-muted-foreground hover:text-foreground mb-8 transition-colors group">
                     <ArrowLeft className="mr-2 h-4 w-4 transition-transform group-hover:-translate-x-1" />
@@ -37,14 +46,14 @@ export default function TermsPage() {
                         </div>
                         <div>
                             <h1 className="text-3xl md:text-5xl font-bold tracking-tight text-foreground">Terms of Service</h1>
-                            <p className="text-muted-foreground mt-2">Last updated: {new Date().toLocaleDateString()}</p>
+                            <p className="text-muted-foreground mt-2">{brand.name} · Last updated: {new Date().toLocaleDateString()}</p>
                         </div>
                     </div>
 
                     <div className="prose prose-slate dark:prose-invert max-w-none prose-headings:font-bold prose-headings:tracking-tight prose-a:text-primary hover:prose-a:text-primary/80 prose-p:leading-relaxed">
 
                         <p className="lead text-lg text-muted-foreground mb-8">
-                            Welcome to WA-AKG. By accessing or using our WhatsApp Gateway platform, you agree to be bound by these Terms. If you do not agree, please do not use the service.
+                            Welcome to {brand.name}. By accessing or using our WhatsApp Gateway platform, you agree to be bound by these Terms. If you do not agree, please do not use the service.
                         </p>
 
                         <h2 className="flex items-center gap-2 mt-8 text-2xl border-b pb-2">
@@ -52,7 +61,7 @@ export default function TermsPage() {
                             1. Data Security & Responsibility
                         </h2>
                         <p>
-                            Security forms the core of our service. As a self-hosted platform, WA-AKG ensures that your data remains strictly within your own infrastructure.
+                            Security forms the core of our service. As a self-hosted platform, {brand.name} ensures that your data remains strictly within your own infrastructure.
                         </p>
                         <ul>
                             <li><strong>Your Data is Yours:</strong> We do not track, intercept, or sell your WhatsApp messages, contact lists, or session data. Your information is secure and not misused.</li>
@@ -62,7 +71,7 @@ export default function TermsPage() {
 
                         <h2 className="mt-8 text-2xl border-b pb-2">2. Acceptable Use Policy</h2>
                         <p>
-                            When utilizing WA-AKG&apos;s API, auto-replies, and broadcasting capabilities, you agree to abide by WhatsApp&apos;s official Terms of Service and Anti-Spam policies. You agree not to:
+                            When utilizing {brand.name}&apos;s API, auto-replies, and broadcasting capabilities, you agree to abide by WhatsApp&apos;s official Terms of Service and Anti-Spam policies. You agree not to:
                         </p>
                         <ul>
                             <li>Send unsolicited &quot;spam&quot; messages or bulk promotional campaigns to users who have not explicitly opted-in.</li>
@@ -72,12 +81,12 @@ export default function TermsPage() {
 
                         <h2 className="mt-8 text-2xl border-b pb-2">3. Account Integrity</h2>
                         <p>
-                            WA-AKG provides tools to manage multiple WhatsApp sessions. It is crucial to monitor your active devices. If you suspect unauthorized access to your gateway dashboard, immediately change your password and revoke any connected WhatsApp sessions from your physical device.
+                            {brand.name} provides tools to manage multiple WhatsApp sessions. It is crucial to monitor your active devices. If you suspect unauthorized access to your gateway dashboard, immediately change your password and revoke any connected WhatsApp sessions from your physical device.
                         </p>
 
                         <h2 className="mt-8 text-2xl border-b pb-2">4. Disclaimers and Limitations</h2>
                         <p>
-                            WA-AKG is provided &quot;as is&quot; and without warranties of any kind. We utilize third-party libraries (such as Baileys) to connect to WhatsApp web protocols. Changes to WhatsApp&apos;s internal systems may occasionally disrupt service. We are not liable for any account suspensions or bans imposed by WhatsApp as a result of your usage.
+                            {brand.name} is provided &quot;as is&quot; and without warranties of any kind. We utilize third-party libraries (such as Baileys) to connect to WhatsApp web protocols. Changes to WhatsApp&apos;s internal systems may occasionally disrupt service. We are not liable for any account suspensions or bans imposed by WhatsApp as a result of your usage.
                         </p>
 
                         <div className="mt-12 p-6 bg-primary/5 rounded-2xl border border-primary/10">
@@ -86,6 +95,14 @@ export default function TermsPage() {
                         </div>
                     </div>
                 </div>
+
+                <footer className="mt-8 flex flex-wrap items-center justify-between gap-3 text-sm text-muted-foreground">
+                    <span>© {new Date().getFullYear()} {brand.name}</span>
+                    <nav className="flex gap-4" aria-label="Legal navigation">
+                        <Link href="/privacy" className="hover:text-foreground transition-colors">Privacy Policy</Link>
+                        <Link href="/docs" className="hover:text-foreground transition-colors">Documentation</Link>
+                    </nav>
+                </footer>
             </div>
         </div>
     );

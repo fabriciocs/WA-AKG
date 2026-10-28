@@ -13,13 +13,26 @@ export function sanitizeWebhookUrl(url: string): string {
     }
 }
 
-/** Remove the per-request HMAC from new and legacy webhook log headers. */
+export const REDACTED_WEBHOOK_HEADER_VALUE = "[REDACTED]";
+
+const SENSITIVE_WEBHOOK_HEADERS = new Set([
+    "authorization",
+    "cookie",
+    "proxy-authorization",
+    "set-cookie",
+    "x-api-key",
+]);
+
+/** Remove HMACs and redact credential-bearing headers from webhook logs. */
 export function sanitizeWebhookRequestHeaders(headers: unknown): unknown {
     if (!headers || typeof headers !== "object" || Array.isArray(headers)) return headers;
 
-    return Object.fromEntries(
-        Object.entries(headers).filter(([name]) => name.trim().toLowerCase() !== "x-webhook-signature"),
-    );
+    return Object.fromEntries(Object.entries(headers).flatMap(([name, value]) => {
+        const normalizedName = name.trim().toLowerCase();
+        if (normalizedName === "x-webhook-signature") return [];
+        if (SENSITIVE_WEBHOOK_HEADERS.has(normalizedName)) return [[name, REDACTED_WEBHOOK_HEADER_VALUE]];
+        return [[name, value]];
+    }));
 }
 
 /** Defense-in-depth serializer for persisted and historical webhook log rows. */

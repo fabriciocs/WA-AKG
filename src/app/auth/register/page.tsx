@@ -15,15 +15,18 @@ import {
     FormMessage,
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
-import { Bot, ArrowRight, Loader2 } from "lucide-react";
+import { ArrowRight, Loader2 } from "lucide-react";
 import Link from '@/components/app-link';
+import { BrandMark } from '@/components/auth/brand-mark';
 import { useTranslations } from 'next-intl';
 import { LanguageSwitcher } from '@/components/language-switcher';
+import { useBranding } from '@/components/branding-provider';
 
 type RegisterValues = { name: string; email: string; password: string; confirmPassword: string };
 
 export default function RegisterPage() {
     const t = useTranslations('auth');
+    const brand = useBranding();
     const formSchema = useMemo(() => z.object({
         name: z.string().min(2, t('register.nameMin', { min: 2 })),
         email: z.string().email(t('invalidEmail')),
@@ -107,15 +110,13 @@ export default function RegisterPage() {
             <div className="flex flex-col items-center justify-center min-h-screen bg-background relative overflow-hidden">
                 <div className="absolute top-0 left-0 -translate-x-1/2 -translate-y-1/2 w-[40rem] h-[40rem] bg-primary/20 rounded-full blur-[120px] pointer-events-none" />
                 <div className="glass-panel p-10 rounded-3xl flex flex-col items-center text-center max-w-sm animate-in zoom-in duration-500">
-                    <div className="h-16 w-16 bg-emerald-500 rounded-full flex items-center justify-center mb-6 shadow-lg shadow-emerald-500/30">
-                        <Bot className="h-8 w-8 text-white" />
-                    </div>
+                    <BrandMark className="mb-6" fallbackClassName="rounded-full bg-emerald-500 shadow-emerald-500/30" />
                     <h2 className="text-2xl font-bold text-foreground mb-2">{t('register.successTitle')}</h2>
                     <p className="text-muted-foreground">{t('register.successDescription')}</p>
                     <Button type="button" variant="outline" className="mt-5" disabled={resending} onClick={resendVerification}>
                         {resending ? t('verify.resending') : t('verify.resend')}
                     </Button>
-                    {notice && <p role="status" className="mt-3 text-sm text-muted-foreground">{notice}</p>}
+                    {notice && <p role="status" aria-live="polite" className="mt-3 text-sm text-muted-foreground">{notice}</p>}
                     <Link className="mt-4 text-sm text-primary underline" href="/auth/login">{t('register.signIn')}</Link>
                 </div>
             </div>
@@ -135,22 +136,20 @@ export default function RegisterPage() {
 
             <div className="relative z-10 w-full max-w-md p-4 animate-in fade-in zoom-in-95 duration-500">
                 <div className="flex flex-col items-center mb-8">
-                    <div className="relative flex h-16 w-16 mb-4 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-400 to-primary text-white shadow-lg shadow-primary/30">
-                        <Bot className="h-8 w-8" />
-                    </div>
+                    <BrandMark className="mb-4" />
                     <h1 className="text-3xl font-bold tracking-tight text-foreground">{t('register.title')}</h1>
-                    <p className="text-muted-foreground mt-2">{t('register.subtitle', { appName: 'WA-AKG' })}</p>
+                    <p className="text-muted-foreground mt-2">{t('register.subtitle', { appName: brand.name })}</p>
                 </div>
 
                 <div className="glass-panel rounded-3xl p-8 shadow-2xl shadow-black/5 dark:shadow-black/40">
                     {error && (
-                        <div className="mb-6 p-4 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-sm text-center font-medium animate-in shake duration-300">
+                        <div role="alert" aria-live="assertive" className="mb-6 rounded-xl border border-destructive/20 bg-destructive/10 p-4 text-center text-sm font-medium text-destructive animate-in shake duration-300 motion-reduce:animate-none">
                             {error}
                         </div>
                     )}
 
                     <Form {...form}>
-                        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4" aria-busy={loading}>
                             <FormField
                                 control={form.control}
                                 name="name"
@@ -159,6 +158,8 @@ export default function RegisterPage() {
                                         <FormLabel className="text-foreground/80">{t('register.fullName')}</FormLabel>
                                         <FormControl>
                                             <Input
+                                                autoComplete="name"
+                                                autoFocus
                                                 placeholder={t('register.fullNamePlaceholder')}
                                                 className="h-12 px-4 rounded-xl bg-background/50 border-white/20 dark:border-white/10 focus-visible:ring-primary/50 transition-all font-medium"
                                                 {...field}
@@ -176,6 +177,8 @@ export default function RegisterPage() {
                                         <FormLabel className="text-foreground/80">{t('email')}</FormLabel>
                                         <FormControl>
                                             <Input
+                                                type="email"
+                                                autoComplete="email"
                                                 placeholder={t('emailPlaceholder')}
                                                 className="h-12 px-4 rounded-xl bg-background/50 border-white/20 dark:border-white/10 focus-visible:ring-primary/50 transition-all font-medium"
                                                 {...field}
@@ -194,6 +197,7 @@ export default function RegisterPage() {
                                         <FormControl>
                                             <Input
                                                 type="password"
+                                                autoComplete="new-password"
                                                 placeholder="••••••••"
                                                 className="h-12 px-4 rounded-xl bg-background/50 border-white/20 dark:border-white/10 focus-visible:ring-primary/50 transition-all font-medium"
                                                 {...field}
@@ -212,6 +216,7 @@ export default function RegisterPage() {
                                         <FormControl>
                                             <Input
                                                 type="password"
+                                                autoComplete="new-password"
                                                 placeholder="••••••••"
                                                 className="h-12 px-4 rounded-xl bg-background/50 border-white/20 dark:border-white/10 focus-visible:ring-primary/50 transition-all font-medium"
                                                 {...field}

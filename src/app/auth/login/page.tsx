@@ -17,17 +17,20 @@ import {
   FormMessage,
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
-import { Bot, ArrowRight, Loader2 } from "lucide-react";
+import { ArrowRight, Loader2 } from "lucide-react";
 import Link from '@/components/app-link';
+import { BrandMark } from '@/components/auth/brand-mark';
 import { useTranslations } from 'next-intl';
 import { LanguageSwitcher } from '@/components/language-switcher';
 import { apiUrl } from '@/lib/api-url';
 import { withBasePath } from '@/lib/base-path';
+import { useBranding } from '@/components/branding-provider';
 
 type LoginValues = { email: string; password: string };
 
 function LoginForm() {
   const t = useTranslations('auth');
+  const brand = useBranding();
   const formSchema = useMemo(() => z.object({
     email: z.string().email(t('invalidEmail')),
     password: z.string().min(1, t('login.passwordRequired')),
@@ -105,22 +108,20 @@ function LoginForm() {
 
       <div className="relative z-10 w-full max-w-md p-4 animate-in fade-in zoom-in-95 duration-500">
         <div className="flex flex-col items-center mb-8">
-          <div className="relative flex h-16 w-16 mb-4 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-400 to-primary text-white shadow-lg shadow-primary/30">
-            <Bot className="h-8 w-8" />
-          </div>
+          <BrandMark className="mb-4" />
           <h1 className="text-3xl font-bold tracking-tight text-foreground">{t('login.title')}</h1>
-          <p className="text-muted-foreground mt-2">{t('login.subtitle', { appName: 'WA-AKG' })}</p>
+          <p className="text-muted-foreground mt-2">{t('login.subtitle', { appName: brand.name })}</p>
         </div>
 
         <div className="glass-panel rounded-3xl p-8 shadow-2xl shadow-black/5 dark:shadow-black/40">
           {error && (
-            <div className="mb-6 p-4 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-sm text-center font-medium animate-in shake duration-300">
+            <div role="alert" aria-live="assertive" className="mb-6 rounded-xl border border-destructive/20 bg-destructive/10 p-4 text-center text-sm font-medium text-destructive animate-in shake duration-300 motion-reduce:animate-none">
               {error}
             </div>
           )}
 
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5" aria-busy={loading}>
               <FormField
                 control={form.control}
                 name="email"
@@ -129,6 +130,9 @@ function LoginForm() {
                     <FormLabel className="text-foreground/80">{t('email')}</FormLabel>
                     <FormControl>
                       <Input
+                        type="email"
+                        autoComplete="email"
+                        autoFocus
                         placeholder={t('emailPlaceholder')}
                         className="h-12 px-4 rounded-xl bg-background/50 border-white/20 dark:border-white/10 focus-visible:ring-primary/50 transition-all font-medium"
                         {...field}
@@ -147,6 +151,7 @@ function LoginForm() {
                     <FormControl>
                       <Input
                         type="password"
+                        autoComplete="current-password"
                         placeholder="••••••••"
                         className="h-12 px-4 rounded-xl bg-background/50 border-white/20 dark:border-white/10 focus-visible:ring-primary/50 transition-all font-medium"
                         {...field}
@@ -175,7 +180,7 @@ function LoginForm() {
             <button type="button" onClick={resendVerification} disabled={resending} className="text-sm text-primary underline disabled:opacity-50">
               {resending ? t('verify.resending') : t('verify.resend')}
             </button>
-            {resendMessage && <p role="status" className="mt-2 text-xs text-muted-foreground">{resendMessage}</p>}
+            {resendMessage && <p role="status" aria-live="polite" className="mt-2 text-xs text-muted-foreground">{resendMessage}</p>}
           </div>
         </div>
 
@@ -193,8 +198,8 @@ function LoginForm() {
 export default function LoginPage() {
   return (
     <Suspense fallback={
-      <div className="flex items-center justify-center min-h-screen bg-background">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <div className="flex min-h-screen items-center justify-center bg-background" role="status" aria-label="Carregando">
+        <Loader2 className="h-8 w-8 animate-spin text-primary motion-reduce:animate-none" />
       </div>
     }>
       <LoginForm />

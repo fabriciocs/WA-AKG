@@ -13,6 +13,7 @@ import {
 } from "@whiskeysockets/baileys";
 import crypto from "crypto";
 import { logger } from "@/lib/logger";
+import { getBrandConfig } from "@/lib/branding-server";
 
 export interface NativeButtonQuickReply {
     type?: "quick_reply";
@@ -549,7 +550,9 @@ export async function buildInteractiveMessage(
     } = raw;
 
     const bodyText = (typeof body === "object" ? body?.text : body) || title || "";
-    const footerText = typeof footer === "object" ? footer?.text : footer;
+    const brand = await getBrandConfig();
+    const suppliedFooter = typeof footer === "object" ? footer?.text : footer;
+    const footerText = suppliedFooter?.trim() || "Powered by " + brand.name;
 
     // 1. Prepare Header (media or text)
     let headerMedia: Awaited<ReturnType<typeof prepareWAMessageMedia>> | null = null;
@@ -864,6 +867,8 @@ export async function sendProductMessage(
         currencyCode = "IDR"
     } = productData;
 
+    const brand = await getBrandConfig();
+    const footerText = footer.trim() || "Powered by " + brand.name;
     let productImage: unknown = null;
     const uploadFn = (sock as unknown as { waUploadToServer: WAMediaUploadFunction }).waUploadToServer;
 
@@ -878,7 +883,7 @@ export async function sendProductMessage(
     const productContent = {
         interactiveMessage: {
             body: { text: body },
-            footer: footer ? { text: footer } : undefined,
+            footer: { text: footerText },
             header: {
                 title: title,
                 hasMediaAttachment: false,

@@ -2,6 +2,7 @@ import { createHash, randomBytes } from "node:crypto";
 import nodemailer from "nodemailer";
 import { prisma } from "@/lib/prisma";
 import { normalizeBasePath, withBasePath } from "@/lib/base-path";
+import { getBrandConfig } from "@/lib/branding-server";
 
 const TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
 const HOURLY_LIMIT = 3;
@@ -41,6 +42,8 @@ export async function sendVerificationEmail(
   link.searchParams.set("token", token);
 
   try {
+    const brand = await getBrandConfig();
+    const escapedBrandName = escapeHtml(brand.name);
     const host = process.env.SMTP_HOST;
     const from = process.env.SMTP_FROM;
     if (!host || !from) throw new Error("SMTP is not configured");
@@ -62,9 +65,9 @@ export async function sendVerificationEmail(
     await transporter.sendMail({
       from,
       to: user.email,
-      subject: "Confirm your WA-AKG account",
-      text: `Hello${user.name ? ` ${user.name}` : ""},\n\nConfirm your email address by opening this link and choosing Confirm:\n${link}\n\nThis link expires in 24 hours. If you did not create this account, you can ignore this email.`,
-      html: `<p>Hello${user.name ? ` ${escapeHtml(user.name)}` : ""},</p><p>Confirm your email address by opening this link and choosing <strong>Confirm</strong>:</p><p><a href="${escapeHtml(link.toString())}">Confirm email address</a></p><p>This link expires in 24 hours. If you did not create this account, you can ignore this email.</p>`,
+      subject: "Confirm your " + brand.name + " account",
+      text: "Hello" + (user.name ? " " + user.name : "") + ",\n\nWelcome to " + brand.name + ". Confirm your email address by opening this link and choosing Confirm:\n" + link + "\n\nThis link expires in 24 hours. If you did not create this account, you can ignore this email.",
+      html: "<p>Hello" + (user.name ? " " + escapeHtml(user.name) : "") + ",</p><p>Welcome to " + escapedBrandName + ". Confirm your email address by opening this link and choosing <strong>Confirm</strong>:</p><p><a href=\"" + escapeHtml(link.toString()) + "\">Confirm email address</a></p><p>This link expires in 24 hours. If you did not create this account, you can ignore this email.</p>",
     });
     return { sent: true, limited: false };
   } catch (error) {

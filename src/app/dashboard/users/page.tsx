@@ -125,8 +125,8 @@ export default function UsersPage() {
     const getRoleIcon = (role: string) => {
         switch (role) {
             case "SUPERADMIN": return <ShieldAlert className="h-4 w-4 text-red-500" />;
-            case "STAFF": return <ShieldCheck className="h-4 w-4 text-blue-500" />;
-            default: return <User className="h-4 w-4 text-gray-500" />;
+            case "STAFF": return <ShieldCheck className="h-4 w-4 text-primary" />;
+            default: return <User className="h-4 w-4 text-muted-foreground" />;
         }
     };
 

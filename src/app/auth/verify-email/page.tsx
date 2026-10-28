@@ -8,8 +8,8 @@ export default async function VerifyEmailPage({ searchParams }: { searchParams: 
   const { token } = await searchParams;
   const t = await getTranslations("auth.verify");
   return (
-    <main className="flex min-h-screen items-center justify-center bg-background p-4">
-      <Suspense fallback={<p>{t("loading")}</p>}>
+    <main className="flex min-h-screen items-center justify-center bg-background p-4" aria-busy="false">
+      <Suspense fallback={<p role="status" aria-live="polite">{t("loading")}</p>}>
         <VerifyEmailForm token={token || ""} />
       </Suspense>
     </main>

@@ -298,12 +298,12 @@ export default function BroadcastPage() {
                             <Card className={`border-2 transition-colors ${
                                 broadcastProgress.status === "completed"
                                     ? (broadcastProgress.failed === 0 ? "border-green-500/30 bg-green-50/30 dark:bg-green-950/10" : "border-yellow-500/30 bg-yellow-50/30 dark:bg-yellow-950/10")
-                                    : "border-blue-500/30 bg-blue-50/30 dark:bg-blue-950/10"
+                                    : "border-primary/30 bg-primary/5"
                             }`}>
                                 <CardHeader className="pb-3">
                                     <CardTitle className="flex items-center gap-2 text-lg">
                                         {broadcastProgress.status === "running" ? (
-                                            <><Radio className="h-5 w-5 text-blue-500 animate-pulse" /><span>{t("broadcastInProgress")}</span></>
+                                            <><Radio className="h-5 w-5 text-primary motion-safe:animate-pulse" /><span>{t("broadcastInProgress")}</span></>
                                         ) : broadcastProgress.failed === 0 ? (
                                             <><CheckCircle2 className="h-5 w-5 text-green-500" /><span>{t("broadcastCompleted")}</span></>
                                         ) : (
@@ -348,7 +348,7 @@ export default function BroadcastPage() {
 
                                     {broadcastProgress.status === "running" && broadcastProgress.current && (
                                         <div className="flex items-center gap-2 text-sm px-3 py-2 bg-muted/50 rounded-lg">
-                                            <RefreshCw className="h-3.5 w-3.5 animate-spin text-blue-500" />
+                                            <RefreshCw className="h-3.5 w-3.5 animate-spin text-primary" />
                                             <span className="text-muted-foreground">{t("nowSending")}</span>
                                             <span className="font-mono font-medium">{formatJid(broadcastProgress.current)}</span>
                                         </div>
@@ -406,7 +406,7 @@ export default function BroadcastPage() {
                                                         ? <CheckCircle2 className="h-8 w-8 text-green-500" />
                                                         : <AlertTriangle className="h-8 w-8 text-yellow-500" />
                                                 ) : (
-                                                    <Radio className="h-8 w-8 text-blue-500 animate-pulse" />
+                                                    <Radio className="h-8 w-8 text-primary motion-safe:animate-pulse" />
                                                 )}
                                             </div>
 
@@ -445,7 +445,7 @@ export default function BroadcastPage() {
                             <DialogTitle className="flex items-center gap-2">
                                 {selectedLog?.status === "completed"
                                     ? <CheckCircle2 className="h-5 w-5 text-green-500" />
-                                    : <Radio className="h-5 w-5 text-blue-500 animate-pulse" />
+                                    : <Radio className="h-5 w-5 text-primary motion-safe:animate-pulse" />
                                 }
                                 {t("detailTitle")}
                             </DialogTitle>

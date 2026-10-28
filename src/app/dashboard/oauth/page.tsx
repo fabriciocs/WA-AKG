@@ -13,5 +13,6 @@ export default async function OAuthManagementPage() {
     const callbackUrl = withBasePath("/dashboard/oauth", basePath);
     redirect(withBasePath(`/auth/login?${new URLSearchParams({ callbackUrl }).toString()}`, basePath));
   }
+  if (session.user.role !== "SUPERADMIN") redirect(withBasePath("/dashboard", basePath));
   return <OAuthManagement canManage={session.user.role === "SUPERADMIN"} />;
 }

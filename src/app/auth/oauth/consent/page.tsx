@@ -5,6 +5,8 @@ import { prisma } from "@/lib/prisma";
 import { getTranslations } from "next-intl/server";
 import { headers } from "next/headers";
 import { requestBasePath, withBasePath } from "@/lib/base-path";
+import { getBrandConfig } from "@/lib/branding-server";
+import { BrandMark } from "@/components/auth/brand-mark";
 
 export const dynamic = "force-dynamic";
 
@@ -24,6 +26,7 @@ export default async function OAuthConsentPage({ searchParams }: { searchParams:
   const authorization = await bindAuthorizationRequest(requestId, session.user.id);
   if (!authorization) redirect(`${dashboardPath}?oauth_error=expired_request`);
   const t = await getTranslations("oauthConsent");
+  const brand = await getBrandConfig();
   const sessions = await prisma.session.findMany({
     where: session.user.role === "SUPERADMIN"
       ? {}
@@ -34,10 +37,11 @@ export default async function OAuthConsentPage({ searchParams }: { searchParams:
   const scopes = authorization.scope.split(/\s+/).filter(Boolean);
 
   return (
-    <main className="mx-auto w-full max-w-xl px-6 py-12">
+    <main className="mx-auto w-full max-w-xl px-6 py-12" aria-labelledby="oauth-consent-title">
       <section className="rounded-xl border bg-card p-6 shadow-sm">
+        <div className="mb-6 flex items-center gap-3"><BrandMark className="h-10 w-10 rounded-xl text-sm" /><span className="font-semibold">{brand.name}</span></div>
         <p className="text-sm text-muted-foreground">{t("eyebrow")}</p>
-        <h1 className="mt-2 text-2xl font-semibold">{t("allowClient", { name: authorization.client.name })}</h1>
+        <h1 id="oauth-consent-title" className="mt-2 text-2xl font-semibold">{t("allowClient", { name: authorization.client.name })}</h1>
         {authorization.client.description && <p className="mt-2 text-sm text-muted-foreground">{authorization.client.description}</p>}
         <p className="mt-4 text-sm">{t("requesting")}</p>
         <ul className="mt-2 list-disc space-y-1 pl-5 text-sm">
@@ -59,8 +63,8 @@ export default async function OAuthConsentPage({ searchParams }: { searchParams:
         )}
         <form id="oauth-consent" action={withBasePath("/api/oauth/authorize/decision", basePath)} method="post" className="mt-6 flex gap-3">
           <input type="hidden" name="requestId" value={requestId} />
-          <button name="decision" value="deny" className="rounded-md border px-4 py-2 text-sm">{t("deny")}</button>
-          <button name="decision" value="approve" className="rounded-md bg-primary px-4 py-2 text-sm text-primary-foreground">{t("allow")}</button>
+          <button type="submit" name="decision" value="deny" className="min-h-11 rounded-md border px-4 py-2 text-sm">{t("deny")}</button>
+          <button type="submit" name="decision" value="approve" className="min-h-11 rounded-md bg-primary px-4 py-2 text-sm text-primary-foreground">{t("allow")}</button>
         </form>
       </section>
     </main>

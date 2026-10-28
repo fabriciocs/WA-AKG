@@ -603,10 +603,10 @@ export default function SchedulerPage() {
                                             <div>
                                                 <div className="font-bold flex items-center gap-2">
                                                     {msg.jid.split('@')[0]}
-                                                    {msg.jid.includes("@g.us") ? <span className="text-xs px-2 py-0.5 rounded font-normal bg-purple-100 text-purple-800">{t("groupBadge")}</span> : null}
+                                                    {msg.jid.includes("@g.us") ? <span className="text-xs px-2 py-0.5 rounded font-normal bg-muted text-foreground">{t("groupBadge")}</span> : null}
                                                     {msg.jid.includes("@newsletter") ? <span className="text-xs px-2 py-0.5 rounded font-normal bg-orange-100 text-orange-800">{t("channelBadge")}</span> : null}
                                                     <span className="text-xs px-2 py-0.5 rounded font-normal bg-yellow-100 text-yellow-800">{msg.status}</span>
-                                                    {msg.cronExpression && <span className="text-xs px-2 py-0.5 rounded font-normal bg-blue-100 text-blue-800">{t("recurringBadge")}</span>}
+                                                    {msg.cronExpression && <span className="text-xs px-2 py-0.5 rounded font-normal bg-primary/10 text-primary">{t("recurringBadge")}</span>}
                                                 </div>
                                                 <div className="text-sm font-medium mt-1">{msg.content || t("mediaOnly")}</div>
                                                 <div className="text-xs text-muted-foreground mt-1">{t("nextRun", { time: moment(msg.sendAt).tz(systemTimezone).format('YYYY-MM-DD HH:mm:ss') })}</div>
@@ -630,7 +630,7 @@ export default function SchedulerPage() {
                                             <div>
                                                 <div className="font-bold flex items-center gap-2">
                                                     {msg.jid.split('@')[0]}
-                                                    {msg.jid.includes("@g.us") ? <span className="text-xs px-2 py-0.5 rounded font-normal bg-purple-100 text-purple-800">{t("groupBadge")}</span> : null}
+                                                    {msg.jid.includes("@g.us") ? <span className="text-xs px-2 py-0.5 rounded font-normal bg-muted text-foreground">{t("groupBadge")}</span> : null}
                                                     {msg.jid.includes("@newsletter") ? <span className="text-xs px-2 py-0.5 rounded font-normal bg-orange-100 text-orange-800">{t("channelBadge")}</span> : null}
                                                     {msg.status === 'SENT' ? <span className="text-xs px-2 py-0.5 rounded font-normal bg-green-100 text-green-800 flex items-center gap-1"><CheckCircle2 className="w-3 h-3"/> {t("sentBadge")}</span> : <span className="text-xs px-2 py-0.5 rounded font-normal bg-red-100 text-red-800 flex items-center gap-1"><XCircle className="w-3 h-3"/> {t("failedBadge")}</span>}
                                                 </div>

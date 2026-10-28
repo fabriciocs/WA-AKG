@@ -3,11 +3,11 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/components/providers";
 import { TopLoader } from "@/components/ui/top-loader";
-import { prisma } from "@/lib/prisma";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale } from "next-intl/server";
 import { headers } from "next/headers";
 import { requestBasePath } from "@/lib/base-path";
+import { getBrandConfig } from "@/lib/branding-server";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -19,7 +19,6 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-const APP_DESCRIPTION = "Self-hosted WhatsApp Gateway with Multi-device support, Auto-replies, API integration, and session management dashboard.";
 const APP_URL = (() => {
   const configuredUrl = process.env.NEXT_PUBLIC_APP_URL || "https://wa-akg.app";
   const baseUrl = process.env.BASE_URL || "https://wa-akg.app";
@@ -42,13 +41,9 @@ export const viewport: Viewport = {
 };
 
 export async function generateMetadata(): Promise<Metadata> {
-  let appName = "WA-AKG";
-  try {
-    const config = await prisma.systemConfig.findUnique({ where: { id: "default" } });
-    if (config?.appName) appName = config.appName;
-  } catch (e) {
-    console.error("Failed to fetch system config for metadata:", e);
-  }
+  const brandConfig = await getBrandConfig();
+  const appName = brandConfig.name;
+  const appDescription = brandConfig.description;
 
   const appDefaultTitle = `${appName} | Premium WhatsApp Gateway`;
 
@@ -58,8 +53,9 @@ export async function generateMetadata(): Promise<Metadata> {
       default: appDefaultTitle,
       template: `%s | ${appName}`,
     },
-    description: APP_DESCRIPTION,
+    description: appDescription,
     applicationName: appName,
+    icons: { icon: brandConfig.faviconUrl },
     generator: "Next.js",
     keywords: [
       "whatsapp gateway", "whatsapp api", "whatsapp bot", "whatsapp management",
@@ -87,13 +83,13 @@ export async function generateMetadata(): Promise<Metadata> {
       locale: "en_US",
       siteName: appName,
       title: appDefaultTitle,
-      description: APP_DESCRIPTION,
+      description: appDescription,
       url: APP_URL,
     },
     twitter: {
       card: "summary_large_image",
       title: appDefaultTitle,
-      description: APP_DESCRIPTION,
+      description: appDescription,
     },
     other: {
       "mobile-web-app-capable": "yes",
@@ -112,6 +108,7 @@ export default async function RootLayout({
   const allowIndexing = process.env.NEXT_PUBLIC_ALLOW_INDEXING === "true";
   const locale = await getLocale();
   const basePath = requestBasePath(await headers());
+  const brandConfig = await getBrandConfig();
 
   return (
     <html lang={locale} data-base-path={basePath} suppressHydrationWarning className="scroll-smooth">
@@ -129,7 +126,7 @@ export default async function RootLayout({
         {/* Global ambient background glow for premium feel */}
         <div className="fixed inset-0 -z-50 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-primary/5 via-background to-background dark:from-primary/10 dark:via-background dark:to-background pointer-events-none" suppressHydrationWarning={true} />
         <NextIntlClientProvider>
-          <Providers basePath={basePath}>
+          <Providers basePath={basePath} brandConfig={brandConfig}>
             <TopLoader />
             {children}
           </Providers>

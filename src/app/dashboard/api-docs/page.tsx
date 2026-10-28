@@ -214,41 +214,41 @@ export default function ApiDocsPage() {
 
     const getMethodColor = (method: string) => {
         switch (method) {
-            case "GET": return "bg-green-100 text-green-800 border-green-300";
-            case "POST": return "bg-blue-100 text-blue-800 border-blue-300";
-            case "PUT": return "bg-yellow-100 text-yellow-800 border-yellow-300";
-            case "PATCH": return "bg-orange-100 text-orange-800 border-orange-300";
-            case "DELETE": return "bg-red-100 text-red-800 border-red-300";
-            default: return "bg-gray-100 text-gray-800 border-gray-300";
+            case "GET": return "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/30";
+            case "POST": return "bg-primary/10 text-primary border-primary/30";
+            case "PUT": return "bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/30";
+            case "PATCH": return "bg-orange-500/10 text-orange-700 dark:text-orange-300 border-orange-500/30";
+            case "DELETE": return "bg-destructive/10 text-destructive border-destructive/30";
+            default: return "bg-muted text-foreground border-border";
         }
     };
 
     if (status === "loading") {
         return (
             <div className="flex items-center justify-center min-h-screen">
-                <div className="text-gray-600">{tCommon("loading")}</div>
+                <div className="text-muted-foreground" role="status">{tCommon("loading")}</div>
             </div>
         );
     }
 
     return (
-        <div className="min-h-screen bg-gray-50 p-3 sm:p-6">
+        <div className="min-h-screen bg-background p-3 sm:p-6">
             <div className="max-w-7xl mx-auto">
                 {/* Header */}
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6 sm:mb-8">
                     <div>
-                        <h1 className="text-xl sm:text-3xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
-                            <FileText className="w-6 h-6 sm:w-8 sm:h-8 text-blue-600" />
+                        <h1 className="text-xl sm:text-3xl font-bold text-foreground tracking-tight flex items-center gap-2">
+                            <FileText className="w-6 h-6 sm:w-8 sm:h-8 text-primary" />
                             {t("title")}
                         </h1>
-                        <p className="text-gray-500 mt-2">
+                        <p className="text-muted-foreground mt-2">
                             {t("subtitle", { count: apiEndpoints.length })}
                         </p>
                     </div>
                     <a
                         href="/docs"
                         target="_blank"
-                        className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+                        className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     >
                         <Code className="w-4 h-4" />
                         {t("openSwagger")}
@@ -257,17 +257,17 @@ export default function ApiDocsPage() {
                 </div>
 
                 {/* Master Documentation Alert */}
-                <div className="bg-blue-50 border-l-4 border-blue-500 p-4 rounded-r shadow-sm mb-6">
+                <div className="bg-primary/5 border border-primary/20 p-4 rounded-lg shadow-sm mb-6">
                     <div className="flex items-start">
                         <div className="flex-shrink-0">
-                            <FileText className="h-5 w-5 text-blue-600" />
+                            <FileText className="h-5 w-5 text-primary" />
                         </div>
                         <div className="ml-3">
-                            <h3 className="text-sm font-medium text-blue-800">📘 {t("masterDocTitle")}</h3>
-                            <div className="mt-2 text-sm text-blue-700">
+                            <h3 className="text-sm font-medium text-foreground">📘 {t("masterDocTitle")}</h3>
+                            <div className="mt-2 text-sm text-muted-foreground">
                                 <p>
                                     {t("masterDocDescription")}{" "}
-                                    <a href="/docs/PROJECT_DOCUMENTATION.md" className="font-bold underline hover:text-blue-900">
+                                    <a href="/docs/PROJECT_DOCUMENTATION.md" className="font-bold underline hover:text-primary">
                                         {t("masterDocLink")}
                                     </a>
                                 </p>
@@ -277,37 +277,37 @@ export default function ApiDocsPage() {
                 </div>
 
                 {/* Quick Links */}
-                <div className="bg-white rounded-lg shadow p-6 mb-6">
+                <div className="bg-card rounded-lg border border-border shadow-sm p-6 mb-6">
                     <h2 className="text-lg font-semibold mb-4">{t("quickLinks")}</h2>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <a
                             href="/docs"
                             target="_blank"
-                            className="flex items-center p-4 border rounded-lg hover:bg-gray-50 transition-colors group"
+                            className="flex items-center p-4 border border-border rounded-lg hover:bg-muted/50 transition-colors group"
                         >
-                            <Code className="w-10 h-10 text-blue-600 mr-4" />
+                            <Code className="w-10 h-10 text-primary mr-4" />
                             <div className="flex-1">
-                                <h3 className="font-medium text-gray-800 group-hover:text-blue-600">{t("swaggerTitle")}</h3>
-                                <p className="text-sm text-gray-600">{t("swaggerSubtitle")}</p>
+                                <h3 className="font-medium text-foreground group-hover:text-primary">{t("swaggerTitle")}</h3>
+                                <p className="text-sm text-muted-foreground">{t("swaggerSubtitle")}</p>
                             </div>
-                            <ExternalLink className="w-5 h-5 text-gray-400" />
+                            <ExternalLink className="w-5 h-5 text-muted-foreground" />
                         </a>
                         <a
                             href={apiUrl("/api/docs")}
                             target="_blank"
-                            className="flex items-center p-4 border rounded-lg hover:bg-gray-50 transition-colors group"
+                            className="flex items-center p-4 border border-border rounded-lg hover:bg-muted/50 transition-colors group"
                         >
-                            <FileText className="w-10 h-10 text-green-600 mr-4" />
+                            <FileText className="w-10 h-10 text-emerald-600 mr-4" />
                             <div className="flex-1">
-                                <h3 className="font-medium text-gray-800 group-hover:text-green-600">{t("openapiTitle")}</h3>
-                                <p className="text-sm text-gray-600">{t("openapiSubtitle")}</p>
+                                <h3 className="font-medium text-foreground group-hover:text-emerald-600">{t("openapiTitle")}</h3>
+                                <p className="text-sm text-muted-foreground">{t("openapiSubtitle")}</p>
                             </div>
-                            <ExternalLink className="w-5 h-5 text-gray-400" />
+                            <ExternalLink className="w-5 h-5 text-muted-foreground" />
                         </a>
-                        <div className="flex items-center p-4 border rounded-lg bg-gray-50">
+                        <div className="flex items-center p-4 border border-border rounded-lg bg-muted/30">
                             <div className="flex-1">
-                                <h3 className="font-medium text-gray-800">{t("baseUrl")}</h3>
-                                <p className="text-sm text-gray-600 font-mono break-all">{process.env.NEXT_PUBLIC_API_URL || '/api'}</p>
+                                <h3 className="font-medium text-foreground">{t("baseUrl")}</h3>
+                                <p className="text-sm text-muted-foreground font-mono break-all">{process.env.NEXT_PUBLIC_API_URL || '/api'}</p>
                             </div>
                         </div>
                     </div>
@@ -317,21 +317,21 @@ export default function ApiDocsPage() {
                 <div className="bg-white rounded-lg shadow p-6 mb-6">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">{t("searchLabel")}</label>
+                            <label className="block text-sm font-medium text-foreground mb-2">{t("searchLabel")}</label>
                             <input
                                 type="text"
                                 value={filter}
                                 onChange={(e) => setFilter(e.target.value)}
                                 placeholder={t("searchPlaceholder")}
-                                className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                className="w-full px-4 py-2 border border-border bg-background rounded-lg focus:ring-2 focus:ring-ring focus:border-transparent"
                             />
                         </div>
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">{t("categoryLabel")}</label>
+                            <label className="block text-sm font-medium text-foreground mb-2">{t("categoryLabel")}</label>
                             <select
                                 value={selectedCategory}
                                 onChange={(e) => setSelectedCategory(e.target.value)}
-                                className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                className="w-full px-4 py-2 border border-border bg-background rounded-lg focus:ring-2 focus:ring-ring focus:border-transparent"
                             >
                                 {categories.map(cat => (
                                     <option key={cat} value={cat}>{cat === "All" ? t("categoryAll") : cat}</option>
@@ -342,35 +342,35 @@ export default function ApiDocsPage() {
                 </div>
 
                 {/* Endpoints List */}
-                <div className="bg-white rounded-lg shadow overflow-hidden">
+                <div className="bg-card rounded-lg border border-border shadow-sm overflow-hidden">
                     <div className="overflow-x-auto">
-                        <table className="min-w-full divide-y divide-gray-200">
-                            <thead className="bg-gray-50">
+                        <table className="min-w-full divide-y divide-border">
+                            <thead className="bg-muted/30">
                                 <tr>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{t("tableMethod")}</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{t("tableEndpoint")}</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{t("tableParams")}</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{t("tableDescription")}</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{t("tableCategory")}</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">{t("tableMethod")}</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">{t("tableEndpoint")}</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">{t("tableParams")}</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">{t("tableDescription")}</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">{t("tableCategory")}</th>
                                 </tr>
                             </thead>
-                            <tbody className="bg-white divide-y divide-gray-200">
+                            <tbody className="bg-card divide-y divide-border">
                                 {filteredEndpoints.map((endpoint, index) => (
-                                    <tr key={index} className="hover:bg-gray-50">
+                                    <tr key={index} className="hover:bg-muted/50">
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             <span className={`px-3 py-1 text-xs font-semibold rounded-full border ${getMethodColor(endpoint.method)}`}>
                                                 {endpoint.method}
                                             </span>
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap">
-                                            <code className="text-sm text-gray-900 font-mono">{endpoint.path}</code>
+                                            <code className="text-sm text-foreground font-mono">{endpoint.path}</code>
                                         </td>
-                                        <td className="px-6 py-4 text-xs font-mono text-gray-600 max-w-xs break-words">
+                                        <td className="px-6 py-4 text-xs font-mono text-muted-foreground max-w-xs break-words">
                                             {endpoint.params || "-"}
                                         </td>
-                                        <td className="px-6 py-4 text-sm text-gray-600">{endpoint.description}</td>
+                                        <td className="px-6 py-4 text-sm text-muted-foreground">{endpoint.description}</td>
                                         <td className="px-6 py-4 whitespace-nowrap">
-                                            <span className="px-2 py-1 text-xs bg-gray-100 text-gray-700 rounded">
+                                            <span className="px-2 py-1 text-xs bg-muted text-foreground rounded">
                                                 {endpoint.category}
                                             </span>
                                         </td>
@@ -381,7 +381,7 @@ export default function ApiDocsPage() {
                     </div>
 
                     {filteredEndpoints.length === 0 && (
-                        <div className="text-center py-12 text-gray-500">
+                        <div className="text-center py-12 text-muted-foreground" role="status">
                             {t("noEndpoints")}
                         </div>
                     )}
@@ -389,21 +389,21 @@ export default function ApiDocsPage() {
 
                 {/* Stats */}
                 <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <div className="bg-white rounded-lg shadow p-4">
-                        <div className="text-2xl font-bold text-blue-600">{apiEndpoints.length}</div>
-                        <div className="text-sm text-gray-600">{t("statTotal")}</div>
+                    <div className="bg-card rounded-lg border border-border shadow-sm p-4">
+                        <div className="text-2xl font-bold text-primary">{apiEndpoints.length}</div>
+                        <div className="text-sm text-muted-foreground">{t("statTotal")}</div>
                     </div>
-                    <div className="bg-white rounded-lg shadow p-4">
-                        <div className="text-2xl font-bold text-green-600">{categories.length - 1}</div>
-                        <div className="text-sm text-gray-600">{t("statCategories")}</div>
+                    <div className="bg-card rounded-lg border border-border shadow-sm p-4">
+                        <div className="text-2xl font-bold text-emerald-600">{categories.length - 1}</div>
+                        <div className="text-sm text-muted-foreground">{t("statCategories")}</div>
                     </div>
-                    <div className="bg-white rounded-lg shadow p-4">
+                    <div className="bg-card rounded-lg border border-border shadow-sm p-4">
                         <div className="text-2xl font-bold text-yellow-600">{apiEndpoints.filter(e => e.method === "POST").length}</div>
-                        <div className="text-sm text-gray-600">{t("statPost")}</div>
+                        <div className="text-sm text-muted-foreground">{t("statPost")}</div>
                     </div>
-                    <div className="bg-white rounded-lg shadow p-4">
-                        <div className="text-2xl font-bold text-purple-600">{apiEndpoints.filter(e => e.method === "GET").length}</div>
-                        <div className="text-sm text-gray-600">{t("statGet")}</div>
+                    <div className="bg-card rounded-lg border border-border shadow-sm p-4">
+                        <div className="text-2xl font-bold text-primary">{apiEndpoints.filter(e => e.method === "GET").length}</div>
+                        <div className="text-sm text-muted-foreground">{t("statGet")}</div>
                     </div>
                 </div>
             </div>

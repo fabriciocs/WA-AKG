@@ -2,6 +2,8 @@ import { prisma } from "@/lib/prisma";
 import { WhatsAppInstance } from "./instance";
 import { Server } from "socket.io";
 import { logger } from "@/lib/logger";
+import { getBrandConfig } from "@/lib/branding-server";
+import { getDefaultBotName } from "@/lib/branding";
 
 const globalForWhatsapp = globalThis as typeof globalThis & {
     waManager?: WhatsAppManager;
@@ -88,6 +90,7 @@ export class WhatsAppManager {
         }
 
         const sessionId = customSessionId || Math.random().toString(36).substring(7);
+        const brand = await getBrandConfig();
 
         const session = await prisma.session.create({
             data: {
@@ -99,7 +102,8 @@ export class WhatsAppManager {
                     create: {
                         enabled: true,
                         botMode: "OWNER",
-                        autoReplyMode: "ALL"
+                        autoReplyMode: "ALL",
+                        botName: getDefaultBotName(brand.name)
                     }
                 }
             }

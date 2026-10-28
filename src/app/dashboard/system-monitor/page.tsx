@@ -144,7 +144,7 @@ export default function SystemMonitorPage() {
                     </CardHeader>
                     <CardContent>
                         <div className="text-2xl font-bold">{data.cpu.load.toFixed(1)}%</div>
-                        <Progress value={data.cpu.load} className="h-2 mt-3" indicatorClassName={data.cpu.load > 85 ? "bg-red-500" : data.cpu.load > 60 ? "bg-orange-500" : "bg-blue-500"} />
+                        <Progress value={data.cpu.load} className="h-2 mt-3" indicatorClassName={data.cpu.load > 85 ? "bg-red-500" : data.cpu.load > 60 ? "bg-orange-500" : "bg-primary"} />
                         <p className="text-xs text-muted-foreground mt-2">{t("coresAverage", { count: data.cpu.cores.length })}</p>
                     </CardContent>
                 </Card>
@@ -155,7 +155,7 @@ export default function SystemMonitorPage() {
                     </CardHeader>
                     <CardContent>
                         <div className="text-2xl font-bold">{memPercent.toFixed(1)}%</div>
-                        <Progress value={memPercent} className="h-2 mt-3" indicatorClassName={memPercent > 85 ? "bg-red-500" : memPercent > 60 ? "bg-amber-500" : "bg-purple-500"} />
+                        <Progress value={memPercent} className="h-2 mt-3" indicatorClassName={memPercent > 85 ? "bg-red-500" : memPercent > 60 ? "bg-amber-500" : "bg-primary"} />
                         <p className="text-xs text-muted-foreground mt-2">
                             {formatBytes(data.memory.used)} / {formatBytes(data.memory.total)}
                         </p>
@@ -182,7 +182,7 @@ export default function SystemMonitorPage() {
                     <CardContent>
                         <div className="text-2xl font-bold space-y-1 mt-1">
                             <div className="flex items-center text-sm">
-                                <span className="text-blue-500 font-bold w-10">↓ {t("rx")}</span>
+                                <span className="text-primary font-bold w-10">↓ {t("rx")}</span>
                                 <span>{formatBytes(data.network[0]?.rx_sec || 0)}/s</span>
                             </div>
                             <div className="flex items-center text-sm">
@@ -210,7 +210,7 @@ export default function SystemMonitorPage() {
                             {data.cpu.cores.map((load: number, i: number) => (
                                 <div key={i} className="bg-muted/40 p-3 rounded-lg border text-center relative overflow-hidden">
                                     {/* Fake progress bg */}
-                                    {load > 0 && <div className={`absolute bottom-0 left-0 right-0 opacity-20 transition-all duration-300 ${load > 85 ? 'bg-red-500' : 'bg-blue-500'}`} style={{ height: `${load}%` }} />}
+                                    {load > 0 && <div className={`absolute bottom-0 left-0 right-0 opacity-20 transition-all duration-300 ${load > 85 ? 'bg-red-500' : 'bg-primary'}`} style={{ height: `${load}%` }} />}
                                     <div className="relative z-10">
                                         <p className="text-xs text-muted-foreground font-mono">{t("core", { index: i })}</p>
                                         <p className={`text-lg font-bold ${load > 85 ? 'text-red-500' : ''}`}>{load.toFixed(1)}%</p>

@@ -7,6 +7,7 @@ import Link from "@/components/app-link";
 import SwaggerUI from "swagger-ui-react";
 import "swagger-ui-react/swagger-ui.css";
 import { ArrowLeft, BookOpen, ShieldCheck } from "lucide-react";
+import { useBranding } from "@/components/branding-provider";
 
 // Suppress third-party legacy lifecycle warnings from swagger-ui-react (ModelCollapse)
 if (typeof window !== "undefined") {
@@ -40,6 +41,7 @@ if (typeof window !== "undefined") {
 }
 
 export default function ApiDocsPage() {
+    const brand = useBranding();
     const { data: session, status } = useSession();
     const [authorized, setAuthorized] = useState(false);
     const [loading, setLoading] = useState(true);
@@ -119,10 +121,10 @@ export default function ApiDocsPage() {
 
     if (loading || status === "loading") {
         return (
-            <div className="flex items-center justify-center min-h-screen bg-gray-50">
+            <div className="flex items-center justify-center min-h-screen bg-background">
                 <div className="flex flex-col items-center gap-3">
-                    <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
-                    <div className="text-gray-600 text-sm font-medium">Loading API Documentation...</div>
+                    <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+                    <div className="text-muted-foreground text-sm font-medium">Loading {brand.name} API documentation...</div>
                 </div>
             </div>
         );
@@ -130,61 +132,68 @@ export default function ApiDocsPage() {
 
     if (!isAuthorized) {
         return (
-            <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
-                <div className="bg-white p-8 rounded-lg shadow-xl w-full max-w-md">
+            <div className="flex items-center justify-center min-h-screen bg-background px-4">
+                <div className="bg-card border border-border p-8 rounded-2xl shadow-xl w-full max-w-md">
                     <div className="text-center mb-6">
-                        <h1 className="text-3xl font-bold text-gray-800 mb-2">
-                            WA-AKG API Documentation
+                        <div className="flex justify-center mb-4" aria-label={brand.name}>
+                            {brand.logoUrl ? (
+                                <img src={brand.logoUrl} alt="" className="h-12 w-12 rounded-2xl object-cover" />
+                            ) : (
+                                <span className="h-12 w-12 rounded-2xl bg-primary text-primary-foreground grid place-items-center text-lg font-bold">{brand.initials}</span>
+                            )}
+                        </div>
+                        <h1 className="text-3xl font-bold text-foreground mb-2">
+                            {brand.name} API Documentation
                         </h1>
-                        <p className="text-gray-600 text-sm">
+                        <p className="text-muted-foreground text-sm">
                             Please authenticate to access Swagger UI
                         </p>
                     </div>
 
                     <form onSubmit={handleLogin} className="space-y-4">
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                            <label className="block text-sm font-medium text-foreground mb-2">
                                 Username
                             </label>
                             <input
                                 type="text"
                                 value={username}
                                 onChange={(event) => setUsername(event.target.value)}
-                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                                className="w-full px-4 py-2 bg-background border border-border rounded-lg focus:ring-2 focus:ring-ring focus:border-primary outline-none"
                                 placeholder="Enter username"
                                 required
                             />
                         </div>
 
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                            <label className="block text-sm font-medium text-foreground mb-2">
                                 Password
                             </label>
                             <input
                                 type="password"
                                 value={password}
                                 onChange={(event) => setPassword(event.target.value)}
-                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                                className="w-full px-4 py-2 bg-background border border-border rounded-lg focus:ring-2 focus:ring-ring focus:border-primary outline-none"
                                 placeholder="Enter password"
                                 required
                             />
                         </div>
 
                         {error && (
-                            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
+                            <div role="alert" className="bg-destructive/10 border border-destructive/30 text-destructive px-4 py-3 rounded-lg text-sm">
                                 {error}
                             </div>
                         )}
 
                         <button
                             type="submit"
-                            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors"
+                            className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-medium py-2 px-4 rounded-lg transition-colors"
                         >
                             Access Documentation
                         </button>
                     </form>
 
-                    <div className="mt-6 text-center text-sm text-gray-500">
+                    <div className="mt-6 text-center text-sm text-muted-foreground">
                         <p>Use the Swagger credentials configured by the server administrator.</p>
                     </div>
                 </div>
@@ -193,44 +202,51 @@ export default function ApiDocsPage() {
     }
 
     return (
-        <div className="min-h-screen bg-white">
-            <header className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white p-4 shadow-md">
+        <div className="min-h-screen bg-background text-foreground">
+            <header className="bg-card border-b border-border p-4 shadow-sm">
                 <div className="container mx-auto flex justify-between items-center">
                     <div className="flex items-center gap-3">
                         <Link
                             href="/dashboard"
-                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 transition-all text-xs font-semibold tracking-wide backdrop-blur-sm"
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-muted hover:bg-muted/80 transition-all text-xs font-semibold tracking-wide"
                         >
                             <ArrowLeft className="w-4 h-4" />
                             Dashboard
                         </Link>
-                        <div>
+                        <div className="flex items-center gap-3">
+                            {brand.logoUrl ? (
+                                <img src={brand.logoUrl} alt="" className="h-8 w-8 rounded-lg object-cover" />
+                            ) : (
+                                <span className="h-8 w-8 rounded-lg bg-primary text-primary-foreground grid place-items-center text-xs font-bold">{brand.initials}</span>
+                            )}
+                            <div>
                             <h1 className="text-xl font-bold flex items-center gap-2">
-                                <BookOpen className="w-5 h-5 text-blue-200" />
-                                WA-AKG API Documentation
+                                <BookOpen className="w-5 h-5 text-primary" />
+                                {brand.name} API Documentation
                             </h1>
-                            <p className="text-blue-100 text-xs mt-0.5">
+                            <p className="text-muted-foreground text-xs mt-0.5">
                                 Interactive API specifications & testing playground
                             </p>
+                            </div>
                         </div>
                     </div>
                     <div className="flex items-center gap-3">
                         {sessionAuthenticated && (
-                            <span className="hidden sm:inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-white/10 text-xs text-blue-100 border border-white/20">
-                                <ShieldCheck className="w-3.5 h-3.5 text-emerald-300" />
+                            <span className="hidden sm:inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-muted text-xs text-muted-foreground border border-border">
+                                <ShieldCheck className="w-3.5 h-3.5 text-primary" />
                                 {session.user.email} ({session.user.role || "USER"})
                             </span>
                         )}
                         <Link
                             href="/dashboard/api-docs"
-                            className="bg-white/20 hover:bg-white/30 px-3 py-1.5 rounded-lg transition-colors text-xs font-medium"
+                            className="bg-muted hover:bg-muted/80 px-3 py-1.5 rounded-lg transition-colors text-xs font-medium"
                         >
                             Overview
                         </Link>
                         {authorized && (
                             <button
                                 onClick={handleLogout}
-                                className="bg-white/20 hover:bg-white/30 px-3 py-1.5 rounded-lg transition-colors text-xs font-medium"
+                                className="bg-muted hover:bg-muted/80 px-3 py-1.5 rounded-lg transition-colors text-xs font-medium"
                             >
                                 Logout
                             </button>
@@ -240,7 +256,7 @@ export default function ApiDocsPage() {
             </header>
 
             <main className="container mx-auto py-6 px-4">
-                <SwaggerUI url="/api/docs" />
+                <SwaggerUI url={apiUrl("/api/docs")} />
             </main>
         </div>
     );

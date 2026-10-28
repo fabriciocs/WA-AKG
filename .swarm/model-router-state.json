@@ -1,0 +1,93 @@
+{
+  "totalDecisions": 0,
+  "modelDistribution": {
+    "haiku": 0,
+    "sonnet": 0,
+    "opus": 0,
+    "inherit": 0
+  },
+  "avgComplexity": 0.5,
+  "avgConfidence": 0.8,
+  "circuitBreakerTrips": 3,
+  "lastUpdated": "2026-10-28T13:33:53.655Z",
+  "learningHistory": [
+    {
+      "task": "Return a concise evidence-backed audit in Portuguese. Include top 5 findings, paths, confidence labe",
+      "model": "sonnet",
+      "complexity": 0.3409571428571428,
+      "outcome": "failure",
+      "timestamp": "2026-10-28T13:33:53.488Z"
+    },
+    {
+      "task": "Return a concise evidence-backed audit in Portuguese. Include top 7 findings, paths, confidence labe",
+      "model": "sonnet",
+      "complexity": 0.3409571428571428,
+      "outcome": "failure",
+      "timestamp": "2026-10-28T13:33:53.584Z"
+    },
+    {
+      "task": "Return a concise evidence-backed audit in Portuguese. Include current token/component inventory, acc",
+      "model": "haiku",
+      "complexity": 0.467389075630252,
+      "outcome": "failure",
+      "timestamp": "2026-10-28T13:33:53.654Z"
+    }
+  ],
+  "version": 2,
+  "priors": {
+    "low": {
+      "haiku": {
+        "alpha": 1,
+        "beta": 1
+      },
+      "sonnet": {
+        "alpha": 1,
+        "beta": 3
+      },
+      "opus": {
+        "alpha": 1,
+        "beta": 1
+      },
+      "inherit": {
+        "alpha": 1,
+        "beta": 1
+      }
+    },
+    "med": {
+      "haiku": {
+        "alpha": 1,
+        "beta": 2
+      },
+      "sonnet": {
+        "alpha": 1,
+        "beta": 1
+      },
+      "opus": {
+        "alpha": 1,
+        "beta": 1
+      },
+      "inherit": {
+        "alpha": 1,
+        "beta": 1
+      }
+    },
+    "high": {
+      "haiku": {
+        "alpha": 1,
+        "beta": 1
+      },
+      "sonnet": {
+        "alpha": 1,
+        "beta": 1
+      },
+      "opus": {
+        "alpha": 1,
+        "beta": 1
+      },
+      "inherit": {
+        "alpha": 1,
+        "beta": 1
+      }
+    }
+  }
+}

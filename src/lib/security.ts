@@ -4,7 +4,7 @@ import https from "https";
 import net from "net";
 
 /** A DNS answer retained so the transport connects to the exact address validated. */
-type LookupAddress = { address: string; family: number };
+export type LookupAddress = { address: string; family: number };
 
 /**
  * Checks whether an address is non-global or reserved. This is deliberately
@@ -70,8 +70,149 @@ function parseIpv6(input: string): number[] | null {
     return [...left.map(part => parseInt(part, 16)), ...Array(missing).fill(0), ...right.map(part => parseInt(part, 16))];
 }
 
+/**
+ * Returns true only for the local destinations that may be explicitly opted
+ * into by a caller. Link-local, metadata, multicast and other special-purpose
+ * ranges intentionally remain excluded even when local access is enabled.
+ */
+export function isExplicitlyAllowedLocalIp(input: string): boolean {
+    const ip = input.replace(/^\[|\]$/g, "");
+    const family = net.isIP(ip);
+
+    if (family === 4) {
+        const parts = ip.split(".").map(Number);
+        const value = parts.reduce((acc, part) => acc * 256 + part, 0);
+        const inCidr = (network: string, prefix: number) => {
+            const base = network.split(".").map(Number).reduce((acc, part) => acc * 256 + part, 0);
+            const mask = prefix === 0 ? 0 : Math.floor(0x100000000 / (2 ** (32 - prefix))) * (2 ** (32 - prefix)) - (2 ** (32 - prefix));
+            return (value & mask) === (base & mask);
+        };
+        const localRanges = [
+            ["127.0.0.0", 8],
+            ["10.0.0.0", 8],
+            ["172.16.0.0", 12],
+            ["192.168.0.0", 16],
+        ] as const;
+        return localRanges.some(([network, prefix]) => inCidr(network, prefix));
+    }
+
+    if (family !== 6) return false;
+    const groups = parseIpv6(ip);
+    if (!groups) return false;
+
+    // IPv4-mapped IPv6 can encode an explicitly allowed local IPv4 address.
+    if (groups.slice(0, 5).every(group => group === 0) && groups[5] === 0xffff) {
+        const mappedV4 = `${groups[6] >> 8}.${groups[6] & 255}.${groups[7] >> 8}.${groups[7] & 255}`;
+        return isExplicitlyAllowedLocalIp(mappedV4);
+    }
+
+    return groups.slice(0, 7).every(group => group === 0) && groups[7] === 1;
+}
+
+export const MAX_REQUEST_HEADER_COUNT = 50;
+export const MAX_REQUEST_HEADERS_BYTES = 16 * 1024;
+export const MAX_REQUEST_HEADER_NAME_BYTES = 256;
+export const MAX_REQUEST_HEADER_VALUE_BYTES = 8 * 1024;
+
+/** HTTP field-name token syntax from RFC 9110. */
+const HTTP_TOKEN = /^[!#$%&'*+\-.^_`|~0-9A-Za-z]+$/;
+
+/** Headers controlled by the transport and never accepted from configuration. */
+export const PROTECTED_REQUEST_HEADERS = new Set([
+    "connection",
+    "content-length",
+    "content-type",
+    "host",
+    "proxy-connection",
+    "te",
+    "trailer",
+    "transfer-encoding",
+    "upgrade",
+    "user-agent",
+    "x-webhook-signature",
+]);
+
+export type ParsedRequestHeaders = Record<string, string>;
+
+/**
+ * Parses user-controlled HTTP headers supplied as one `Name: value` per line.
+ * The parser is deliberately strict because the result is passed to Node's
+ * HTTP client and must not provide a way to smuggle or override transport
+ * headers.
+ */
+export function parseRequestHeaders(input: unknown): ParsedRequestHeaders {
+    if (input === undefined || input === null) return {};
+    if (typeof input !== "string") throw new TypeError("requestHeaders must be a text value");
+    if (input.trim() === "") return {};
+    if (input.includes("\r")) throw new Error("requestHeaders must not contain CRLF or carriage returns");
+    if (Buffer.byteLength(input, "utf8") > MAX_REQUEST_HEADERS_BYTES) {
+        throw new Error(`requestHeaders exceed the maximum permitted size of ${MAX_REQUEST_HEADERS_BYTES} bytes`);
+    }
+
+    const parsed: ParsedRequestHeaders = {};
+    const names = new Set<string>();
+    let count = 0;
+
+    for (const line of input.split("\n")) {
+        if (line.trim() === "") continue;
+        count++;
+        if (count > MAX_REQUEST_HEADER_COUNT) {
+            throw new Error(`requestHeaders exceed the maximum of ${MAX_REQUEST_HEADER_COUNT} headers`);
+        }
+
+        const separator = line.indexOf(":");
+        if (separator <= 0) throw new Error("Each request header must use the format 'Name: value'");
+        const name = line.slice(0, separator).trim();
+        const value = line.slice(separator + 1).trim();
+        const normalizedName = name.toLowerCase();
+
+        if (!HTTP_TOKEN.test(name)) throw new Error(`Invalid HTTP header name '${name}'`);
+        if (PROTECTED_REQUEST_HEADERS.has(normalizedName)) {
+            throw new Error(`Header '${name}' is controlled by the webhook transport`);
+        }
+        if (names.has(normalizedName)) throw new Error(`Duplicate request header '${name}'`);
+        if (Buffer.byteLength(name, "utf8") > MAX_REQUEST_HEADER_NAME_BYTES) {
+            throw new Error(`Request header name '${name}' is too long`);
+        }
+        if (Buffer.byteLength(value, "utf8") > MAX_REQUEST_HEADER_VALUE_BYTES) {
+            throw new Error(`Request header '${name}' value is too long`);
+        }
+        if (/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/.test(value)) {
+            throw new Error(`Request header '${name}' contains forbidden control characters`);
+        }
+
+        names.add(normalizedName);
+        parsed[name] = value;
+    }
+
+    return parsed;
+}
+
+/** Alias with a domain-specific name for webhook configuration consumers. */
+export const parseWebhookRequestHeaders = parseRequestHeaders;
+
+/** Merges configured headers while making transport-owned headers authoritative. */
+export function mergeRequestHeaders(
+    configured: Record<string, string>,
+    internal: Record<string, string>,
+): Record<string, string> {
+    const merged: Record<string, string> = {};
+    const configuredNames = new Map<string, string>();
+    for (const [name, value] of Object.entries(configured)) {
+        configuredNames.set(name.toLowerCase(), name);
+        merged[name] = value;
+    }
+    for (const [name, value] of Object.entries(internal)) {
+        const configuredName = configuredNames.get(name.toLowerCase());
+        if (configuredName) delete merged[configuredName];
+        merged[name] = value;
+    }
+    return merged;
+}
+
 export interface ValidateUrlOptions {
     allowHttp?: boolean;
+    allowLocal?: boolean;
     allowedHostnames?: string[];
 }
 
@@ -86,7 +227,7 @@ export async function validateSafeUrl(
     let parsed: URL;
     try { parsed = new URL(urlStr); } catch { return { valid: false, error: "Malformed URL" }; }
     const allowedProtocols = options.allowHttp ? ["https:", "http:"] : ["https:"];
-    if (!allowedProtocols.includes(parsed.protocol)) return { valid: false, error: `Protocol '${parsed.protocol}' is not allowed. Only HTTPS is supported.` };
+    if (!allowedProtocols.includes(parsed.protocol)) return { valid: false, error: `Protocol '${parsed.protocol}' is not allowed. HTTPS${options.allowHttp ? " and HTTP" : " only"} is supported.` };
     if (parsed.username || parsed.password) return { valid: false, error: "URL credentials are not allowed" };
 
     const hostname = parsed.hostname.replace(/^\[|\]$/g, "").replace(/\.$/, "").toLowerCase();
@@ -98,20 +239,22 @@ export async function validateSafeUrl(
         });
         if (!matches) return { valid: false, error: `Hostname '${hostname}' is not in the allowed domains list` };
     }
-    if (hostname === "localhost" || hostname.endsWith(".localhost") || hostname.endsWith(".local")) {
+    if (!options.allowLocal && (hostname === "localhost" || hostname.endsWith(".localhost") || hostname.endsWith(".local"))) {
         return { valid: false, error: "Access to local hostnames is forbidden" };
     }
 
     const family = net.isIP(hostname);
     if (family) {
-        if (isPrivateOrReservedIp(hostname)) return { valid: false, error: `Access to private or reserved IP address (${hostname}) is forbidden` };
+        if (isPrivateOrReservedIp(hostname) && !(options.allowLocal && isExplicitlyAllowedLocalIp(hostname))) {
+            return { valid: false, error: `Access to private or reserved IP address (${hostname}) is forbidden` };
+        }
         return { valid: true, url: parsed, resolvedIps: [hostname] };
     }
 
     try {
         const results = await lookup(hostname);
         if (!results?.length) return { valid: false, error: `Unable to resolve hostname '${hostname}'` };
-        if (results.some(result => isPrivateOrReservedIp(result.address))) {
+        if (results.some(result => isPrivateOrReservedIp(result.address) && !(options.allowLocal && isExplicitlyAllowedLocalIp(result.address)))) {
             return { valid: false, error: "Hostname resolves to a private or reserved IP address" };
         }
         return { valid: true, url: parsed, resolvedIps: results.map(result => result.address) };
@@ -140,7 +283,7 @@ export interface SafeHttpResponse {
     body: Buffer;
 }
 
-type SafeRequestDependencies = {
+export type SafeRequestDependencies = {
     lookup: (hostname: string) => Promise<LookupAddress[]>;
     request: (url: URL, pinnedAddress: string, options: SafeRequestOptions) => Promise<SafeHttpResponse>;
 };

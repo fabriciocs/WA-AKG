@@ -10,16 +10,19 @@ import { Label } from "@/components/ui/label";
 import { RefreshCw, Save, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
+import { resolveBrandConfig } from "@/lib/branding";
+import { useBranding } from "@/components/branding-provider";
 
 export default function SettingsPage() {
     const t = useTranslations("settings");
+    const brand = useBranding();
     const { data: authSession } = useSession();
     const isSuperAdmin = authSession?.user?.role === "SUPERADMIN";
 
     const [systemConfig, setSystemConfig] = useState({
-        appName: "WA-AKG",
-        logoUrl: "",
-        faviconUrl: "/favicon.ico",
+        appName: brand.name,
+        logoUrl: brand.logoUrl,
+        faviconUrl: brand.faviconUrl,
         timezone: "Asia/Jakarta",
         enableRegistration: true
     });
@@ -47,10 +50,11 @@ export default function SettingsPage() {
             .then(responseData => {
                 const data = responseData?.data;
                 if (data && !responseData.error) {
+                    const resolved = resolveBrandConfig({ systemConfig: data });
                     setSystemConfig({
-                        appName: data.appName || "WA-AKG",
-                        logoUrl: data.logoUrl || "",
-                        faviconUrl: data.faviconUrl || "/favicon.ico",
+                        appName: resolved.name,
+                        logoUrl: resolved.logoUrl,
+                        faviconUrl: resolved.faviconUrl,
                         timezone: data.timezone || "Asia/Jakarta",
                         enableRegistration: data.enableRegistration !== undefined ? data.enableRegistration : true
                     });
@@ -118,7 +122,7 @@ export default function SettingsPage() {
                             <Label>{t("appName")}</Label>
                             <input
                                 className={inputClass}
-                                placeholder="WA-AKG"
+                                placeholder={brand.name}
                                 value={systemConfig.appName}
                                 onChange={(e) => setSystemConfig(prev => ({ ...prev, appName: e.target.value }))}
                                 disabled={!isSuperAdmin}

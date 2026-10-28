@@ -3,7 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 
 export default function DashboardLoading() {
     return (
-        <div className="space-y-8">
+        <div className="space-y-8" role="status" aria-label="Loading dashboard" aria-live="polite">
             {/* Header */}
             <div className="flex justify-between items-center">
                 <div className="space-y-2">

@@ -24,10 +24,10 @@ interface Notification {
 }
 
 const TYPE_STYLES: Record<string, { icon: LucideIcon; bg: string; border: string; dot: string }> = {
-    INFO: { icon: Info, bg: "bg-blue-50 dark:bg-blue-950/30", border: "border-l-blue-500", dot: "bg-blue-500" },
+    INFO: { icon: Info, bg: "bg-primary/10", border: "border-primary/30", dot: "bg-primary" },
     WARNING: { icon: AlertTriangle, bg: "bg-yellow-50 dark:bg-yellow-950/30", border: "border-l-yellow-500", dot: "bg-yellow-500" },
     SUCCESS: { icon: CheckCircle, bg: "bg-green-50 dark:bg-green-950/30", border: "border-l-green-500", dot: "bg-green-500" },
-    SYSTEM: { icon: Settings, bg: "bg-purple-50 dark:bg-purple-950/30", border: "border-l-purple-500", dot: "bg-purple-500" },
+    SYSTEM: { icon: Settings, bg: "bg-muted", border: "border-border", dot: "bg-muted-foreground" },
 };
 
 export default function InboxPage() {
@@ -190,7 +190,6 @@ export default function InboxPage() {
                                 className={cn(
                                     "relative flex items-start gap-3 p-4 rounded-xl border border-border/40 transition-all cursor-pointer hover:shadow-sm group",
                                     style.border,
-                                    "border-l-4",
                                     n.read ? "bg-background" : "bg-muted/20"
                                 )}
                                 onClick={() => handleClick(n)}

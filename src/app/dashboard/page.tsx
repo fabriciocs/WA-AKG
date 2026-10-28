@@ -80,8 +80,8 @@ export default async function DashboardPage() {
             value: totalSessions,
             icon: QrCode,
             description: t("stats.totalSessionsDesc"),
-            color: "text-blue-600",
-            bg: "bg-blue-50",
+            color: "text-primary",
+            bg: "bg-primary/10",
         },
         {
             title: t("stats.connected"),
@@ -89,7 +89,7 @@ export default async function DashboardPage() {
             icon: Wifi,
             description: t("stats.connectedDesc"),
             color: "text-emerald-600",
-            bg: "bg-emerald-50",
+            bg: "bg-emerald-500/10",
         },
         {
             title: t("stats.disconnected"),
@@ -97,7 +97,7 @@ export default async function DashboardPage() {
             icon: WifiOff,
             description: t("stats.disconnectedDesc"),
             color: "text-red-500",
-            bg: "bg-red-50",
+            bg: "bg-destructive/10",
         },
         {
             title: t("stats.autoReplyRules"),
@@ -105,7 +105,7 @@ export default async function DashboardPage() {
             icon: Zap,
             description: t("stats.autoReplyRulesDesc"),
             color: "text-amber-600",
-            bg: "bg-amber-50",
+            bg: "bg-amber-500/10",
         },
     ];
 
@@ -121,8 +121,8 @@ export default async function DashboardPage() {
             {/* Header */}
             <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
                 <div>
-                    <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">{t("title")}</h2>
-                    <p className="text-sm text-slate-500 mt-1">{t("subtitle")}</p>
+                    <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">{t("title")}</h2>
+                    <p className="text-sm text-muted-foreground mt-1">{t("subtitle")}</p>
                 </div>
                 <Link href="/dashboard/sessions">
                     <Button size="sm" className="gap-2">
@@ -185,7 +185,7 @@ export default async function DashboardPage() {
 
             {/* Quick Actions */}
             <div>
-                <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-3">{t("quickActions.title")}</h3>
+                <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">{t("quickActions.title")}</h3>
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
                     {quickActions.map((action) => {
                         const Icon = action.icon;
@@ -218,14 +218,14 @@ export default async function DashboardPage() {
                 </div>
 
                 {sessions.length === 0 ? (
-                    <Card className="border-dashed border-2 border-slate-200 shadow-none">
+                    <Card className="border-dashed border-2 border-border shadow-none">
                         <CardContent className="py-12 text-center">
-                            <div className="bg-slate-100 h-12 w-12 rounded-full flex items-center justify-center mx-auto mb-3">
-                                <QrCode className="h-6 w-6 text-slate-400" />
+                            <div className="bg-primary/10 h-12 w-12 rounded-full flex items-center justify-center mx-auto mb-3">
+                                <QrCode className="h-6 w-6 text-primary" />
                             </div>
-                            <p className="text-sm font-medium text-slate-600 mb-1">{t("sessions.emptyTitle")}</p>
-                            <p className="text-xs text-slate-400 mb-4">{t("sessions.emptyDescription")}</p>
-                            <Link href="/dashboard/sessions">
+                            <p className="text-sm font-medium text-foreground mb-1">{t("sessions.emptyTitle")}</p>
+                            <p className="text-xs text-muted-foreground mb-4">{t("sessions.emptyDescription")}</p>
+                            <Link href="/onboarding">
                                 <Button size="sm" variant="outline" className="gap-2">
                                     <Plus className="h-4 w-4" /> {t("sessions.createSession")}
                                 </Button>

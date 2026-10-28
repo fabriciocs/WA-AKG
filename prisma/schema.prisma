@@ -237,6 +237,8 @@ model Webhook {
   sessionId String? // Optional: specific session, null = all sessions
   name      String // e.g. "My Server Webhook"
   url       String // The webhook endpoint URL
+  allowLocal Boolean  @default(false)
+  requestHeaders String?  @db.Text
   secret    String? // Optional secret for HMAC signing
   events    Json // Array of event types: ["message.received", "message.sent", "connection.update", etc.]
   filters   Json? // Optional advanced delivery filters; null preserves legacy behavior

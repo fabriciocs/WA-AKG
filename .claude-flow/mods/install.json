@@ -1,0 +1,16 @@
+{
+  "version": 2,
+  "installedAt": "2026-10-28T13:53:30.069Z",
+  "files": {
+    "C:\\repos\\WA-AKG\\.claude\\settings.json": {
+      "plugins": [
+        "ruflo-mods@ruflo",
+        "ruflo-swarm@ruflo",
+        "ruflo-console@ruflo"
+      ],
+      "marketplace": true,
+      "env": true,
+      "claudeInstalled": []
+    }
+  }
+}

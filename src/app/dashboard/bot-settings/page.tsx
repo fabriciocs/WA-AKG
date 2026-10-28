@@ -21,13 +21,16 @@ import { RefreshCw, Save, AlertCircle, X, Plus, ShieldCheck, Zap, UserCheck, Mes
 import { toast } from "sonner";
 import { SessionGuard } from "@/components/dashboard/session-guard";
 import { useTranslations } from "next-intl";
+import { resolveBotDisplayName } from "@/lib/branding";
+import { useBranding } from "@/components/branding-provider";
 
 export default function BotSettingsPage() {
     const t = useTranslations("botSettings");
+    const brand = useBranding();
     const { sessionId } = useSessionProvider();
 
     const [botConfig, setBotConfig] = useState({
-        botName: "WA-AKG Bot",
+        botName: resolveBotDisplayName(undefined, brand.name),
         prefix: "#",
         enableSticker: true,
         enableVideoSticker: true,
@@ -74,6 +77,7 @@ export default function BotSettingsPage() {
                     setBotConfig(prev => ({
                         ...prev,
                         ...data,
+                        botName: resolveBotDisplayName(data.botName, brand.name),
                         removeBgApiKey: data.removeBgApiKey || "",
                         prefix: data.prefix || "#",
                         welcomeMessage: data.welcomeMessage || "",
@@ -99,7 +103,7 @@ export default function BotSettingsPage() {
                 }
             })
             .catch(() => { });
-    }, [sessionId]);
+    }, [sessionId, brand.name]);
 
     const handleSaveBot = async () => {
         if (!sessionId) return;
@@ -196,7 +200,7 @@ export default function BotSettingsPage() {
                             <div className="grid gap-2">
                                 <Label>{t("botName")}</Label>
                                 <Input
-                                    placeholder="WA-AKG Bot"
+                                    placeholder={resolveBotDisplayName(undefined, brand.name)}
                                     value={botConfig.botName}
                                     onChange={(e) => setBotConfig(prev => ({ ...prev, botName: e.target.value }))}
                                 />
@@ -430,8 +434,8 @@ export default function BotSettingsPage() {
                             {botConfig.antiSpamEnabled && (
                                 <div className="grid gap-6 animate-in fade-in slide-in-from-top-1 duration-200">
                                     {/* How it works */}
-                                    <div className="rounded-lg border border-blue-500/20 bg-blue-500/5 p-4 space-y-2">
-                                        <p className="text-sm font-semibold text-blue-700 dark:text-blue-400">{t("howItWorksTitle")}</p>
+                                    <div className="rounded-lg border border-primary/20 bg-primary/5 p-4 space-y-2">
+                                        <p className="text-sm font-semibold text-primary">{t("howItWorksTitle")}</p>
                                         <p className="text-xs text-muted-foreground leading-relaxed">
                                             {t("howItWorksDesc")}
                                         </p>

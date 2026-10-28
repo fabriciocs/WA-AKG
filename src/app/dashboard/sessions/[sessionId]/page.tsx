@@ -212,8 +212,8 @@ export default function SessionDetailPage() {
         return `${d}d ${h}h ${m}m ${s}s`;
     };
 
-    if (loading) return <div className="p-8">{tCommon("loading")}</div>;
-    if (!session) return <div className="p-8">{t("notFound")}</div>;
+    if (loading) return <div className="p-8 text-muted-foreground" role="status" aria-live="polite">{tCommon("loading")}</div>;
+    if (!session) return <div className="p-8 text-muted-foreground" role="alert">{t("notFound")}</div>;
 
     return (
         <div className="max-w-4xl mx-auto space-y-6">
@@ -224,7 +224,7 @@ export default function SessionDetailPage() {
                     </Link>
                 </Button>
                 <h1 className="text-xl sm:text-2xl font-bold truncate">
-                    {session.name} <span className="text-gray-400 font-normal text-xs sm:text-sm block sm:inline mt-1 sm:mt-0">({session.sessionId})</span>
+                    {session.name} <span className="text-muted-foreground font-normal text-xs sm:text-sm block sm:inline mt-1 sm:mt-0">({session.sessionId})</span>
                 </h1>
             </div>
 
@@ -234,9 +234,9 @@ export default function SessionDetailPage() {
                     <CardHeader>
                         <CardTitle className="flex items-center justify-between">
                             {t("statusTitle")}
-                            <div className={`px-3 py-1 rounded-full text-xs font-bold ${session.status === 'CONNECTED' ? 'bg-green-100 text-green-700' :
-                                session.status === 'STOPPED' ? 'bg-red-100 text-red-700' :
-                                    'bg-yellow-100 text-yellow-700'
+                            <div className={`px-3 py-1 rounded-full text-xs font-bold ${session.status === 'CONNECTED' ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300' :
+                                session.status === 'STOPPED' ? 'bg-destructive/10 text-destructive' :
+                                    'bg-amber-500/10 text-amber-700 dark:text-amber-300'
                                 }`}>
                                 {session.status}
                             </div>
@@ -245,12 +245,12 @@ export default function SessionDetailPage() {
                     </CardHeader>
                     <CardContent className="space-y-4">
                         <div className="grid grid-cols-2 gap-4">
-                            <div className="p-4 bg-gray-50 rounded-lg">
-                                <span className="text-sm text-gray-500 block">{t("uptime")}</span>
+                            <div className="p-4 bg-muted/40 rounded-lg">
+                                <span className="text-sm text-muted-foreground block">{t("uptime")}</span>
                                 <span className="text-xl font-mono font-medium">{formatUptime(uptime)}</span>
                             </div>
-                            <div className="p-4 bg-gray-50 rounded-lg">
-                                <span className="text-sm text-gray-500 block">{t("connectedAs")}</span>
+                            <div className="p-4 bg-muted/40 rounded-lg">
+                                <span className="text-sm text-muted-foreground block">{t("connectedAs")}</span>
                                 <span className="text-lg font-medium truncate">{session.me?.name || session.me?.id || "-"}</span>
                             </div>
                         </div>
@@ -260,32 +260,34 @@ export default function SessionDetailPage() {
                             <div className="mt-4 pt-4 border-t">
                                 <h4 className="text-sm font-semibold mb-3 flex items-center gap-2"><Activity className="h-4 w-4" /> {t("systemHealth")}</h4>
                                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                                    <div className="bg-slate-50 p-3 rounded border text-center relative overflow-hidden">
-                                        <Wifi className="h-4 w-4 text-slate-400 absolute top-2 right-2" />
-                                        <div className="text-xs text-slate-500">{t("pingState")}</div>
-                                        <div className="font-bold text-green-600 mt-1">{systemMetrics.ping}</div>
+                                    <div className="bg-muted/30 p-3 rounded border text-center relative overflow-hidden">
+                                        <Wifi className="h-4 w-4 text-muted-foreground absolute top-2 right-2" />
+                                        <div className="text-xs text-muted-foreground">{t("pingState")}</div>
+                                        <div className="font-bold text-emerald-600 dark:text-emerald-400 mt-1">{systemMetrics.ping}</div>
                                     </div>
-                                    <div className="bg-slate-50 p-3 rounded border text-center">
-                                        <div className="text-xs text-slate-500">{t("storeContacts")}</div>
-                                        <div className="font-bold text-slate-700 mt-1">{systemMetrics.store?.contacts || 0}</div>
+                                    <div className="bg-muted/30 p-3 rounded border text-center">
+                                        <div className="text-xs text-muted-foreground">{t("storeContacts")}</div>
+                                        <div className="font-bold text-foreground mt-1">{systemMetrics.store?.contacts || 0}</div>
                                     </div>
-                                    <div className="bg-slate-50 p-3 rounded border text-center">
-                                        <div className="text-xs text-slate-500">{t("storeChats")}</div>
-                                        <div className="font-bold text-slate-700 mt-1">{systemMetrics.store?.chats || 0}</div>
+                                    <div className="bg-muted/30 p-3 rounded border text-center">
+                                        <div className="text-xs text-muted-foreground">{t("storeChats")}</div>
+                                        <div className="font-bold text-foreground mt-1">{systemMetrics.store?.chats || 0}</div>
                                     </div>
-                                    <div className="bg-slate-50 p-3 rounded border text-center relative">
-                                        <MemoryStick className="h-4 w-4 text-slate-400 absolute top-2 right-2 opacity-50" />
-                                        <div className="text-xs text-slate-500">{t("storeMsgs")}</div>
-                                        <div className="font-bold text-slate-700 mt-1">{systemMetrics.store?.messages || 0}</div>
+                                    <div className="bg-muted/30 p-3 rounded border text-center relative">
+                                        <MemoryStick className="h-4 w-4 text-muted-foreground absolute top-2 right-2 opacity-50" />
+                                        <div className="text-xs text-muted-foreground">{t("storeMsgs")}</div>
+                                        <div className="font-bold text-foreground mt-1">{systemMetrics.store?.messages || 0}</div>
                                     </div>
                                 </div>
                             </div>
                         )}
 
                         {qrCode && (
-                            <div className="flex flex-col items-center justify-center p-6 border-2 border-dashed rounded-lg bg-white relative group">
-                                <QRCodeSVG value={qrCode} size={256} />
-                                <p className="mt-4 text-sm text-gray-500 animate-pulse">{t("scanInstructionShort")}</p>
+                            <div className="flex flex-col items-center justify-center p-6 border-2 border-dashed rounded-lg bg-card relative group">
+                                <div role="img" aria-label={t("scanInstructionShort")}>
+                                    <QRCodeSVG value={qrCode} size={256} />
+                                </div>
+                                <p className="mt-4 text-sm text-muted-foreground motion-safe:animate-pulse">{t("scanInstructionShort")}</p>
 
                                 <div className="mt-6 pt-6 border-t w-full">
                                     <div className="flex flex-col items-center gap-3">
@@ -305,10 +307,12 @@ export default function SessionDetailPage() {
                                             <p className="text-[10px] text-muted-foreground text-center">{t("phoneInstruction")}</p>
                                         </div>
                                         {pairingCode && (
-                                            <div className="mt-4 p-4 bg-slate-900 rounded-lg w-full max-w-[320px] text-center border-2 border-slate-700 shadow-xl relative group/code">
-                                                <div className="text-[10px] text-slate-400 uppercase tracking-[0.2em] mb-2 font-semibold">{t("yourPairingCode")}</div>
-                                                <div
-                                                    className="text-3xl font-mono font-bold text-white tracking-[0.3em] flex justify-center cursor-pointer hover:text-blue-400 transition-colors py-2"
+                                            <div className="mt-4 p-4 bg-foreground rounded-lg w-full max-w-[320px] text-center border-2 border-border shadow-xl relative group/code">
+                                                <div className="text-[10px] text-background/70 uppercase tracking-[0.2em] mb-2 font-semibold">{t("yourPairingCode")}</div>
+                                                <button
+                                                    type="button"
+                                                    aria-label={t("clickToCopy")}
+                                                    className="text-3xl font-mono font-bold text-background tracking-[0.3em] flex justify-center cursor-pointer hover:text-primary transition-colors py-2 w-full rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                                                     onClick={() => copyToClipboard(pairingCode)}
                                                     title={t("clickToCopy")}
                                                 >
@@ -318,16 +322,18 @@ export default function SessionDetailPage() {
                                                             {i === 3 && <span className="mx-2 text-slate-600 opacity-50">-</span>}
                                                         </span>
                                                     ))}
-                                                </div>
+                                                </button>
                                                 <Button
                                                     size="icon"
                                                     variant="ghost"
-                                                    className="absolute top-2 right-2 h-7 w-7 text-slate-500 hover:text-white"
+                                                    className="absolute top-2 right-2 h-10 w-10 text-background/70 hover:text-background"
+                                                    aria-label={t("clickToCopy")}
+                                                    title={t("clickToCopy")}
                                                     onClick={() => copyToClipboard(pairingCode)}
                                                 >
                                                     <Copy className="h-3.5 w-3.5" />
                                                 </Button>
-                                                <div className="text-[9px] text-slate-500 mt-2 italic">{t("enterCodeOnPhone")}</div>
+                                                <div className="text-[9px] text-background/70 mt-2 italic">{t("enterCodeOnPhone")}</div>
                                             </div>
                                         )}
                                     </div>
@@ -346,7 +352,7 @@ export default function SessionDetailPage() {
                     <CardContent className="space-y-3">
                         <Button
                             variant="outline"
-                            className="w-full justify-start text-green-600 hover:text-green-700 hover:bg-green-50"
+                            className="w-full justify-start text-emerald-600 hover:text-emerald-700 hover:bg-emerald-500/10"
                             onClick={() => performAction('start')}
                             disabled={session.status === 'CONNECTED' || session.status === 'SCAN_QR'}
                         >
@@ -355,7 +361,7 @@ export default function SessionDetailPage() {
 
                         <Button
                             variant="outline"
-                            className="w-full justify-start text-orange-600 hover:text-orange-700 hover:bg-orange-50"
+                            className="w-full justify-start text-amber-600 hover:text-amber-700 hover:bg-amber-500/10"
                             onClick={() => performAction('restart')}
                             disabled={!session.hasInstance && session.status !== 'CONNECTED'}
                         >
@@ -364,7 +370,7 @@ export default function SessionDetailPage() {
 
                         <Button
                             variant="outline"
-                            className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50"
+                            className="w-full justify-start text-destructive hover:text-destructive hover:bg-destructive/10"
                             onClick={() => performAction('stop')}
                             disabled={session.status === 'STOPPED'}
                         >
@@ -399,7 +405,7 @@ export default function SessionDetailPage() {
                                     </AlertDialogHeader>
                                     <AlertDialogFooter>
                                         <AlertDialogCancel>{tCommon("cancel")}</AlertDialogCancel>
-                                        <AlertDialogAction onClick={deleteSession} className="bg-red-600 hover:bg-red-700">
+                                        <AlertDialogAction onClick={deleteSession} className="bg-destructive hover:bg-destructive/90">
                                             {tCommon("delete")}
                                         </AlertDialogAction>
                                     </AlertDialogFooter>

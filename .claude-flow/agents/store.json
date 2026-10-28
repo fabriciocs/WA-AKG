@@ -1,0 +1,74 @@
+{
+  "agents": {
+    "agent-1793194428610-2ol9lz": {
+      "agentId": "agent-1793194428610-2ol9lz",
+      "agentType": "researcher",
+      "name": "persuade",
+      "status": "idle",
+      "health": 0,
+      "taskCount": 1,
+      "config": {
+        "readOnly": true,
+        "model": "sonnet"
+      },
+      "createdAt": "2026-10-28T13:33:48.611Z",
+      "domain": "ux-ui-audit",
+      "model": "sonnet",
+      "modelRoutedBy": "explicit",
+      "executionHistory": [
+        {
+          "at": "2026-10-28T13:33:53.493Z",
+          "success": false,
+          "durationMs": 62
+        }
+      ]
+    },
+    "agent-1793194429970-snygiv": {
+      "agentId": "agent-1793194429970-snygiv",
+      "agentType": "researcher",
+      "name": "operate",
+      "status": "idle",
+      "health": 0,
+      "taskCount": 1,
+      "config": {
+        "readOnly": true,
+        "model": "sonnet"
+      },
+      "createdAt": "2026-10-28T13:33:49.970Z",
+      "domain": "ux-ui-audit",
+      "model": "sonnet",
+      "modelRoutedBy": "explicit",
+      "executionHistory": [
+        {
+          "at": "2026-10-28T13:33:53.595Z",
+          "success": false,
+          "durationMs": 15
+        }
+      ]
+    },
+    "agent-1793194430055-ffonk3": {
+      "agentId": "agent-1793194430055-ffonk3",
+      "agentType": "researcher",
+      "name": "foundation",
+      "status": "idle",
+      "health": 0,
+      "taskCount": 1,
+      "config": {
+        "readOnly": true,
+        "model": "haiku"
+      },
+      "createdAt": "2026-10-28T13:33:50.055Z",
+      "domain": "ux-ui-audit",
+      "model": "haiku",
+      "modelRoutedBy": "explicit",
+      "executionHistory": [
+        {
+          "at": "2026-10-28T13:33:53.674Z",
+          "success": false,
+          "durationMs": 20
+        }
+      ]
+    }
+  },
+  "version": "3.0.0"
+}

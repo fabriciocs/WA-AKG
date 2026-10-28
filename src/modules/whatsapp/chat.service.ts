@@ -2,6 +2,8 @@ import { prisma } from "@/lib/prisma";
 import { normalizeJid } from "@/lib/jid-utils";
 import { waManager } from "@/modules/whatsapp/manager";
 import { onMessageSent } from "@/lib/webhook";
+import { getBrandConfig } from "@/lib/branding-server";
+import { resolveBotDisplayName } from "@/lib/branding";
 import Sticker from "wa-sticker-formatter";
 import type { InteractiveMessagePayload, AlbumItem } from "./interactive";
 import type { Prisma } from "@prisma/client";
@@ -36,6 +38,20 @@ function getMediaUrl(media: OutboundMedia | undefined): string | undefined {
 
 function errorMessage(error: unknown): string {
     return error instanceof Error ? error.message : String(error);
+}
+
+async function getDefaultStickerMetadata(sessionId: string) {
+    const [brand, session] = await Promise.all([
+        getBrandConfig(),
+        prisma.session.findUnique({
+            where: { sessionId },
+            select: { botConfig: { select: { botName: true } } }
+        })
+    ]);
+    return {
+        pack: resolveBotDisplayName(session?.botConfig?.botName, brand.name),
+        author: brand.name
+    };
 }
 
 /**
@@ -324,9 +340,10 @@ export class ChatService {
                 const stickerOptions = typeof stickerPayload === "object" && !Buffer.isBuffer(stickerPayload)
                     ? stickerPayload
                     : undefined;
+                const defaults = await getDefaultStickerMetadata(sessionId);
                 const sticker = new Sticker(buffer, {
-                    pack: stickerOptions?.pack || "WA-AKG Bot",
-                    author: stickerOptions?.author || "WA-AKG",
+                    pack: stickerOptions?.pack || defaults.pack,
+                    author: stickerOptions?.author || defaults.author,
                     type: "full",
                     quality: 50
                 });
@@ -461,9 +478,10 @@ export class ChatService {
         } else if (type === 'document') {
             content = { document: buffer, fileName, ...messageOptions };
         } else if (type === 'sticker') {
+            const defaults = await getDefaultStickerMetadata(sessionId);
             const sticker = new Sticker(buffer, {
-                pack: "WA-AKG Bot",
-                author: "WA-AKG",
+                pack: defaults.pack,
+                author: defaults.author,
                 type: "full",
                 quality: 50
             });

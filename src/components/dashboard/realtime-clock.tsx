@@ -41,10 +41,10 @@ export function RealtimeClock() {
     if (!mounted) return null;
 
     return (
-        <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-100 rounded-md border border-slate-200 text-sm font-medium text-slate-700">
-            <Clock className="h-4 w-4 text-slate-500" />
+        <div className="flex items-center gap-2 px-3 py-1.5 bg-muted rounded-md border border-border text-sm font-medium text-foreground" aria-label={`${time}, ${timezone}`}>
+            <Clock className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
             <span>{time}</span>
-            <span className="text-xs text-slate-400 border-l border-slate-300 pl-2 ml-1">{timezone}</span>
+            <span className="text-xs text-muted-foreground border-l border-border pl-2 ml-1">{timezone}</span>
         </div>
     );
 }

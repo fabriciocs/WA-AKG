@@ -84,6 +84,7 @@ export const navGroups: NavGroup[] = [
             { href: "/dashboard/bot-settings", key: "botSettings", icon: Bot },
             { href: "/dashboard/autoreply", key: "autoReply", icon: MessageCircleReply },
             { href: "/dashboard/profile", key: "botProfile", icon: UserCircle },
+            { href: "/dashboard/account", key: "profile", icon: UserCircle },
             { href: "/dashboard/scheduler", key: "scheduler", icon: CalendarClock },
             { href: "/dashboard/webhooks", key: "webhooks", icon: Webhook },
         ],
@@ -101,8 +102,8 @@ export const navGroups: NavGroup[] = [
             { href: "/dashboard/media", key: "media", icon: HardDrive },
             { href: "/dashboard/sessions/access", key: "sessionAccess", icon: UserPlus },
             { href: "/dashboard/users", key: "users", icon: Users, superadminOnly: true },
-            { href: "/dashboard/settings", key: "settings", icon: Settings },
-            { href: "/dashboard/oauth", key: "oauthAccess", icon: KeyRound },
+            { href: "/dashboard/settings", key: "settings", icon: Settings, superadminOnly: true },
+            { href: "/dashboard/oauth", key: "oauthAccess", icon: KeyRound, superadminOnly: true },
             { href: "/dashboard/system-monitor", key: "systemMonitor", icon: Activity, superadminOnly: true },
             { href: "/dashboard/notifications", key: "notifications", icon: Bell, superadminOnly: true },
         ],
@@ -162,8 +163,12 @@ export function SidebarNav() {
                             {/* Group header — hidden when sidebar collapsed */}
                             {!isCollapsed && (
                                 <button
+                                    type="button"
+                                    id={`nav-group-${group.key}`}
+                                    aria-expanded={!isGroupCollapsed}
+                                    aria-controls={`nav-items-${group.key}`}
                                     onClick={() => toggleGroup(group.key)}
-                                    className="flex items-center justify-between w-full px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60 hover:text-foreground/80 transition-colors group"
+                                    className="flex items-center justify-between w-full min-h-10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60 hover:text-foreground/80 transition-colors group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-md"
                                 >
                                     {t(`nav.groups.${group.key}`)}
                                     <ChevronDown
@@ -179,7 +184,7 @@ export function SidebarNav() {
                             )}
 
                             {(!isGroupCollapsed || isCollapsed) && (
-                                <div className="space-y-0.5">
+                                <div id={`nav-items-${group.key}`} role="group" aria-labelledby={!isCollapsed ? `nav-group-${group.key}` : undefined} className="space-y-0.5">
                                     {visibleItems.map((item) => (
                                         <NavLink
                                             key={item.href}
@@ -198,8 +203,12 @@ export function SidebarNav() {
             {/* Collapse Toggle Button */}
             <div className="px-2 py-2 border-t border-border/30">
                 <button
+                    type="button"
+                    aria-label={isCollapsed ? "Expand navigation" : t("common.collapse")}
+                    aria-expanded={!isCollapsed}
+                    title={isCollapsed ? "Expand navigation" : t("common.collapse")}
                     onClick={toggleCollapse}
-                    className="flex items-center justify-center w-full gap-2 px-3 py-2 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-all duration-200"
+                    className="flex items-center justify-center w-full min-h-10 gap-2 px-3 py-2 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
                     {isCollapsed ? (
                         <PanelLeft size={18} />
@@ -224,10 +233,13 @@ function NavLink({ item, active, isCollapsed }: { item: NavItem; active: boolean
         <Link
             href={item.href}
             target={item.external ? "_blank" : undefined}
+            rel={item.external ? "noreferrer" : undefined}
+            aria-current={active ? "page" : undefined}
+            aria-label={isCollapsed ? label : undefined}
             className={`
                 flex items-center rounded-lg text-sm font-medium
                 transition-all duration-200 group relative
-                ${isCollapsed ? "justify-center px-2 py-2.5 mx-1" : "gap-3 px-3 py-2"}
+                ${isCollapsed ? "justify-center min-h-11 px-2.5 mx-1" : "gap-3 px-3 py-2 min-h-10"}
                 ${active
                     ? "text-primary bg-primary/10 shadow-sm"
                     : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"

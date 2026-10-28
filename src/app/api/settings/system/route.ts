@@ -1,11 +1,12 @@
 import { NextResponse, NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAuthenticatedUser } from "@/lib/api-auth";
+import { getBrandConfig } from "@/lib/branding-server";
 
 export async function GET(request: NextRequest) {
     try {
         const user = await getAuthenticatedUser(request);
-        if (!user) {
+        if (!user || user.role !== "SUPERADMIN") {
             return NextResponse.json({ status: false, message: "Unauthorized", error: "Unauthorized" }, { status: 401 });
         }
 
@@ -13,7 +14,12 @@ export async function GET(request: NextRequest) {
             where: { id: "default" }
         });
 
-        return NextResponse.json({ status: true, message: "System config fetched", data: config || { appName: "WA-AKG", faviconUrl: "/favicon.ico" } });
+        const brand = await getBrandConfig();
+        return NextResponse.json({
+            status: true,
+            message: "System config fetched",
+            data: config || { appName: brand.name, logoUrl: brand.logoUrl, faviconUrl: brand.faviconUrl }
+        });
     } catch {
         return NextResponse.json({ status: false, message: "Failed to fetch settings", error: "Failed to fetch settings" }, { status: 500 });
     }

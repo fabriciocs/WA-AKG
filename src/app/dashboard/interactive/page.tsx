@@ -38,6 +38,7 @@ import { useSession } from "@/components/dashboard/session-provider";
 import { SessionGuard } from "@/components/dashboard/session-guard";
 import { ButtonType, InteractiveButtonItem } from "@/components/chat/interactive-message-dialog";
 import { useTranslations } from "next-intl";
+import { useBranding } from "@/components/branding-provider";
 
 interface TriggerLog {
     id: string;
@@ -68,6 +69,7 @@ export default function InteractivePage() {
 
 function InteractiveContent() {
     const t = useTranslations("interactive");
+    const brand = useBranding();
     const { sessionId, sessions } = useSession();
     const [targetPhone, setTargetPhone] = useState("");
     const [activeTab, setActiveTab] = useState("presets");
@@ -80,7 +82,7 @@ function InteractiveContent() {
     // Custom composer state
     const [title, setTitle] = useState("Pengumuman Penting");
     const [body, setBody] = useState("Halo! Ini adalah pesan interaktif native flow WhatsApp. Silakan pilih aksi di bawah:");
-    const [footer, setFooter] = useState("Powered by WA-AKG Bot");
+    const [footer, setFooter] = useState(`Powered by ${brand.name} Bot`);
     const [buttons, setButtons] = useState<InteractiveButtonItem[]>([
         { id: "1", type: "quick_reply", displayText: "Konfirmasi Pesanan", value: "confirm_order" },
         { id: "2", type: "cta_url", displayText: "Kunjungi Website", value: "https://google.com" },
@@ -427,7 +429,7 @@ function InteractiveContent() {
                         {t("tabPresets")}
                     </TabsTrigger>
                     <TabsTrigger value="custom" className="text-xs flex items-center gap-2">
-                        <Layers className="h-4 w-4 text-blue-500" />
+                        <Layers className="h-4 w-4 text-primary" />
                         {t("tabCustom")}
                     </TabsTrigger>
                 </TabsList>

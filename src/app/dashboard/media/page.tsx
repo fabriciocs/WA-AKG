@@ -71,8 +71,8 @@ function formatFileSize(bytes: number): string {
 
 function getTypeBg(type: string) {
     switch (type) {
-        case "image": return "bg-blue-500/10";
-        case "video": return "bg-purple-500/10";
+        case "image": return "bg-primary/10";
+        case "video": return "bg-muted";
         case "audio": return "bg-orange-500/10";
         default: return "bg-emerald-500/10";
     }
@@ -80,8 +80,8 @@ function getTypeBg(type: string) {
 
 function getTypeIcon(type: string) {
     switch (type) {
-        case "image": return <ImageIcon className="h-5 w-5 text-blue-500" />;
-        case "video": return <Video className="h-5 w-5 text-purple-500" />;
+        case "image": return <ImageIcon className="h-5 w-5 text-primary" />;
+        case "video": return <Video className="h-5 w-5 text-muted-foreground" />;
         case "audio": return <Music className="h-5 w-5 text-orange-500" />;
         default: return <FileText className="h-5 w-5 text-emerald-500" />;
     }
@@ -309,9 +309,9 @@ export default function MediaPage() {
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 {[
                     { icon: <HardDrive className="h-4 w-4 text-primary" />, bg: "bg-primary/10", value: formatFileSize(totalSize), label: t("totalStorage") },
-                    { icon: <Files className="h-4 w-4 text-blue-500" />, bg: "bg-blue-500/10", value: totalCount, label: t("totalFiles") },
-                    { icon: <ImageIcon className="h-4 w-4 text-blue-500" />, bg: "bg-blue-500/10", value: stats.image, label: t("images") },
-                    { icon: <Video className="h-4 w-4 text-purple-500" />, bg: "bg-purple-500/10", value: stats.video + stats.audio + stats.document, label: t("other") },
+                    { icon: <Files className="h-4 w-4 text-primary" />, bg: "bg-primary/10", value: totalCount, label: t("totalFiles") },
+                    { icon: <ImageIcon className="h-4 w-4 text-primary" />, bg: "bg-primary/10", value: stats.image, label: t("images") },
+                    { icon: <Video className="h-4 w-4 text-muted-foreground" />, bg: "bg-muted", value: stats.video + stats.audio + stats.document, label: t("other") },
                 ].map((s) => (
                     <Card key={s.label} className="border-border/40">
                         <CardContent className="p-3 flex items-center gap-3">
@@ -419,8 +419,8 @@ export default function MediaPage() {
                                                      <div className="bg-muted/20 px-4 py-3 flex items-center justify-between border-b border-border/50">
                                                          <button className="flex items-center gap-2.5 flex-1 min-w-0 text-left hover:opacity-80 transition-opacity" onClick={() => toggleCollapse(sessionKey)}>
                                                              <ChevronIcon id={sessionKey} />
-                                                             <div className="h-6 w-6 rounded bg-blue-500/10 flex items-center justify-center flex-shrink-0">
-                                                                 <Smartphone className="h-3 w-3 text-blue-500" />
+                                                             <div className="h-6 w-6 rounded bg-primary/10 flex items-center justify-center flex-shrink-0">
+                                                                 <Smartphone className="h-3 w-3 text-primary" />
                                                              </div>
                                                              <div className="flex-1 min-w-0">
                                                                  <p className="text-sm font-semibold text-foreground truncate">{sessionGroup.sessionName}</p>

@@ -139,7 +139,7 @@ export default function NotificationAdminPage() {
                         </CardHeader>
                         <CardContent>
                             <div className="bg-white p-4 rounded-lg shadow-sm border flex gap-3 items-start">
-                                <div className={`p-2 rounded-full ${type === 'WARNING' ? 'bg-yellow-100 text-yellow-600' : type === 'SUCCESS' ? 'bg-green-100 text-green-600' : 'bg-blue-100 text-blue-600'}`}>
+                                <div className={`p-2 rounded-full ${type === 'WARNING' ? 'bg-amber-500/10 text-amber-600' : type === 'SUCCESS' ? 'bg-emerald-500/10 text-emerald-600' : 'bg-primary/10 text-primary'}`}>
                                     <Bell className="h-5 w-5" />
                                 </div>
                                 <div>

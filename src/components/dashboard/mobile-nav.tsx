@@ -11,13 +11,16 @@ import { useTranslations } from "next-intl";
 import { LanguageSwitcher } from "@/components/language-switcher";
 import { navGroups } from "./sidebar-nav";
 import pkg from "../../../package.json";
+import { useBranding } from "@/components/branding-provider";
 
-export function MobileNav({ appName = "WA-AKG" }: { appName?: string }) {
+export function MobileNav({ appName }: { appName?: string }) {
     const [open, setOpen] = useState(false);
     const pathname = usePathname();
     const { data: session } = useSession();
     const t = useTranslations();
     const userRole = session?.user?.role;
+    const brand = useBranding();
+    const resolvedAppName = brand.name || appName || "ConectaFlow";
 
     const isActive = (href: string) => {
         if (href === "/dashboard") return pathname === "/dashboard";
@@ -27,17 +30,22 @@ export function MobileNav({ appName = "WA-AKG" }: { appName?: string }) {
     return (
         <Sheet open={open} onOpenChange={setOpen}>
             <SheetTrigger asChild>
-                <Button variant="ghost" size="icon" className="md:hidden">
+                <Button variant="ghost" size="icon" className="md:hidden min-h-10 min-w-10" aria-label="Open navigation" title="Open navigation">
                     <Menu className="h-5 w-5" />
                 </Button>
             </SheetTrigger>
             <SheetContent side="left" className="w-[85vw] sm:w-[320px] p-0 flex flex-col">
-                <SheetHeader className="px-5 py-4 text-left border-b border-slate-100">
-                    <SheetTitle className="text-xl font-bold text-slate-800">{appName}</SheetTitle>
-                    <SheetDescription className="text-[11px] text-slate-400 -mt-1">{t("common.tagline")}</SheetDescription>
+                <SheetHeader className="px-5 py-4 text-left border-b border-border">
+                    <div className="flex items-center gap-3">
+                        {brand.logoUrl ? <img src={brand.logoUrl} alt="" className="h-9 w-9 rounded-lg object-cover" /> : <div className="h-9 w-9 rounded-lg bg-primary flex items-center justify-center text-primary-foreground text-sm font-bold" aria-hidden="true">{brand.initials}</div>}
+                        <div className="min-w-0">
+                            <SheetTitle className="text-xl font-bold text-foreground truncate">{resolvedAppName}</SheetTitle>
+                            <SheetDescription className="text-[11px] text-muted-foreground -mt-1 truncate">{brand.tagline}</SheetDescription>
+                        </div>
+                    </div>
                 </SheetHeader>
 
-                <nav className="flex-1 px-3 py-3 overflow-y-auto space-y-1">
+                <nav aria-label={`${resolvedAppName} navigation`} className="flex-1 px-3 py-3 overflow-y-auto space-y-1">
                     {navGroups.map((group) => {
                         const visibleItems = group.items.filter((item) => {
                             if (item.superadminOnly && userRole !== "SUPERADMIN") return false;
@@ -49,7 +57,7 @@ export function MobileNav({ appName = "WA-AKG" }: { appName?: string }) {
                         return (
                             <div key={group.key} className="mb-1">
                                 {group.key !== "main" && (
-                                    <p className="px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+                                    <p className="px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                                         {t(`nav.groups.${group.key}`)}
                                     </p>
                                 )}
@@ -59,6 +67,8 @@ export function MobileNav({ appName = "WA-AKG" }: { appName?: string }) {
                                             key={href}
                                             href={href}
                                             target={external ? "_blank" : undefined}
+                                            rel={external ? "noreferrer" : undefined}
+                                            aria-current={isActive(href) ? "page" : undefined}
                                             onClick={() => setOpen(false)}
                                             className={`
                                                 flex items-center rounded-lg text-sm font-medium
@@ -86,21 +96,21 @@ export function MobileNav({ appName = "WA-AKG" }: { appName?: string }) {
                     })}
                 </nav>
 
-                <div className="p-4 border-t border-slate-100 bg-slate-50/50">
+                <div className="p-4 border-t border-border bg-muted/30">
                     <div className="flex items-center gap-3 mb-3">
-                        <div className="h-8 w-8 rounded-full bg-slate-200 flex items-center justify-center text-xs font-semibold text-slate-600">
+                        <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center text-xs font-semibold text-primary border border-primary/10" aria-hidden="true">
                             {session?.user?.name?.charAt(0)?.toUpperCase() || "U"}
                         </div>
                         <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-slate-700 truncate">{session?.user?.name || t("common.user")}</p>
-                            <p className="text-[11px] text-slate-400 truncate">{session?.user?.email}</p>
+                            <p className="text-sm font-medium text-foreground truncate">{session?.user?.name || t("common.user")}</p>
+                            <p className="text-[11px] text-muted-foreground truncate">{session?.user?.email}</p>
                         </div>
                     </div>
                     <LanguageSwitcher className="w-full mb-2" />
                     <Button
                         variant="outline"
                         size="sm"
-                        className="w-full flex items-center justify-center gap-2 text-xs h-8"
+                        className="w-full flex items-center justify-center gap-2 text-xs h-10"
                         onClick={async () => {
                             setOpen(false);
                             await signOut({ callbackUrl: "/auth/login" });
@@ -108,7 +118,7 @@ export function MobileNav({ appName = "WA-AKG" }: { appName?: string }) {
                     >
                         <LogOut size={14} /> {t("common.signOut")}
                     </Button>
-                    <p className="text-[10px] text-slate-300 text-center mt-2 font-mono">v{pkg.version}</p>
+                    <p className="text-[10px] text-muted-foreground/60 text-center mt-2 font-mono">v{pkg.version}</p>
                 </div>
             </SheetContent>
         </Sheet>

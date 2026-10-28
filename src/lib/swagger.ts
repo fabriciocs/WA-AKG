@@ -1,4 +1,5 @@
 import { createSwaggerSpec } from "next-swagger-doc";
+import { DEFAULT_BRAND_DESCRIPTION, DEFAULT_BRAND_NAME, type BrandConfig } from "@/lib/branding";
 
 type SwaggerDefinition = NonNullable<Parameters<typeof createSwaggerSpec>[0]>["definition"];
 type SwaggerPath = NonNullable<SwaggerDefinition["paths"]>[string];
@@ -38,18 +39,20 @@ function mergeSwaggerOperations(previous: SwaggerOperation, current: SwaggerOper
     };
 }
 
-export const getApiDocs = () => {
+export const getApiDocs = (brandConfig?: Pick<BrandConfig, "name" | "description">) => {
+    const brandName = brandConfig?.name || DEFAULT_BRAND_NAME;
+    const brandDescription = brandConfig?.description || DEFAULT_BRAND_DESCRIPTION;
     const spec = createSwaggerSpec({
         apiFolder: "src/app/api",
         definition: {
             openapi: "3.0.0",
             info: {
-                title: "WA-AKG API Documentation",
+                title: `${brandName} API Documentation`,
                 version: "1.7.0",
                 description: `
-# WhatsApp AI Gateway - Complete API Reference
+# ${brandName} - Complete API Reference
 
-Professional WhatsApp Gateway with **93 API endpoints** for complete WhatsApp automation.
+${brandDescription} Professional WhatsApp API for complete automation across sessions, messaging, contacts, media, and webhooks.
 
 ## 🔐 Authentication
 All endpoints require authentication via:
@@ -173,13 +176,15 @@ All endpoints require authentication via:
                         properties: {
                             id: { type: "string" },
                             sessionId: { type: "string" },
-                            url: { type: "string" },
+                            url: { type: "string", format: "uri", description: "Webhook destination using http:// or https://. Local/private destinations require allowLocal=true." },
                             events: { 
                                 type: "array", 
                                 items: { type: "string" },
                                 description: "Events to subscribe to: message.received, message.sent, message.status, connection.update, group.update, contact.update, status.update, group.participant, message.deleted, message.edited or '*'" 
                             },
-                            secret: { type: "string" }
+                            secret: { type: "string" },
+                            allowLocal: { type: "boolean", default: false, description: "Allow delivery to localhost, private-network, or other local destinations." },
+                            requestHeaders: { type: "string", description: "Optional multiline request headers. Use one Header-Name: value pair per line." }
                             ,filters: { $ref: "#/components/schemas/WebhookFilters", nullable: true }
                         }
                     },
@@ -1066,7 +1071,7 @@ All endpoints require authentication via:
                                                     sticker: {
                                                         url: "https://example.com/sticker.webp",
                                                         pack: "My Stickers",
-                                                        author: "WA-AKG"
+                                                        author: brandName
                                                     }
                                                 }
                                             }
@@ -1207,7 +1212,7 @@ All endpoints require authentication via:
                                         properties: {
                                             title: { type: "string", example: "Interactive Message Title" },
                                             body: { type: "string", example: "Hello! Please select one of the options below:" },
-                                            footer: { type: "string", example: "Powered by WA-AKG" },
+                                            footer: { type: "string", example: `Powered by ${brandName}` },
                                             header: {
                                                 type: "object",
                                                 properties: {
@@ -1899,7 +1904,7 @@ All endpoints require authentication via:
                                         required: ["file"],
                                         properties: {
                                             file: { type: "string", format: "binary" },
-                                            pack: { type: "string", description: "Sticker pack name (default: WA-AKG)" },
+                                            pack: { type: "string", description: `Sticker pack name (default: ${brandName})` },
                                             author: { type: "string", description: "Sticker author name (default: User)" },
                                             type: { type: "string", enum: ["full", "crop", "circle"], description: "Sticker crop type (default: full)" },
                                             quality: { type: "integer", minimum: 1, maximum: 100, description: "Image quality (default: 50)" }
@@ -3266,11 +3271,20 @@ All endpoints require authentication via:
                                         required: ["name", "url", "events"],
                                         properties: {
                                             name: { type: "string" },
-                                            url: { type: "string" },
+                                            url: { type: "string", format: "uri", description: "HTTP or HTTPS webhook destination. HTTP/private destinations require allowLocal=true." },
                                             secret: { type: "string" },
+                                            allowLocal: { type: "boolean", default: false, description: "Allow delivery to localhost, private-network, or other local destinations." },
+                                            requestHeaders: { type: "string", description: "Optional multiline request headers. Use one Header-Name: value pair per line." },
                                             events: { type: "array", items: { type: "string" } },
                                             filters: { $ref: "#/components/schemas/WebhookFilters", description: "Optional exact-match criteria combined with AND; null or {} clears filters." }
                                         }
+                                    },
+                                    example: {
+                                        name: "CRM Integration",
+                                        url: "https://example.com/webhook",
+                                        events: ["message.received", "message.sent"],
+                                        allowLocal: false,
+                                        requestHeaders: "X-Integration-Key: your-value\nX-Source: whatsapp"
                                     }
                                 }
                             }
@@ -3328,12 +3342,19 @@ All endpoints require authentication via:
                                         type: "object",
                                         properties: {
                                             name: { type: "string" },
-                                            url: { type: "string" },
+                                            url: { type: "string", format: "uri", description: "HTTP or HTTPS webhook destination. HTTP/private destinations require allowLocal=true." },
                                             secret: { type: "string" },
+                                            allowLocal: { type: "boolean", description: "Allow delivery to localhost, private-network, or other local destinations." },
+                                            requestHeaders: { type: "string", description: "Optional multiline request headers. Use one Header-Name: value pair per line." },
                                             events: { type: "array", items: { type: "string" } },
                                             isActive: { type: "boolean" },
                                             filters: { $ref: "#/components/schemas/WebhookFilters", description: "Omit to preserve; null or {} clears; object replaces all criteria." }
                                         }
+                                    },
+                                    example: {
+                                        url: "http://localhost:3000/webhook",
+                                        allowLocal: true,
+                                        requestHeaders: "X-Integration-Key: updated-value\nX-Source: whatsapp"
                                     }
                                 }
                             }
@@ -4619,7 +4640,7 @@ All endpoints require authentication via:
                                             type: "object",
                                             properties: {
                                                 id: { type: "string", example: "default" },
-                                                appName: { type: "string", example: "WA-AKG" },
+                                                appName: { type: "string", example: brandName },
                                                 logoUrl: { type: "string", example: "https://example.com/logo.png" },
                                                 timezone: { type: "string", example: "Asia/Jakarta" }
                                             }
