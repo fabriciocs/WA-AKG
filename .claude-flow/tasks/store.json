@@ -1,0 +1,77 @@
+{
+  "tasks": {
+    "task-1793196124135-rw2yva": {
+      "taskId": "task-1793196124135-rw2yva",
+      "type": "feature",
+      "description": "Implement web UX and rebrand slice in isolated feature worktree.",
+      "priority": "high",
+      "status": "in_progress",
+      "progress": 0,
+      "assignedTo": [
+        "agent-1793196118243-nnm2i9"
+      ],
+      "tags": [
+        "ux",
+        "brand"
+      ],
+      "createdAt": "2026-10-28T14:02:04.135Z",
+      "startedAt": "2026-10-28T14:02:07.642Z",
+      "completedAt": null
+    },
+    "task-1793196124215-l49hsx": {
+      "taskId": "task-1793196124215-l49hsx",
+      "type": "feature",
+      "description": "Implement mobile API/commercial data contract foundation.",
+      "priority": "critical",
+      "status": "in_progress",
+      "progress": 0,
+      "assignedTo": [
+        "agent-1793196118891-z753d8"
+      ],
+      "tags": [
+        "api",
+        "prisma"
+      ],
+      "createdAt": "2026-10-28T14:02:04.215Z",
+      "startedAt": "2026-10-28T14:02:07.859Z",
+      "completedAt": null
+    },
+    "task-1793196124289-zjkl4d": {
+      "taskId": "task-1793196124289-zjkl4d",
+      "type": "feature",
+      "description": "Implement Flutter shell under mobile/ only.",
+      "priority": "high",
+      "status": "in_progress",
+      "progress": 0,
+      "assignedTo": [
+        "agent-1793196118948-t2qw53"
+      ],
+      "tags": [
+        "flutter",
+        "mobile"
+      ],
+      "createdAt": "2026-10-28T14:02:04.289Z",
+      "startedAt": "2026-10-28T14:02:07.783Z",
+      "completedAt": null
+    },
+    "task-1793196124352-plexmp": {
+      "taskId": "task-1793196124352-plexmp",
+      "type": "feature",
+      "description": "Implement SUPERADMIN configuration/admin slice with RBAC and audit.",
+      "priority": "critical",
+      "status": "in_progress",
+      "progress": 0,
+      "assignedTo": [
+        "agent-1793196118823-19bst4"
+      ],
+      "tags": [
+        "admin",
+        "security"
+      ],
+      "createdAt": "2026-10-28T14:02:04.352Z",
+      "startedAt": "2026-10-28T14:02:07.710Z",
+      "completedAt": null
+    }
+  },
+  "version": "3.0.0"
+}

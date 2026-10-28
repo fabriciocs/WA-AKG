@@ -68,6 +68,106 @@
           "durationMs": 20
         }
       ]
+    },
+    "agent-1793196118243-nnm2i9": {
+      "agentId": "agent-1793196118243-nnm2i9",
+      "agentType": "architect",
+      "name": "web-ux-brand",
+      "status": "idle",
+      "health": 0,
+      "taskCount": 1,
+      "config": {
+        "workspace": "C:\\Users\\fabri\\.codex\\worktrees\\commercial-mobile-admin\\WA-AKG",
+        "writeScope": "frontend",
+        "model": "sonnet"
+      },
+      "createdAt": "2026-10-28T14:01:58.243Z",
+      "domain": "frontend",
+      "model": "sonnet",
+      "modelRoutedBy": "explicit",
+      "currentTask": "task-1793196124135-rw2yva",
+      "executionHistory": [
+        {
+          "at": "2026-10-28T14:02:14.118Z",
+          "success": false,
+          "durationMs": 51
+        }
+      ]
+    },
+    "agent-1793196118823-19bst4": {
+      "agentId": "agent-1793196118823-19bst4",
+      "agentType": "architect",
+      "name": "superadmin-config",
+      "status": "idle",
+      "health": 0,
+      "taskCount": 1,
+      "config": {
+        "workspace": "C:\\Users\\fabri\\.codex\\worktrees\\commercial-mobile-admin\\WA-AKG",
+        "writeScope": "admin",
+        "model": "sonnet"
+      },
+      "createdAt": "2026-10-28T14:01:58.823Z",
+      "domain": "admin",
+      "model": "sonnet",
+      "modelRoutedBy": "explicit",
+      "currentTask": "task-1793196124352-plexmp",
+      "executionHistory": [
+        {
+          "at": "2026-10-28T14:02:14.191Z",
+          "success": false,
+          "durationMs": 16
+        }
+      ]
+    },
+    "agent-1793196118891-z753d8": {
+      "agentId": "agent-1793196118891-z753d8",
+      "agentType": "architect",
+      "name": "mobile-contracts",
+      "status": "idle",
+      "health": 0,
+      "taskCount": 1,
+      "config": {
+        "workspace": "C:\\Users\\fabri\\.codex\\worktrees\\commercial-mobile-admin\\WA-AKG",
+        "writeScope": "backend",
+        "model": "sonnet"
+      },
+      "createdAt": "2026-10-28T14:01:58.891Z",
+      "domain": "backend",
+      "model": "sonnet",
+      "modelRoutedBy": "explicit",
+      "currentTask": "task-1793196124215-l49hsx",
+      "executionHistory": [
+        {
+          "at": "2026-10-28T14:02:14.268Z",
+          "success": false,
+          "durationMs": 14
+        }
+      ]
+    },
+    "agent-1793196118948-t2qw53": {
+      "agentId": "agent-1793196118948-t2qw53",
+      "agentType": "architect",
+      "name": "flutter-shell",
+      "status": "idle",
+      "health": 0,
+      "taskCount": 1,
+      "config": {
+        "workspace": "C:\\Users\\fabri\\.codex\\worktrees\\commercial-mobile-admin\\WA-AKG",
+        "writeScope": "mobile",
+        "model": "sonnet"
+      },
+      "createdAt": "2026-10-28T14:01:58.948Z",
+      "domain": "mobile",
+      "model": "sonnet",
+      "modelRoutedBy": "explicit",
+      "currentTask": "task-1793196124289-zjkl4d",
+      "executionHistory": [
+        {
+          "at": "2026-10-28T14:02:14.344Z",
+          "success": false,
+          "durationMs": 13
+        }
+      ]
     }
   },
   "version": "3.0.0"
