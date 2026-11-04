@@ -4,10 +4,10 @@ import { SidebarNav } from "./sidebar-nav";
 import { useSidebar } from "./sidebar-context";
 import { Button } from "@/components/ui/button";
 import { LogOut } from "lucide-react";
-import { signOut } from "next-auth/react";
+import { signOutToLogin } from "./sign-out";
 import { useTranslations } from "next-intl";
 import { useAppBasePath } from "@/components/app-base-path";
-import { withBasePath } from "@/lib/base-path";
+import { toast } from "sonner";
 import { useBranding } from "@/components/branding-provider";
 
 interface SidebarShellProps {
@@ -20,9 +20,18 @@ interface SidebarShellProps {
 export function SidebarShell({ appName, userName, userEmail, version }: SidebarShellProps) {
     const { isCollapsed } = useSidebar();
     const t = useTranslations("common");
+    const tAuth = useTranslations("auth");
     const basePath = useAppBasePath();
     const brand = useBranding();
     const resolvedAppName = brand.name || appName;
+
+    const handleSignOut = async () => {
+        try {
+            await signOutToLogin(basePath);
+        } catch {
+            toast.error(tAuth("unexpectedError"));
+        }
+    };
 
     return (
         <aside
@@ -82,7 +91,7 @@ export function SidebarShell({ appName, userName, userEmail, version }: SidebarS
                             {userName?.charAt(0)?.toUpperCase() || "U"}
                         </div>
                         <button
-                            onClick={() => signOut({ callbackUrl: withBasePath("/auth/login", basePath) })}
+                            onClick={() => void handleSignOut()}
                             aria-label={t("signOut")}
                             title={t("signOut")}
                             className="p-2 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
@@ -108,7 +117,7 @@ export function SidebarShell({ appName, userName, userEmail, version }: SidebarS
                             variant="outline"
                             size="sm"
                             className="w-full flex items-center justify-center gap-2 text-xs h-10 rounded-lg border-border/40 hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30 transition-colors"
-                            onClick={() => signOut({ callbackUrl: withBasePath("/auth/login", basePath) })}
+                            onClick={() => void handleSignOut()}
                         >
                             <LogOut size={14} /> {t("signOut")}
                         </Button>

@@ -1,4 +1,5 @@
 import { prisma } from "./prisma";
+import { getRequestTenantContext, permitsOwnedTenantResource, type TenantIdentity } from "./tenancy/context";
 import { sanitizeWebhookUrl } from "./webhook-redaction";
 
 // Role hierarchy for permission checks
@@ -14,16 +15,17 @@ export type Role = keyof typeof ROLE_HIERARCHY;
  * Compatibility decision for the legacy SessionAccess relation.
  *
  * SessionAccess remains in the schema for backwards compatibility, but it no
- * longer grants session access to non-administrative users. This keeps the
- * current schema/types usable without preserving shared-session privileges.
+ * longer grants access to non-owners, including SUPERADMIN. Privileged access
+ * requires a separate MFA-verified, audited operation.
  */
 export const LEGACY_SESSION_ACCESS_POLICY = "DENY_NON_OWNER" as const;
 
-export type SessionAccessDecision = "SUPERADMIN_GLOBAL" | "OWNER" | "DENIED_LEGACY_SHARED";
+export type SessionAccessDecision = "OWNER" | "DENIED_LEGACY_SHARED";
 
 /** Resolve the minimum session policy before any database lookup is performed. */
-export function resolveSessionAccessDecision(userId: string, userRole: string, ownerId: string): SessionAccessDecision {
-    if (isAdmin(userRole)) return "SUPERADMIN_GLOBAL";
+export function resolveSessionAccessDecision(userId: string, _userRole: string, ownerId: string): SessionAccessDecision {
+    // Platform administration is never implicit access to another user's private session.
+    // Any privileged access must use a separately audited, MFA-verified path.
     if (userId === ownerId) return "OWNER";
     return "DENIED_LEGACY_SHARED";
 }
@@ -110,16 +112,16 @@ export function sanitizeReadOnlyBotConfig<T>(config: T): T {
 }
 
 /** Pure ownership rule used by route guards and their tests. */
-export function mayManageSession(userId: string, userRole: string, ownerId: string): boolean {
-    return isAdmin(userRole) || userId === ownerId;
+export function mayManageSession(userId: string, _userRole: string, ownerId: string): boolean {
+    return userId === ownerId;
 }
 
-function safeSessionInclude() {
+function safeSessionInclude(tenantId: string) {
     return {
         user: { select: { name: true, email: true } },
-        botConfig: true,
-        webhooks: { select: SAFE_WEBHOOK_SELECT },
-        _count: { select: { contacts: true, messages: true, groups: true, autoReplies: true, scheduledMessages: true } }
+        botConfig: { where: { tenantId } },
+        webhooks: { where: { tenantId }, select: SAFE_WEBHOOK_SELECT },
+        _count: { select: { contacts: { where: { tenantId } }, messages: { where: { tenantId } }, groups: { where: { tenantId } }, autoReplies: { where: { tenantId } }, scheduledMessages: { where: { tenantId } } } }
     };
 }
 
@@ -139,72 +141,45 @@ export function isAdmin(userRole: string): boolean {
     return userRole === "SUPERADMIN";
 }
 
-/**
- * Check if user can access a session.
- *
- * SessionAccess is intentionally not consulted here: it is a legacy schema
- * relation and must not grant shared access to ordinary users. SUPERADMIN is
- * globally authorized, while all other users must own the session.
- */
-export async function canAccessSession(userId: string, userRole: string, sessionId: string): Promise<boolean> {
-    if (isAdmin(userRole)) {
-        return true;
-    }
+/** Resolve the tenant and owner before any session route performs work. */
+export async function getAuthorizedSession(user: TenantIdentity, request: Request, sessionId: string) {
+    const context = await getRequestTenantContext(user, request);
+    if (!context) return null;
 
-    const session = await prisma.session.findFirst({
+    const matches = await prisma.session.findMany({
         where: {
-            OR: [
-                { id: sessionId, userId },
-                { sessionId: sessionId, userId }
-            ]
-        }
+            OR: [{ id: sessionId }, { sessionId }],
+        },
+        select: { id: true, sessionId: true, tenantId: true, userId: true },
+        take: 2,
     });
-
-    return !!session && resolveSessionAccessDecision(userId, userRole, session.userId) === "OWNER";
+    const [session] = matches;
+    if (matches.length !== 1 || (session.id !== sessionId && session.sessionId !== sessionId)) return null;
+    if (session.userId !== user.id || session.tenantId !== context.actor.tenantId) return null;
+    const read = request.method === "GET" || request.method === "HEAD";
+    const action = read ? "READ" : request.method === "DELETE" ? "DELETE" : "WRITE";
+    return permitsOwnedTenantResource(context, { tenantId: session.tenantId, ownerUserId: session.userId }, action)
+        ? { ...session, tenantId: session.tenantId } : null;
 }
 
-/**
- * Check if user is the actual owner of a session (not just shared access)
- * Used for protecting management endpoints (e.g. granting/revoking access)
- */
-export async function isSessionOwner(userId: string, userRole: string, sessionId: string): Promise<boolean> {
-    if (isAdmin(userRole)) {
-        return true;
-    }
-
-    const session = await prisma.session.findFirst({
-        where: {
-            OR: [
-                { id: sessionId, userId },
-                { sessionId: sessionId, userId }
-            ]
-        }
-    });
-
-    return !!session && mayManageSession(userId, userRole, session.userId);
+export async function canAccessSession(user: TenantIdentity, request: Request, sessionId: string): Promise<boolean> {
+    return Boolean(await getAuthorizedSession(user, request, sessionId));
 }
 
-/**
- * Get sessions that user can access.
- *
- * SessionAccess is retained only for schema/type compatibility and is
- * intentionally excluded from this query. Non-administrative users see only
- * sessions they own; SUPERADMIN sees all sessions.
- */
-export async function getAccessibleSessions(userId: string, userRole: string) {
-    if (isAdmin(userRole)) {
-        const sessions = await prisma.session.findMany({
-            orderBy: { createdAt: 'desc' },
-            include: safeSessionInclude()
-        });
-        return sessions.map(sanitizeSessionWebhooks);
-    }
+// Owner-only routes intentionally use the same boundary as other legacy session
+// routes. Explicit resource grants require a separate, tenant-aware entry point.
+export const isSessionOwner = canAccessSession;
+
+export async function getAccessibleSessions(user: TenantIdentity, request: Request) {
+    const context = await getRequestTenantContext(user, request);
+    if (!context) return [];
+    const tenantId = context.actor.tenantId;
+    if (!permitsOwnedTenantResource(context, { tenantId, ownerUserId: user.id }, "READ")) return [];
 
     const ownedSessions = await prisma.session.findMany({
-        where: { userId },
-        orderBy: { createdAt: 'desc' },
-        include: safeSessionInclude()
+        where: { userId: user.id, tenantId },
+        orderBy: { createdAt: "desc" },
+        include: safeSessionInclude(tenantId),
     });
-
     return ownedSessions.map(sanitizeSessionWebhooks);
 }

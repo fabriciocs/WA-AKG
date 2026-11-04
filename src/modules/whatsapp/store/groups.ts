@@ -3,11 +3,11 @@ import type { WASocket } from "@whiskeysockets/baileys";
 import type { Prisma } from "@prisma/client";
 import { logger } from "@/lib/logger";
 
-export async function syncGroups(sock: WASocket, sessionId: string) {
+export async function syncGroups(sock: WASocket, sessionId: string, tenantId: string) {
     try {
         // Verify session exists and get the actual database ID
         const session = await prisma.session.findUnique({
-            where: { sessionId },
+            where: { sessionId, tenantId, tenant: { status: "ACTIVE" } },
             select: { id: true }
         });
         
@@ -27,9 +27,10 @@ export async function syncGroups(sock: WASocket, sessionId: string) {
         for (const g of groupList) {
              try {
                  await prisma.group.upsert({
-                     where: { sessionId_jid: { sessionId: dbSessionId, jid: g.id } },
+                     where: { sessionId_jid: { sessionId: dbSessionId, jid: g.id }, tenantId },
                      create: {
                          sessionId: dbSessionId,
+                         tenantId,
                          jid: g.id,
                          subject: g.subject,
                          description: g.desc,

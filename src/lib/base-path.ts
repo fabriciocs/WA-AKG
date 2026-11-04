@@ -41,8 +41,8 @@ export function safeCallbackPath(value: string | null | undefined, basePath: str
     return safeFallback;
   }
   try {
-    const parsed = new URL(value, "https://wa-akg.invalid");
-    if (parsed.origin !== "https://wa-akg.invalid") return safeFallback;
+    const parsed = new URL(value, "https://app.invalid");
+    if (parsed.origin !== "https://app.invalid") return safeFallback;
     return withBasePath(`${parsed.pathname}${parsed.search}${parsed.hash}`, basePath);
   } catch {
     return safeFallback;

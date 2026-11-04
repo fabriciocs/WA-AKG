@@ -1,5 +1,6 @@
 "use server";
 
+import { headers } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import { canAccessSession } from "@/lib/api-auth";
 import { getAuthenticatedUserForAction } from "@/lib/server-action-auth";
@@ -12,7 +13,7 @@ export async function getAutoReplies(sessionId: string) {
         throw new Error("Unauthorized");
     }
 
-    const canAccess = await canAccessSession(nextAuthSession.id, nextAuthSession.role, sessionId);
+    const canAccess = await canAccessSession(nextAuthSession, new Request("http://localhost", { headers: await headers(), method: "GET" }), sessionId);
     if (!canAccess) {
         throw new Error("Forbidden");
     }
@@ -45,7 +46,7 @@ export async function createAutoReply(sessionId: string, data: { keyword: string
         throw new Error("Keyword and either response or media are required");
     }
 
-    const canAccess = await canAccessSession(nextAuthSession.id, nextAuthSession.role, sessionId);
+    const canAccess = await canAccessSession(nextAuthSession, new Request("http://localhost", { headers: await headers(), method: "POST" }), sessionId);
     if (!canAccess) {
         throw new Error("Forbidden");
     }
@@ -92,7 +93,7 @@ export async function deleteAutoReply(sessionId: string, ruleId: string) {
         throw new Error("Rule not found");
     }
 
-    const canAccess = await canAccessSession(nextAuthSession.id, nextAuthSession.role, rule.session.sessionId);
+    const canAccess = await canAccessSession(nextAuthSession, new Request("http://localhost", { headers: await headers(), method: "POST" }), rule.session.sessionId);
     if (!canAccess || rule.session.sessionId !== sessionId) {
         throw new Error("Forbidden");
     }
@@ -120,7 +121,7 @@ export async function updateAutoReply(sessionId: string, ruleId: string, data: {
         throw new Error("Rule not found");
     }
 
-    const canAccess = await canAccessSession(nextAuthSession.id, nextAuthSession.role, rule.session.sessionId);
+    const canAccess = await canAccessSession(nextAuthSession, new Request("http://localhost", { headers: await headers(), method: "POST" }), rule.session.sessionId);
     if (!canAccess || rule.session.sessionId !== sessionId) {
         throw new Error("Forbidden");
     }

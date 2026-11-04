@@ -37,6 +37,16 @@ npm run mcp:start
 
 For local stdio use, first open **Dashboard -> OAuth Access -> Local MCP setup** while signed in. The first setup creates the API key for that user and reveals it once. Put that value in `WA_AKG_API_KEY` in that user's MCP client environment, together with `WA_AKG_API_BASE_URL`. Re-running setup never reveals an existing key; use the API key rotation control if it was lost. `WA_AKG_API_KEY` is ignored by the HTTP OAuth transport. Do not expose a stdio server directly on a network port.
 
+## Live stdio read-only smoke (opt-in)
+
+The command below **calls the running WA-AKG API** using the user's own credential. It never sends WhatsApp messages and emits only a summary (tool count and session count). Configure `WA_AKG_API_BASE_URL` to the correct local `/api` path and provide `WA_AKG_API_KEY` through a private process environment. Do not embed credentials in tracked TOML or commit `.env` files.
+
+```powershell
+npm run mcp:smoke:live-readonly
+```
+
+The script forces read-only permissions for its spawned MCP server. Success requires `initialize`, `tools/list`, `wa_akg_server_info` and `wa_akg_get_sessions` with HTTP 200. Authentication may update the backend's last-used timestamp; the script does not modify sessions or send messages.
+
 ## Production sessions integration check
 
 The production check makes read-only `GET /sessions` requests using an OAuth access token, matching the delegated authentication path used by HTTP MCP. It requires `WA_AKG_PROD_API_BASE_URL` (the public HTTPS API base ending in `/api`, including any deployment base path) and `WA_AKG_PROD_OAUTH_ACCESS_TOKEN` in the process environment. Set optional `WA_AKG_PROD_REPLICA_API_BASE_URLS` to a comma-separated list of additional public HTTPS API bases when the deployment exposes replica targets through a test proxy. The script validates every target and prints only HTTP results and session counts; it never prints the token or session data.

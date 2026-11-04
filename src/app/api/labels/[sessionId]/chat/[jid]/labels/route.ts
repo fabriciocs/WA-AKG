@@ -1,5 +1,6 @@
 import { NextResponse, NextRequest } from "next/server";
-import { getAuthenticatedUser, canAccessSession } from "@/lib/api-auth";
+import { getAuthenticatedUser } from "@/lib/api-auth";
+import { getAuthorizedSession } from "@/lib/session-access";
 import { prisma } from "@/lib/prisma";
 
 // GET: Get labels for a chat
@@ -21,15 +22,16 @@ export async function GET(
         }
 
         // Check if user can access this session
-        const canAccess = await canAccessSession(user.id, user.role, sessionId);
-        if (!canAccess) {
+        const session = await getAuthorizedSession(user, request, sessionId);
+        if (!session) {
             return NextResponse.json({ status: false, message: "Forbidden - Cannot access this session", error: "Forbidden - Cannot access this session" }, { status: 403 });
         }
 
         const chatLabels = await prisma.chatLabel.findMany({
             where: {
                 chatJid: decodedJid,
-                label: { sessionId }
+                tenantId: session.tenantId,
+                label: { sessionId: session.sessionId, tenantId: session.tenantId }
             },
             include: {
                 label: true
@@ -63,7 +65,7 @@ export async function PUT(
         const body = await request.json();
         const { labelIds, action } = body;
 
-        if (!labelIds || !Array.isArray(labelIds) || !action) {
+        if (!Array.isArray(labelIds) || !labelIds.every((id) => typeof id === "string" && id.length > 0) || !action) {
             return NextResponse.json({ status: false, message: "labelIds (array), and action are required", error: "labelIds (array), and action are required" }, { status: 400 });
         }
 
@@ -72,47 +74,31 @@ export async function PUT(
         }
 
         // Check if user can access this session
-        const canAccess = await canAccessSession(user.id, user.role, sessionId);
-        if (!canAccess) {
+        const session = await getAuthorizedSession(user, request, sessionId);
+        if (!session) {
             return NextResponse.json({ status: false, message: "Forbidden - Cannot access this session", error: "Forbidden - Cannot access this session" }, { status: 403 });
         }
 
-        if (action === 'add') {
-            // Add labels to chat
-            for (const labelId of labelIds) {
-                // Verify label belongs to this session
-                const label = await prisma.label.findUnique({
-                    where: { id: labelId }
+        const labelScope = { tenantId: session.tenantId, sessionId: session.sessionId };
+        if (action === "add") {
+            const labels = await prisma.label.findMany({
+                where: { ...labelScope, id: { in: labelIds } },
+                select: { id: true },
+            });
+            if (labels.length > 0) {
+                await prisma.chatLabel.createMany({
+                    data: labels.map(({ id }) => ({ labelId: id, chatJid: decodedJid, tenantId: session.tenantId })),
+                    skipDuplicates: true,
                 });
-
-                if (!label || label.sessionId !== sessionId) {
-                    continue; // Skip invalid labels
-                }
-
-                // Check if already exists
-                const existing = await prisma.chatLabel.findFirst({
-                    where: {
-                        labelId,
-                        chatJid: decodedJid
-                    }
-                });
-
-                if (!existing) {
-                    await prisma.chatLabel.create({
-                        data: {
-                            labelId,
-                            chatJid: decodedJid
-                        }
-                    });
-                }
             }
         } else {
-            // Remove labels from chat
             await prisma.chatLabel.deleteMany({
                 where: {
+                    tenantId: session.tenantId,
+                    label: labelScope,
                     labelId: { in: labelIds },
-                    chatJid: decodedJid
-                }
+                    chatJid: decodedJid,
+                },
             });
         }
 
@@ -120,7 +106,8 @@ export async function PUT(
         const chatLabels = await prisma.chatLabel.findMany({
             where: {
                 chatJid: decodedJid,
-                label: { sessionId }
+                tenantId: session.tenantId,
+                label: { sessionId: session.sessionId, tenantId: session.tenantId }
             },
             include: {
                 label: true

@@ -1,5 +1,6 @@
 import { NextResponse, NextRequest } from "next/server";
-import { getAuthenticatedUser, canAccessSession } from "@/lib/api-auth";
+import { getAuthenticatedUser } from "@/lib/api-auth";
+import { getAuthorizedSession } from "@/lib/session-access";
 import { prisma } from "@/lib/prisma";
 
 // GET: Get all labels for a session
@@ -19,16 +20,16 @@ export async function GET(
         }
 
         // Check if user can access this session
-        const canAccess = await canAccessSession(user.id, user.role, sessionId);
-        if (!canAccess) {
+        const session = await getAuthorizedSession(user, request, sessionId);
+        if (!session) {
             return NextResponse.json({ status: false, message: "Forbidden - Cannot access this session", error: "Forbidden - Cannot access this session" }, { status: 403 });
         }
 
         const labels = await prisma.label.findMany({
-            where: { sessionId },
+            where: { tenantId: session.tenantId, sessionId: session.sessionId },
             include: {
                 _count: {
-                    select: { chatLabels: true }
+                    select: { chatLabels: { where: { tenantId: session.tenantId } } }
                 }
             },
             orderBy: { createdAt: 'desc' }
@@ -62,8 +63,8 @@ export async function POST(
         }
 
         // Check if user can access this session
-        const canAccess = await canAccessSession(user.id, user.role, sessionId);
-        if (!canAccess) {
+        const session = await getAuthorizedSession(user, request, sessionId);
+        if (!session) {
             return NextResponse.json({ status: false, message: "Forbidden - Cannot access this session", error: "Forbidden - Cannot access this session" }, { status: 403 });
         }
 
@@ -83,7 +84,8 @@ export async function POST(
 
         const label = await prisma.label.create({
             data: {
-                sessionId,
+                tenantId: session.tenantId,
+                sessionId: session.sessionId,
                 name,
                 color: colorValue,
                 colorHex: colorMap[colorValue]

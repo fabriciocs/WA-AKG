@@ -6,7 +6,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
         return [];
     }
 
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://wa-akg.app";
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.BASE_URL || "http://localhost:43000";
 
     return [
         {

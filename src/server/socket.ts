@@ -1,23 +1,27 @@
 import { Server, Socket } from "socket.io";
 import { prisma } from "../lib/prisma";
-import { canAccessSession } from "../lib/session-access";
 import { logger } from "../lib/logger";
 import { validateApiKeyValue } from "../lib/api-auth";
 import { isValidSessionId } from "../lib/session-id";
+import { decideTenantAccess } from "../lib/tenant-policy";
+import { resolveTenantMembership } from "../lib/tenancy/context";
+import { parseTenantIdHeader } from "../lib/tenancy/validation";
 
-export function getSessionPublicRoom(sessionId: string) {
-    return `session:public:${sessionId}`;
+const SOCKET_READ_SCOPE = "api:read";
+
+type SocketPrincipal =
+    | { userId: string; tenantId: string | null; method: "session"; expiresAt: number }
+    | { userId: string; tenantId: string; method: "apiKey"; credentialId: string };
+
+type SessionRoom = "public" | "private";
+type SessionBinding = { id: string; userId: string; tenantId: string | null };
+
+export function getSessionPublicRoom(tenantId: string, sessionId: string) {
+    return `tenant:${tenantId}:session:public:${sessionId}`;
 }
 
-export function getSessionPrivateRoom(sessionId: string) {
-    return `session:${sessionId}:private`;
-}
-
-export function mayReceivePrivateSessionEvent(
-    user: { id: string; role: string; emailVerified: boolean } | undefined,
-    ownerId: string
-) {
-    return Boolean(user?.emailVerified && (user.id === ownerId || user.role === "SUPERADMIN"));
+export function getSessionPrivateRoom(tenantId: string, sessionId: string) {
+    return `tenant:${tenantId}:session:private:${sessionId}`;
 }
 
 export function createPublicConnectionUpdate(status: string) {
@@ -32,214 +36,215 @@ export function createPrivateConnectionUpdate(
     return { status, qr, pairingCode };
 }
 
-function parseCookies(cookieHeader?: string): Record<string, string> {
-    const cookies: Record<string, string> = {};
-    if (!cookieHeader) return cookies;
-
-    cookieHeader.split(";").forEach((cookie) => {
-        const parts = cookie.split("=");
-        if (parts.length >= 2) {
-            const key = parts[0].trim();
-            const val = parts.slice(1).join("=").trim();
-            cookies[key] = decodeURIComponent(val);
+function parseCookies(cookieHeader?: string): Map<string, string> {
+    const cookies = new Map<string, string>();
+    for (const cookie of cookieHeader?.split(";") ?? []) {
+        const separator = cookie.indexOf("=");
+        if (separator > 0) {
+            cookies.set(cookie.slice(0, separator).trim(), decodeURIComponent(cookie.slice(separator + 1).trim()));
         }
-    });
-
+    }
     return cookies;
 }
 
+async function mayReceiveSessionEvent(
+    principal: SocketPrincipal | undefined,
+    session: SessionBinding,
+    visibility: SessionRoom
+) {
+    if (!session.tenantId || session.tenantId !== principal?.tenantId) return false;
+    if (principal.method === "session" && principal.expiresAt <= Date.now()) return false;
+    if (principal.method === "apiKey" && visibility === "private") return false;
+
+    const user = await prisma.user.findUnique({
+        where: { id: principal.userId },
+        select: { id: true, emailVerified: true, role: true },
+    });
+    if (!user?.emailVerified) return false;
+
+    const membership = await resolveTenantMembership(user.id, session.tenantId);
+    if (!membership) return false;
+
+    let scopes: string[] | undefined;
+    if (principal.method === "apiKey") {
+        const key = await prisma.apiCredential.findFirst({
+            where: {
+                id: principal.credentialId,
+                userId: user.id,
+                tenantId: session.tenantId,
+                revokedAt: null,
+                OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
+            },
+            select: { scopes: true },
+        });
+        if (!Array.isArray(key?.scopes)) return false;
+        scopes = key.scopes.filter((scope): scope is string => typeof scope === "string");
+    }
+
+    const grants = visibility === "public" && session.userId !== user.id
+        ? await prisma.resourceGrant.findMany({
+            where: { tenantId: session.tenantId, resourceType: "SESSION", resourceId: session.id, principalUserId: user.id },
+            select: { principalUserId: true, capabilities: true, revokedAt: true, expiresAt: true },
+        })
+        : [];
+    return decideTenantAccess({
+        actor: {
+            userId: user.id,
+            tenantId: membership.tenantId,
+            platformRole: user.role,
+            tenantRole: membership.role,
+            membershipStatus: "ACTIVE",
+            authMethod: principal.method,
+        },
+        resource: {
+            tenantId: session.tenantId,
+            ownerUserId: session.userId,
+            grants: grants.filter(grant => grant.principalUserId === user.id).map(grant => ({
+                ...grant,
+                userId: user.id,
+                capabilities: Array.isArray(grant.capabilities)
+                    ? grant.capabilities.filter((capability): capability is string => typeof capability === "string")
+                    : [],
+            })),
+        },
+        action: "READ",
+        credentialTenantId: principal.method === "apiKey" ? principal.tenantId : undefined,
+        requiredScopes: principal.method === "apiKey" ? [SOCKET_READ_SCOPE] : undefined,
+        scopes,
+    }).allowed;
+}
+
+/** Recheck access on every delivery. Room membership can outlive a credential or grant. */
+export async function emitSessionRoomEvent(
+    io: Server | null | undefined,
+    tenantId: string,
+    sessionId: string,
+    event: string,
+    payload: unknown,
+    visibility: SessionRoom = "public",
+) {
+    if (!io) return;
+    try {
+        const session = await prisma.session.findUnique({
+            where: { sessionId, tenantId },
+            select: { id: true, userId: true, tenantId: true },
+        });
+        if (!session) return;
+
+        const room = visibility === "private"
+            ? getSessionPrivateRoom(tenantId, sessionId)
+            : getSessionPublicRoom(tenantId, sessionId);
+        const recipients = await io.in(room).fetchSockets();
+        await Promise.all(recipients.map(async recipient => {
+            if (await mayReceiveSessionEvent(recipient.data.principal, session, visibility)) {
+                recipient.emit(event, payload);
+            } else {
+                await recipient.leave(room);
+            }
+        }));
+    } catch (error) {
+        logger.error("Socket", "Session event delivery failed", error);
+    }
+}
+
 export function setupSocket(io: Server) {
-    // 🔐 Socket.IO Authentication Middleware
     io.use(async (socket: Socket, next) => {
         try {
-            const headers = socket.handshake.headers;
+            const { headers, auth: socketAuth } = socket.handshake;
             const cookies = parseCookies(headers.cookie);
+            const requestedTenant = headers["x-tenant-id"] ?? cookies.get("wa-akg-tenant");
+            const selectedTenantId = typeof requestedTenant === "string" ? parseTenantIdHeader(requestedTenant) : null;
+            if (requestedTenant !== undefined && !selectedTenantId) {
+                return next(new Error("Invalid tenant selection"));
+            }
 
-            // 1. Try NextAuth JWT session tokens (v4 and v5 cookie names)
-            const tokenCookieNames = [
-                "authjs.session-token",
-                "__Secure-authjs.session-token",
-                "next-auth.session-token",
-                "__Secure-next-auth.session-token"
-            ];
+            const apiKey = socketAuth?.apiKey ?? headers["x-api-key"];
+            if (apiKey !== undefined) {
+                const user = typeof apiKey === "string" ? await validateApiKeyValue(apiKey) : null;
+                if (!user?.credentialTenantId || !user.tenantCredentialId
+                    || (selectedTenantId && selectedTenantId !== user.credentialTenantId)
+                    || !user.tenantScopes.includes(SOCKET_READ_SCOPE)) {
+                    return next(new Error("Authentication required"));
+                }
+                socket.data.principal = {
+                    userId: user.id,
+                    tenantId: user.credentialTenantId,
+                    credentialId: user.tenantCredentialId,
+                    method: "apiKey",
+                } satisfies SocketPrincipal;
+                return next();
+            }
 
             const secret = process.env.AUTH_SECRET;
-
-            let decodeJwt: typeof import("next-auth/jwt").decode | null = null;
-            try {
-                const jwtMod = await import("next-auth/jwt");
-                decodeJwt = jwtMod.decode;
-            } catch (err) {
-                logger.debug("Socket", "next-auth/jwt module unavailable:", err);
+            if (!secret) return next(new Error("Authentication required"));
+            const { decode } = await import("next-auth/jwt");
+            for (const name of ["authjs.session-token", "__Secure-authjs.session-token", "next-auth.session-token", "__Secure-next-auth.session-token"]) {
+                const token = cookies.get(name);
+                if (!token) continue;
+                const decoded = await decode({ token, secret, salt: name }).catch(() => null);
+                if (typeof decoded?.id !== "string" || typeof decoded.exp !== "number") continue;
+                const membership = await resolveTenantMembership(decoded.id, selectedTenantId);
+                if (selectedTenantId && !membership) return next(new Error("Invalid tenant selection"));
+                socket.data.principal = {
+                    userId: decoded.id,
+                    tenantId: membership?.tenantId ?? null,
+                    method: "session",
+                    expiresAt: decoded.exp * 1000,
+                } satisfies SocketPrincipal;
+                return next();
             }
-
-            if (decodeJwt && secret) {
-                for (const cookieName of tokenCookieNames) {
-                    const tokenVal = cookies[cookieName];
-                    if (tokenVal) {
-                        try {
-                            const decoded = await decodeJwt({
-                                token: tokenVal,
-                                secret,
-                                salt: cookieName
-                            });
-
-                            if (decoded && decoded.id) {
-                                socket.data.user = {
-                                    id: decoded.id as string,
-                                    role: (decoded.role as string) || "USER",
-                                    email: (decoded.email as string) || ""
-                                };
-                                return next();
-                            }
-                        } catch (e) {
-                            logger.debug("Socket", `Failed decoding cookie ${cookieName}:`, e);
-                        }
-                    }
-                }
-            }
-
-            // 2. Try API Key from auth payload or x-api-key header
-            const headerApiKey = headers["x-api-key"];
-            const apiKey =
-                (typeof socket.handshake.auth?.apiKey === "string" ? socket.handshake.auth.apiKey : undefined) ||
-                (typeof headerApiKey === "string" ? headerApiKey : undefined);
-
-            if (apiKey && typeof apiKey === "string") {
-                const user = await validateApiKeyValue(apiKey);
-
-                if (user) {
-                    socket.data.user = {
-                        id: user.id,
-                        role: user.role,
-                        email: user.email
-                    };
-                    return next();
-                }
-            }
-
-            // Reject unauthenticated sockets
-            logger.warn("Socket", `Rejected unauthenticated connection attempt from ${socket.id} (IP: ${socket.handshake.address})`);
             return next(new Error("Authentication required"));
-
-        } catch (err) {
-            logger.error("Socket", "Error in Socket.IO auth middleware:", err);
-            return next(new Error("Internal authentication error"));
+        } catch (error) {
+            logger.error("Socket", "Socket authentication failed", error);
+            return next(new Error("Authentication required"));
         }
     });
 
-    // 📡 Authenticated connection handler
     io.on("connection", (socket: Socket) => {
-        const user = socket.data.user;
-        logger.info("Socket", `Client connected: ${socket.id} (User: ${user?.id || "unknown"}, Role: ${user?.role || "unknown"})`);
-
-        socket.on("disconnect", () => {
-            logger.info("Socket", `Client disconnected: ${socket.id}`);
-        });
-
-        // 🛡️ Authorized Session Room Join
         socket.on("join-session", async (sessionId: unknown) => {
+            if (!isValidSessionId(sessionId)) {
+                socket.emit("error", { message: "Invalid sessionId" });
+                return;
+            }
             try {
-                if (!isValidSessionId(sessionId)) {
-                    socket.emit("error", { message: "Invalid sessionId" });
-                    return;
-                }
-
-                if (!socket.data.user) {
-                    socket.emit("error", { message: "Unauthorized" });
-                    return;
-                }
-
-                // Re-read the principal at the sensitive boundary. JWT role claims
-                // may be stale after a role downgrade, suspension, or revocation.
-                const currentUser = await prisma.user.findUnique({
-                    where: { id: socket.data.user.id },
-                    select: { id: true, role: true, emailVerified: true }
-                });
-                if (!currentUser || !currentUser.emailVerified) {
-                    socket.emit("error", { message: "Unauthorized" });
-                    return;
-                }
-                socket.data.user.role = currentUser.role;
-
-                const session = await prisma.session.findFirst({
-                    where: {
-                        OR: [
-                            { id: sessionId },
-                            { sessionId }
-                        ]
-                    },
-                    select: { sessionId: true, userId: true }
-                });
-
-                if (!session) {
+                const principal = socket.data.principal as SocketPrincipal | undefined;
+                const session = principal?.tenantId ? await prisma.session.findFirst({
+                    where: { tenantId: principal.tenantId, OR: [{ id: sessionId }, { sessionId }] },
+                    select: { id: true, sessionId: true, userId: true, tenantId: true },
+                }) : null;
+                if (!session?.tenantId || !(await mayReceiveSessionEvent(principal, session, "public"))) {
                     socket.emit("error", { message: "Forbidden - Cannot access this session" });
                     return;
                 }
 
-                const canAccess = await canAccessSession(
-                    currentUser.id,
-                    currentUser.role,
-                    session.sessionId
-                );
-
-                if (!canAccess) {
-                    logger.warn("Socket", `Forbidden join-session attempt: User ${currentUser.id} tried to join session '${sessionId}'`);
-                    socket.emit("error", { message: "Forbidden - Cannot access this session" });
-                    return;
+                await socket.join(getSessionPublicRoom(session.tenantId, session.sessionId));
+                if (principal?.method === "session" && session.userId === principal.userId) {
+                    await socket.join(getSessionPrivateRoom(session.tenantId, session.sessionId));
                 }
-
-                socket.join(getSessionPublicRoom(session.sessionId));
-
-                // The public room is state-only. QR and pairing data belong to
-                // a private room that only the owner or an active SUPERADMIN
-                // may join.
-                if (mayReceivePrivateSessionEvent(currentUser, session.userId)) {
-                    socket.join(getSessionPrivateRoom(session.sessionId));
-                    logger.debug("Socket", `Socket ${socket.id} (User: ${socket.data.user.id}) joined public/private session rooms for: ${session.sessionId}`);
-                } else {
-                    logger.debug("Socket", `Socket ${socket.id} (User: ${socket.data.user.id}) joined public-only session room for: ${session.sessionId}`);
-                }
-            } catch (err) {
-                logger.error("Socket", `Error joining session ${String(sessionId)}:`, err);
+            } catch (error) {
+                logger.error("Socket", "Failed to join session room", error);
                 socket.emit("error", { message: "Error joining session room" });
             }
         });
 
-        // 🛡️ Authorized User-specific Notification Room Join
         socket.on("join-user-room", async (userId: unknown) => {
-            try {
-            if (!userId || typeof userId !== "string") {
-                socket.emit("error", { message: "Invalid userId" });
-                return;
-            }
-
-            if (!socket.data.user) {
-                socket.emit("error", { message: "Unauthorized" });
-                return;
-            }
-
-            const currentUser = await prisma.user.findUnique({
-                where: { id: socket.data.user.id },
-                select: { id: true, role: true, emailVerified: true }
-            });
-            if (!currentUser || !currentUser.emailVerified) {
-                socket.emit("error", { message: "Unauthorized" });
-                return;
-            }
-            socket.data.user.role = currentUser.role;
-
-            // Only allow joining own user room, unless SUPERADMIN
-            if (currentUser.id !== userId && currentUser.role !== "SUPERADMIN") {
-                logger.warn("Socket", `Forbidden join-user-room attempt: User ${socket.data.user.id} tried to join user:${userId}`);
+            const principal = socket.data.principal as SocketPrincipal | undefined;
+            if (principal?.method !== "session" || principal.userId !== userId || principal.expiresAt <= Date.now()) {
                 socket.emit("error", { message: "Forbidden - Cannot access other user room" });
                 return;
             }
-
-            socket.join(`user:${userId}`);
-            logger.debug("Socket", `Socket ${socket.id} joined user room: user:${userId}`);
-            } catch (err) {
-                logger.error("Socket", "Error joining user room:", err);
+            try {
+                const user = await prisma.user.findUnique({
+                    where: { id: principal.userId },
+                    select: { emailVerified: true },
+                });
+                if (!user?.emailVerified) {
+                    socket.emit("error", { message: "Unauthorized" });
+                    return;
+                }
+                await socket.join(`user:${principal.userId}`);
+            } catch (error) {
+                logger.error("Socket", "Failed to join notification room", error);
                 socket.emit("error", { message: "Error joining user room" });
             }
         });

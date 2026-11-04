@@ -9,6 +9,10 @@ import { prisma } from "@/lib/prisma";
 import { Toaster } from "sonner";
 import pkg from "../../../package.json";
 import { getBrandConfig } from "@/lib/branding-server";
+import { headers } from "next/headers";
+import { requestBasePath, withBasePath } from "@/lib/base-path";
+import { readBrowserTenantSelection, resolveTenantMembership } from "@/lib/tenancy/context";
+import { TenantSelector } from "@/components/dashboard/tenant-selector";
 
 
 export default async function DashboardLayout({
@@ -20,6 +24,17 @@ export default async function DashboardLayout({
     const systemConfig = await prisma.systemConfig.findUnique({ where: { id: "default" } });
     const brandConfig = await getBrandConfig();
     const registrationEnabled = systemConfig?.enableRegistration ?? true;
+    const requestHeaders = await headers();
+    const request = new Request("http://localhost", { headers: requestHeaders });
+    const userId = session?.user?.id;
+    const [memberships, selected] = userId ? await Promise.all([
+        prisma.tenantMembership.findMany({
+            where: { userId, status: "ACTIVE", tenant: { status: "ACTIVE" } },
+            select: { tenant: { select: { id: true, name: true } } },
+            orderBy: { tenant: { name: "asc" } },
+        }),
+        resolveTenantMembership(userId, readBrowserTenantSelection(request)),
+    ]) : [[], null];
 
     return (
         <SessionProvider>
@@ -47,6 +62,13 @@ export default async function DashboardLayout({
                     {/* Main Content */}
                     <div className="flex-1 flex flex-col overflow-hidden min-w-0 relative z-10" suppressHydrationWarning={true}>
                         <Navbar appName={brandConfig.name} />
+                        {memberships.length > 0 && (
+                            <TenantSelector
+                                tenants={memberships.map(({ tenant }) => tenant)}
+                                selected={selected?.tenantId ?? null}
+                                endpoint={withBasePath("/api/tenants/current", requestBasePath(requestHeaders))}
+                            />
+                        )}
                         <main className="flex-1 overflow-auto p-3 sm:p-4 lg:p-6 styled-scrollbar">
                             {children}
                         </main>

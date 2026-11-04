@@ -1,6 +1,6 @@
 # OAuth para API e MCP
 
-O WA-AKG funciona como Authorization Server OAuth para usuários já cadastrados. Clientes OAuth são criados por um SUPERADMIN em **Dashboard → OAuth Access**; não há cadastro público de clientes.
+O WA-AKG funciona como Authorization Server OAuth para usuários já cadastrados. Oferece três métodos de identificação do cliente: Client ID Metadata Document (CIMD), Dynamic Client Registration (DCR) e registro administrativo manual. A autorização do usuário continua exigindo login, PKCE S256, consentimento e políticas por sessão.
 
 ## Configuração
 
@@ -13,6 +13,22 @@ Os registros OAuth ficam no banco Prisma. Aplique a atualização aditiva do sch
 Em `/dashboard/oauth`, usuários autenticados podem revisar e revogar concessões. SUPERADMIN também pode criar e desativar clientes OAuth. A tela cria clientes públicos com Authorization Code + PKCE. Para clientes confidenciais, use a API administrativa `POST /api/oauth/clients`; o segredo é devolvido uma única vez e persistido apenas como hash. O grant `client_credentials` está desabilitado.
 
 O endpoint administrativo aceita `name`, `description`, `redirectUris`, `allowedScopes`, `grantTypes` e `isConfidential`. Scopes e grants devem ser explicitamente permitidos para cada cliente. Os grants suportados são `authorization_code` e `refresh_token`.
+
+## Formas de identificação de cliente (Claude e outros clientes MCP)
+
+As três opções do campo **Cliente OAuth** do Claude são modos alternativos no mesmo Authorization Server; nenhuma delas concede acesso sem consentimento. As URLs publicadas pelo servidor em `/.well-known/oauth-authorization-server` determinam os endpoints; não invente `/authorize` na raiz.
+
+1. **Usar identidade publicada (CIMD, recomendado):** Claude usa uma URL pública HTTPS como `client_id`, apontando para seu documento JSON de metadados. O servidor consulta esse documento sem seguir redirecionamentos HTTP, exige `client_id` igual à URL, valida `redirect_uris`, `token_endpoint_auth_method=none`, grants, escopos e resolução DNS para IPs públicos. Limites: URL até 191 caracteres, porta 443, documento JSON até 16 KiB, timeout 5 segundos. O registro inicial é salvo com o identificador URL e sem segredo. Reautorizações revalidam o documento e aceitam apenas a interseção dos redirects/escopos registrados; se houver mudança de redirect incompatível, requer revisão do administrador. Não aceita documentação privada, destinos locais, redirecionamentos de resposta HTTP nem segredos simétricos. A descoberta anuncia `client_id_metadata_document_supported: true`. As permissões de escrita só são emitidas com escopos explícitos, consentimento e políticas de sessão.
+2. **Registrar automaticamente (DCR, RFC 7591):** o cliente envia `POST {issuer}/api/oauth/register` com `application/json`, incluindo `redirect_uris`, `client_name` e opcionalmente `scope`, `grant_types`, `response_types`, `token_endpoint_auth_method=none`. O servidor valida e limita a taxa; a resposta HTTP 201 traz `client_id` aleatório sem `client_secret`. Escopos padrão: `mcp:read api:read sessions:read`; escrita precisa de solicitação explícita e concessão.
+3. **Usar seu próprio cliente OAuth (registro manual):** SUPERADMIN cria o cliente em `/dashboard/oauth`, ou por `POST {issuer}/api/oauth/clients` autenticado. Copie o `client_id` retornado para o Claude; o `client_secret` pode ficar vazio para cliente público (o padrão da interface). Para clientes confidenciais, o administrador registra e entrega o segredo por canal seguro. Cadastre antes a callback exata `https://claude.ai/api/mcp/auth_callback`, se estiver usando Claude Web. O `redirect_uri` da requisição deve ser idêntico ao cadastrado.
+
+Para todos os modos: `response_type=code`, PKCE S256, callback exata, `state` não vazio, `resource` igual à URL pública MCP e scopes compatíveis. Tokens são vinculados ao cliente, grant e `resource`. Não reutilize uma URL de autorização antiga com `state`/PKCE de outra tentativa. Escolha uma das três opções na UI do Claude, não as combine em uma tentativa.
+
+**Compatibilidade CIMD Claude Web:** o documento público `https://claude.ai/oauth/mcp-oauth-client-metadata` anuncia `authorization_code`, `refresh_token` e `urn:ietf:params:oauth:grant-type:jwt-bearer`. O WA-AKG aceita o documento e seleciona somente os dois grants implementados: não anuncia, não emite nem executa JWT bearer. Claude Code publica `https://claude.ai/oauth/claude-code-client-metadata`, com callbacks loopback. Não fixe `client_id` de CIMD em cadastro manual: a URL completa é a identidade e deve ser consultada pelo servidor.
+
+**Discovery para issuer com prefixo:** para `https://host/wa-akg`, RFC 8414 prevê `https://host/.well-known/oauth-authorization-server/wa-akg` (inserção do caminho), além da rota legada `https://host/wa-akg/.well-known/oauth-authorization-server` e do fallback sem prefixo quando aplicável. O metadata de recurso protegido para `/wa-akg/mcp` deve ser acessível em `https://host/.well-known/oauth-protected-resource/wa-akg/mcp` ou informado no desafio `WWW-Authenticate`. A rota raiz do Caddy não pode retornar texto genérico `200` nesses caminhos; use `scripts/Repair-Caddy-OAuth-Compat.ps1` para gerar e validar uma configuração candidata, com aplicação ao proxy compartilhado somente mediante autorização operacional específica.
+
+**Reverse proxy/ngrok:** os endpoints públicos de discovery e OAuth precisam servir JSON/redirecionamentos reais, não páginas HTML de interposição (ex.: `ERR_NGROK_6024`). Um teste com o cabeçalho `ngrok-skip-browser-warning` não comprova que Claude consegue consumi-los: a integração exige respostas válidas também para clientes sem esse cabeçalho. Corrija a exposição pública do túnel antes de testar o fluxo fim a fim.
 
 ## Fluxo de usuário
 

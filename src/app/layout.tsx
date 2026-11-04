@@ -20,8 +20,8 @@ const geistMono = Geist_Mono({
 });
 
 const APP_URL = (() => {
-  const configuredUrl = process.env.NEXT_PUBLIC_APP_URL || "https://wa-akg.app";
-  const baseUrl = process.env.BASE_URL || "https://wa-akg.app";
+  const configuredUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.BASE_URL || "http://localhost:43000";
+  const baseUrl = process.env.BASE_URL || "http://localhost:43000";
 
   try {
     return new URL(configuredUrl).toString();
@@ -33,8 +33,8 @@ const APP_URL = (() => {
 
 export const viewport: Viewport = {
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
-    { media: "(prefers-color-scheme: dark)", color: "#0a0a0a" },
+    { media: "(prefers-color-scheme: light)", color: "#F6F7EF" },
+    { media: "(prefers-color-scheme: dark)", color: "#0D3033" },
   ],
   width: "device-width",
   initialScale: 1,
@@ -45,7 +45,7 @@ export async function generateMetadata(): Promise<Metadata> {
   const appName = brandConfig.name;
   const appDescription = brandConfig.description;
 
-  const appDefaultTitle = `${appName} | Premium WhatsApp Gateway`;
+  const appDefaultTitle = `${appName} | Conversas, automações e equipes`;
 
   return {
     metadataBase: new URL(APP_URL),
@@ -55,7 +55,7 @@ export async function generateMetadata(): Promise<Metadata> {
     },
     description: appDescription,
     applicationName: appName,
-    icons: { icon: brandConfig.faviconUrl },
+    icons: { icon: brandConfig.faviconUrl, apple: brandConfig.faviconUrl },
     generator: "Next.js",
     keywords: [
       "whatsapp gateway", "whatsapp api", "whatsapp bot", "whatsapp management",
@@ -82,12 +82,14 @@ export async function generateMetadata(): Promise<Metadata> {
       type: "website",
       locale: "en_US",
       siteName: appName,
+      images: [{ url: "/brand/conectaflow-social.png", width: 1200, height: 630, alt: `${appName}: conversas e automações` }],
       title: appDefaultTitle,
       description: appDescription,
       url: APP_URL,
     },
     twitter: {
       card: "summary_large_image",
+      images: ["/brand/conectaflow-social.png"],
       title: appDefaultTitle,
       description: appDescription,
     },

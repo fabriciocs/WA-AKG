@@ -98,6 +98,7 @@ function normalizedWebhookContent(message: WebhookMessageInput["message"]): WAMe
  */
 export async function dispatchWebhook(
     sessionId: string,
+    tenantId: string,
     event: WebhookEventType,
     data: unknown,
     options: WebhookDispatchOptions = {},
@@ -105,11 +106,14 @@ export async function dispatchWebhook(
     try {
         // Get the session to find the userId
         const session = await prisma.session.findUnique({
-            where: { sessionId },
+            where: { sessionId, tenantId, tenant: { status: "ACTIVE" } },
             select: { id: true, userId: true }
         });
 
-        if (!session) {
+        if (!session || !(await prisma.tenantMembership.findFirst({
+            where: { tenantId, userId: session.userId, status: "ACTIVE" },
+            select: { id: true },
+        }))) {
             logger.warn("Webhook", `Dispatch: Session ${sessionId} not found`);
             return;
         }
@@ -129,11 +133,12 @@ export async function dispatchWebhook(
                 created: true,
                 conflict: false,
                 event: await prisma.inboundEvent.findUnique({
-                    where: { eventId: options.existingReceiptEventId },
+                    where: { eventId: options.existingReceiptEventId, tenantId, sessionId: session.id },
                 }),
             }
             : await recordInboundEvent({
                 sessionDbId: session.id,
+                tenantId,
                 sessionId,
                 event,
                 data: normalizedData,
@@ -151,26 +156,12 @@ export async function dispatchWebhook(
         }
         if (!receipt.created) return;
 
-        // Shared SessionAccess is legacy and is intentionally not sufficient
-        // for webhook delivery. Keep fan-out aligned with session-access.ts:
-        // the owner and SUPERADMIN are the only authorized recipients.
-        const superadmins = await prisma.user.findMany({
-            where: { role: 'SUPERADMIN' },
-            select: { id: true }
-        });
-        
-        const userIds = [
-            session.userId, 
-            ...superadmins.map(s => s.id)
-        ];
-
         const webhooks = await prisma.webhook.findMany({
             where: {
+                tenantId,
+                userId: session.userId,
                 isActive: true,
-                OR: [
-                    { sessionId: null, userId: { in: userIds } }, // Global webhooks
-                    { sessionId: session.id, userId: { in: userIds } } // Session-specific webhooks
-                ]
+                OR: [{ sessionId: null }, { sessionId: session.id }]
             }
         });
 
@@ -198,19 +189,19 @@ export async function dispatchWebhook(
         }
 
         if (deliveries.length === 0) {
-            await markInboundEventCompleted(payload.eventId);
+            await markInboundEventCompleted(payload.eventId, tenantId);
             return;
         }
 
-        await markInboundEventQueued(payload.eventId);
+        await markInboundEventQueued(payload.eventId, tenantId);
         const results = await Promise.allSettled(deliveries);
         const failures = results.filter((result): result is PromiseRejectedResult => result.status === "rejected");
         if (failures.length > 0) {
             const reason = failures[0]?.reason instanceof Error ? failures[0].reason.message : "Webhook delivery failed";
-            await markInboundEventFailed(payload.eventId, reason);
+            await markInboundEventFailed(payload.eventId, tenantId, reason);
             logger.error("Webhook", `Inbound event ${payload.eventId} failed for ${failures.length} delivery(ies)`);
         } else {
-            await markInboundEventCompleted(payload.eventId);
+            await markInboundEventCompleted(payload.eventId, tenantId);
         }
     } catch (error) {
         logger.error("Webhook", "Dispatch error:", error);
@@ -355,9 +346,16 @@ async function recordWebhookLog(data: {
         requestHeaders: data.requestHeaders || undefined,
     });
 
+    const webhook = await prisma.webhook.findUnique({
+        where: { id: data.webhookId, tenant: { status: "ACTIVE" } },
+        select: { tenantId: true },
+    });
+    if (!webhook?.tenantId) return;
+
     await prisma.webhookLog.create({
         data: {
             webhookId: data.webhookId,
+            tenantId: webhook.tenantId,
             event: data.event,
             status: data.status,
             requestUrl: safeLog.requestUrl,
@@ -370,22 +368,23 @@ async function recordWebhookLog(data: {
         }
     });
 
-    cleanupOldLogs(data.webhookId).catch(err =>
+    cleanupOldLogs(data.webhookId, webhook.tenantId).catch(err =>
         logger.error("Webhook", "Failed to cleanup old logs:", err)
     );
 }
 
-async function cleanupOldLogs(webhookId: string) {
+async function cleanupOldLogs(webhookId: string, tenantId: string) {
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
     await prisma.webhookLog.deleteMany({
         where: {
             webhookId,
+            tenantId,
             createdAt: { lt: thirtyDaysAgo }
         }
     });
 
     const logs = await prisma.webhookLog.findMany({
-        where: { webhookId },
+        where: { webhookId, tenantId },
         orderBy: { createdAt: 'desc' },
         select: { id: true }
     });
@@ -393,7 +392,7 @@ async function cleanupOldLogs(webhookId: string) {
     if (logs.length > 500) {
         const idsToDelete = logs.slice(500).map(l => l.id);
         await prisma.webhookLog.deleteMany({
-            where: { id: { in: idsToDelete } }
+            where: { id: { in: idsToDelete }, tenantId }
         });
     }
 }
@@ -646,7 +645,9 @@ export async function onMessageReceived(
     message: WebhookMessageInput,
     existingFileUrl?: string | null,
     inboundEventId?: string | null,
+    tenantId?: string,
 ) {
+    if (!tenantId) return;
     // Re-calculate fields to match store logic EXACTLY
     const remoteJid = message.key?.remoteJid || "";
     const fromMe = message.key?.fromMe || false;
@@ -671,13 +672,14 @@ export async function onMessageReceived(
     if (isGroup && typeof sender === 'string') {
         try {
             const session = await prisma.session.findUnique({
-                where: { sessionId },
+                where: { sessionId, tenantId },
                 select: { id: true }
             });
 
             if (session) {
                 const group = await prisma.group.findUnique({
                     where: {
+                        tenantId,
                         sessionId_jid: {
                             sessionId: session.id,
                             jid: remoteJid
@@ -716,7 +718,7 @@ export async function onMessageReceived(
     const normalized = extractMessageContent(message.message);
     const quoted = await extractQuotedMessageAsync(message, sessionId);
 
-    dispatchWebhook(sessionId, "message.received", {
+    await dispatchWebhook(sessionId, tenantId, "message.received", {
         key: {
             id: message.key?.id,
             remoteJid: normalizedFrom,
@@ -748,7 +750,13 @@ export async function onMessageReceived(
 /**
  * Helper to dispatch message sent event
  */
-export async function onMessageSent(sessionId: string, message: WebhookMessageInput, existingFileUrl?: string | null) {
+export async function onMessageSent(
+    sessionId: string,
+    message: WebhookMessageInput,
+    existingFileUrl?: string | null,
+    tenantId = waManager.getInstance(sessionId)?.tenantId,
+) {
+    if (!tenantId) return;
     const normalized = extractMessageContent(message.message);
     const quoted = await extractQuotedMessageAsync(message, sessionId);
     const remoteJid = message.key?.remoteJid || "";
@@ -771,7 +779,7 @@ export async function onMessageSent(sessionId: string, message: WebhookMessageIn
     const rawSender = message.key?.participant || (message.key?.fromMe ? "ME" : remoteJid);
     const sender = rawSender === "ME" ? "ME" : await resolveToPhoneJid(rawSender, sessionId);
 
-    dispatchWebhook(sessionId, "message.sent", {
+    await dispatchWebhook(sessionId, tenantId, "message.sent", {
         key: {
             id: message.key?.id,
             remoteJid: normalizedFrom,
@@ -858,7 +866,9 @@ function getChatType(jid: string): "PERSONAL" | "GROUP" | "STATUS" | "NEWSLETTER
  * Helper to dispatch connection update event
  */
 export function onConnectionUpdate(sessionId: string, status: string, qr?: string) {
-    dispatchWebhook(sessionId, "connection.update", {
+    const tenantId = waManager.getInstance(sessionId)?.tenantId;
+    if (!tenantId) return;
+    void dispatchWebhook(sessionId, tenantId, "connection.update", {
         status,
         qr: qr || null
     });

@@ -1,5 +1,5 @@
 import { auth } from "@/lib/auth";
-import { validateApiKey } from "@/lib/api-auth";
+import { getAuthenticatedUser } from "@/lib/api-auth";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { requestBasePath, requestPublicOrigin, withBasePath } from "@/lib/base-path";
@@ -40,13 +40,10 @@ export async function proxy(request: NextRequest) {
             return NextResponse.next();
         }
 
-        // Check for API key in header
-        const apiKey = request.headers.get("x-api-key");
-        if (apiKey) {
-            // Defense-in-depth: validate API key immediately
-            const user = await validateApiKey(request);
+        if (request.headers.has("x-api-key") || request.headers.has("authorization")) {
+            const user = await getAuthenticatedUser(request);
             if (!user) {
-                return NextResponse.json({ error: "Invalid API key" }, { status: 401 });
+                return NextResponse.json({ error: "Invalid credential" }, { status: 401 });
             }
             return NextResponse.next();
         }

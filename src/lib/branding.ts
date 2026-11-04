@@ -1,8 +1,8 @@
 export const DEFAULT_BRAND_NAME = "ConectaFlow";
 export const DEFAULT_BRAND_TAGLINE = "Atendimento no WhatsApp, do seu jeito.";
 export const DEFAULT_BRAND_DESCRIPTION = "Organize conversas, automações e equipes em um só lugar.";
-export const DEFAULT_LOGO_URL = "";
-export const DEFAULT_FAVICON_URL = "/favicon.ico";
+export const DEFAULT_LOGO_URL = "/brand/conectaflow-mark.svg";
+export const DEFAULT_FAVICON_URL = "/brand/conectaflow-favicon.svg";
 
 /** The values that were emitted by the pre-rebrand defaults. */
 export const LEGACY_DEFAULT_BRAND_NAME = "WA-AKG";
@@ -102,7 +102,7 @@ export function resolveBrandConfig({ systemConfig, environment = {} }: BrandReso
     name,
     tagline: nonBlank(environment.APP_TAGLINE) || DEFAULT_BRAND_TAGLINE,
     description: nonBlank(environment.APP_DESCRIPTION) || DEFAULT_BRAND_DESCRIPTION,
-    logoUrl: resolveAssetUrl(systemConfig?.logoUrl, DEFAULT_LOGO_URL),
+    logoUrl: resolveAssetUrl(systemConfig?.logoUrl, name === DEFAULT_BRAND_NAME ? DEFAULT_LOGO_URL : ""),
     faviconUrl: resolveAssetUrl(systemConfig?.faviconUrl, DEFAULT_FAVICON_URL),
     initials,
     logoFallback: initials,

@@ -11,11 +11,49 @@ const AUTH_REQUEST_TTL_MS = 10 * 60_000;
 const ACCESS_TOKEN_TTL_SECONDS = 15 * 60;
 const REFRESH_TOKEN_TTL_MS = 30 * 24 * 60 * 60_000;
 
+async function activeCredentialMembership(
+  db: Pick<Prisma.TransactionClient, "tenantMembership">,
+  userId: string,
+  tenantId: string,
+) {
+  return db.tenantMembership.findFirst({
+    where: { userId, tenantId, status: "ACTIVE", revokedAt: null, tenant: { status: "ACTIVE", suspendedAt: null } },
+    select: { id: true },
+  });
+}
+
+export function boundGrantTenant(record: {
+  tenantId: string | null;
+  userId: string | null;
+  clientId: string;
+  grantId: string | null;
+  grant: {
+    tenantId: string | null;
+    userId: string;
+    clientId: string;
+    revokedAt: Date | null;
+    sessionCapabilities: Array<{ tenantId: string | null; session: { tenantId: string | null; userId: string } }>;
+  } | null;
+}): string | null {
+  const { tenantId, userId, clientId, grant } = record;
+  if (!tenantId || !userId || !grant || !hasActiveOAuthGrant(record)) return null;
+  if (grant.tenantId !== tenantId || grant.userId !== userId || grant.clientId !== clientId) return null;
+  if (grant.sessionCapabilities.some(({ tenantId: grantTenantId, session }) =>
+    grantTenantId !== tenantId || session.tenantId !== tenantId || session.userId !== userId
+  )) return null;
+  return tenantId;
+}
+
+const includeBoundGrant = {
+  include: { sessionCapabilities: { include: { session: { select: { tenantId: true, userId: true } } } } },
+} satisfies Prisma.OAuthAccessToken$grantArgs;
+
 type JsonRecord = Record<string, unknown>;
 const stringArray = (value: unknown): string[] => Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
 const clientRecord = (client: JsonRecord): OAuthClientRecord => ({
   id: String(client.id),
   clientId: String(client.clientId),
+  tenantId: typeof client.tenantId === "string" ? client.tenantId : null,
   name: String(client.name),
   description: typeof client.description === "string" ? client.description : null,
   redirectUris: stringArray(client.redirectUris),
@@ -91,6 +129,7 @@ function capabilityMapFromGrant(grant: { sessionCapabilities: Array<{ sessionId:
 async function persistPair(tx: Prisma.TransactionClient, input: {
   clientId: string;
   userId: string | null;
+  tenantId: string;
   scope: string;
   sessionScope?: string[] | null;
   sessionCapabilities?: SessionCapabilityMap | null;
@@ -109,6 +148,7 @@ async function persistPair(tx: Prisma.TransactionClient, input: {
   await tx.oAuthAccessToken.create({
     data: {
       tokenHash: hashToken(accessToken), clientId: input.clientId, userId: input.userId,
+      tenantId: input.tenantId,
       scope: input.scope, grantType: input.grantType, familyId,
       grantId: input.grantId ?? undefined,
       sessionScope: input.sessionCapabilities ?? input.sessionScope ?? undefined,
@@ -120,6 +160,7 @@ async function persistPair(tx: Prisma.TransactionClient, input: {
     await tx.oAuthRefreshToken.create({
       data: {
         tokenHash: hashToken(refreshToken), clientId: input.clientId, userId: input.userId,
+        tenantId: input.tenantId,
         scope: input.scope, grantType: input.grantType,
         grantId: input.grantId ?? undefined,
         sessionScope: input.sessionCapabilities ?? input.sessionScope ?? undefined, familyId,
@@ -155,6 +196,7 @@ export async function createClient(input: {
   grantTypes: OAuthGrantType[];
   isConfidential: boolean;
   createdById: string | null;
+  tenantId?: string;
 }) {
   const clientId = generateRandomString(24);
   const clientSecret = input.isConfidential ? generateRandomString(48) : undefined;
@@ -169,15 +211,16 @@ export async function createClient(input: {
       grantTypes: input.grantTypes,
       isConfidential: input.isConfidential,
       createdById: input.createdById,
+      tenantId: input.tenantId,
     },
   });
   return { client: clientRecord(client as unknown as JsonRecord), clientSecret };
 }
 
-export async function updateClient(clientId: string, input: { isActive?: boolean; name?: string; description?: string }) {
+export async function updateClient(clientId: string, tenantId: string, input: { isActive?: boolean; name?: string; description?: string }) {
   const updated = await prisma.$transaction(async (tx) => {
     const result = await tx.oAuthClient.updateMany({
-      where: { clientId },
+      where: { clientId, tenantId },
       data: {
         ...(input.isActive === undefined ? {} : { isActive: input.isActive }),
         ...(input.name === undefined ? {} : { name: input.name.trim() }),
@@ -186,11 +229,11 @@ export async function updateClient(clientId: string, input: { isActive?: boolean
     });
     if (result.count && input.isActive === false) {
       const now = new Date();
-      await tx.oAuthGrant.updateMany({ where: { clientId, revokedAt: null }, data: { revokedAt: now } });
-      await tx.oAuthRefreshToken.updateMany({ where: { clientId, revokedAt: null }, data: { revokedAt: now } });
-      await tx.oAuthAccessToken.updateMany({ where: { clientId, revokedAt: null }, data: { revokedAt: now } });
-      await tx.oAuthAuthorizationRequest.updateMany({ where: { clientId, consumedAt: null }, data: { consumedAt: now } });
-      await tx.oAuthAuthorizationCode.updateMany({ where: { clientId, consumedAt: null }, data: { consumedAt: now } });
+      await tx.oAuthGrant.updateMany({ where: { clientId, tenantId, revokedAt: null }, data: { revokedAt: now } });
+      await tx.oAuthRefreshToken.updateMany({ where: { clientId, tenantId, revokedAt: null }, data: { revokedAt: now } });
+      await tx.oAuthAccessToken.updateMany({ where: { clientId, tenantId, revokedAt: null }, data: { revokedAt: now } });
+      await tx.oAuthAuthorizationRequest.updateMany({ where: { clientId, tenantId, consumedAt: null }, data: { consumedAt: now } });
+      await tx.oAuthAuthorizationCode.updateMany({ where: { clientId, tenantId, consumedAt: null }, data: { consumedAt: now } });
     }
     return result;
   });
@@ -224,6 +267,7 @@ export async function createAuthorizationRequest(input: {
   await prisma.oAuthAuthorizationRequest.create({
     data: {
       requestId, clientId: input.client.clientId, redirectUri: input.redirectUri,
+      tenantId: input.client.tenantId ?? undefined,
       responseType: "code", scope: formatScope(scopes), state: input.state,
       codeChallenge: input.codeChallenge, codeChallengeMethod: "S256",
       resource: input.resource, expiresAt: new Date(Date.now() + AUTH_REQUEST_TTL_MS),
@@ -238,11 +282,16 @@ export async function getAuthorizationRequest(requestId: string) {
   return { ...request, client: clientRecord(request.client as unknown as JsonRecord) };
 }
 
-export async function bindAuthorizationRequest(requestId: string, userId: string) {
+export async function bindAuthorizationRequest(requestId: string, userId: string, tenantId: string) {
+  if (!await activeCredentialMembership(prisma, userId, tenantId)) return null;
   const now = new Date();
   const result = await prisma.oAuthAuthorizationRequest.updateMany({
-    where: { requestId, consumedAt: null, expiresAt: { gt: now }, OR: [{ userId: null }, { userId }] },
-    data: { userId },
+    where: {
+      requestId, consumedAt: null, expiresAt: { gt: now },
+      AND: [{ OR: [{ userId: null }, { userId }] }, { OR: [{ tenantId: null }, { tenantId }] }],
+      client: { isActive: true, OR: [{ tenantId: null }, { tenantId }] },
+    },
+    data: { userId, tenantId },
   });
   if (!result.count) return null;
   return getAuthorizationRequest(requestId);
@@ -259,7 +308,12 @@ export async function approveAuthorizationRequest(
   const request = await prisma.$transaction(async (tx) => {
     const found = await tx.oAuthAuthorizationRequest.findUnique({ where: { requestId }, include: { client: true } });
     if (!found || found.consumedAt || found.expiresAt <= now || !found.client.isActive) throw new OAuthError("Authorization request expired", "invalid_request");
-    if (found.userId && found.userId !== userId) throw new OAuthError("Authorization request belongs to another user", "access_denied", 403);
+    const { tenantId } = found;
+    if (!tenantId || found.userId !== userId ||
+        (found.client.tenantId && found.client.tenantId !== tenantId) ||
+        !await activeCredentialMembership(tx, userId, tenantId)) {
+      throw new OAuthError("Authorization request is unavailable", "access_denied", 403);
+    }
     const scopes = parseScopeString(found.scope);
     const selectedIds = [...new Set(sessionIds.filter(Boolean))];
     let capabilities: SessionCapabilityMap;
@@ -271,17 +325,15 @@ export async function approveAuthorizationRequest(
     }
     assertSessionGrantScopes(scopes, capabilities);
     const operationAllowlist = operationCapabilitiesForGrant(scopes, capabilities);
-    const account = await tx.user.findUnique({ where: { id: userId }, select: { role: true } });
-    if (!account) throw new OAuthError("User account not found", "access_denied", 403);
     if (selectedIds.length) {
       const accessible = await tx.session.findMany({
-        where: account.role === "SUPERADMIN" ? { id: { in: selectedIds } } : { id: { in: selectedIds }, userId },
+        where: { id: { in: selectedIds }, userId, tenantId },
         select: { id: true },
       });
       if (accessible.length !== selectedIds.length) throw new OAuthError("One or more selected sessions are not owned by this user", "access_denied", 403);
     }
     const update = await tx.oAuthAuthorizationRequest.updateMany({
-      where: { requestId, consumedAt: null, expiresAt: { gt: now } },
+      where: { requestId, userId, tenantId, consumedAt: null, expiresAt: { gt: now } },
       data: { userId, consumedAt: now },
     });
     if (!update.count) throw new OAuthError("Authorization request was already used", "invalid_request");
@@ -289,16 +341,18 @@ export async function approveAuthorizationRequest(
       data: {
         clientId: found.clientId,
         userId,
+        tenantId,
         scope: found.scope,
         resource: found.resource,
         sessionCapabilities: {
-          create: Object.entries(capabilities).map(([sessionId, capability]) => ({ sessionId, capability })),
+          create: Object.entries(capabilities).map(([sessionId, capability]) => ({ sessionId, capability, tenantId })),
         },
       },
     });
     await tx.oAuthAuthorizationCode.create({
       data: {
         codeHash: hashToken(code), clientId: found.clientId, userId,
+        tenantId,
         redirectUri: found.redirectUri, scope: found.scope,
         codeChallenge: found.codeChallenge, codeChallengeMethod: "S256",
         resource: found.resource, grantId: grant.id,
@@ -330,7 +384,7 @@ export async function exchangeAuthorizationCode(input: {
   const codeHash = hashToken(input.code);
   const now = new Date();
   return prisma.$transaction(async (tx) => {
-    const authorizationCode = await tx.oAuthAuthorizationCode.findUnique({ where: { codeHash }, include: { client: true, grant: { include: { sessionCapabilities: true } } } });
+    const authorizationCode = await tx.oAuthAuthorizationCode.findUnique({ where: { codeHash }, include: { client: true, grant: includeBoundGrant } });
     if (!authorizationCode || authorizationCode.expiresAt <= now || authorizationCode.consumedAt) throw new OAuthError("Invalid or expired authorization code", "invalid_grant");
     const client = authorizationCode.client as unknown as JsonRecord;
     assertGrant(client, "authorization_code");
@@ -340,8 +394,11 @@ export async function exchangeAuthorizationCode(input: {
     if (authorizationCode.codeChallengeMethod !== "S256" || !verifyCodeChallenge(input.codeVerifier, authorizationCode.codeChallenge)) {
       throw new OAuthError("PKCE verification failed", "invalid_grant");
     }
-    if (!hasActiveOAuthGrant(authorizationCode)) {
-      throw new OAuthError("Authorization grant is revoked", "invalid_grant");
+    const tenantId = boundGrantTenant(authorizationCode);
+    if (!tenantId || !authorizationCode.userId ||
+        (authorizationCode.client.tenantId && authorizationCode.client.tenantId !== tenantId) ||
+        !await activeCredentialMembership(tx, authorizationCode.userId, tenantId)) {
+      throw new OAuthError("Authorization grant is unavailable", "invalid_grant");
     }
 
     const consumed = await tx.oAuthAuthorizationCode.updateMany({
@@ -351,6 +408,7 @@ export async function exchangeAuthorizationCode(input: {
     if (!consumed.count) throw new OAuthError("Authorization code was already used", "invalid_grant");
     return persistPair(tx, {
       clientId: input.clientId, userId: authorizationCode.userId, scope: authorizationCode.scope,
+      tenantId,
       grantId: authorizationCode.grantId,
       sessionScope: sessionScopeValue(authorizationCode.sessionScope),
       sessionCapabilities: authorizationCode.grant ? capabilityMapFromGrant(authorizationCode.grant) : sessionCapabilitiesValue(authorizationCode.sessionScope),
@@ -370,12 +428,15 @@ export async function rotateRefreshToken(input: { clientId: string; clientSecret
   const tokenHash = hashToken(input.token);
   const now = new Date();
   const result = await prisma.$transaction(async (tx) => {
-    const token = await tx.oAuthRefreshToken.findUnique({ where: { tokenHash }, include: { client: true, grant: { include: { sessionCapabilities: true } } } });
+    const token = await tx.oAuthRefreshToken.findUnique({ where: { tokenHash }, include: { client: true, grant: includeBoundGrant } });
     if (!token || token.clientId !== input.clientId) throw new OAuthError("Invalid refresh token", "invalid_grant");
     const client = token.client as unknown as JsonRecord;
     assertGrant(client, "refresh_token");
     assertClientSecret(client, input.clientSecret);
-    if (token.revokedAt || token.expiresAt <= now || !hasActiveOAuthGrant(token)) throw new OAuthError("Invalid refresh token", "invalid_grant");
+    const tenantId = boundGrantTenant(token);
+    if (token.revokedAt || token.expiresAt <= now || !tenantId || !token.userId ||
+        (token.client.tenantId && token.client.tenantId !== tenantId) ||
+        !await activeCredentialMembership(tx, token.userId, tenantId)) throw new OAuthError("Invalid refresh token", "invalid_grant");
     if (token.rotatedAt) {
       await tx.oAuthRefreshToken.updateMany({ where: { familyId: token.familyId, revokedAt: null }, data: { revokedAt: now } });
       await tx.oAuthAccessToken.updateMany({ where: familyAccessTokenWhere(token), data: { revokedAt: now } });
@@ -392,6 +453,7 @@ export async function rotateRefreshToken(input: { clientId: string; clientSecret
     }
     return persistPair(tx, {
       clientId: input.clientId, userId: token.userId, scope: token.scope,
+      tenantId,
       grantId: token.grantId,
       sessionScope: sessionScopeValue(token.sessionScope),
       sessionCapabilities: token.grant ? capabilityMapFromGrant(token.grant) : sessionCapabilitiesValue(token.sessionScope),
@@ -408,16 +470,20 @@ export async function authenticateAccessToken(token: string): Promise<OAuthPrinc
   if (!token || token.length > 4096) return null;
   const record = await prisma.oAuthAccessToken.findUnique({
     where: { tokenHash: hashToken(token) },
-    include: { client: true, grant: { include: { sessionCapabilities: true } } },
+    include: { client: true, grant: includeBoundGrant },
   });
   const now = new Date();
-  if (!record || record.expiresAt <= now || record.revokedAt || !record.client.isActive || !hasActiveOAuthGrant(record)) return null;
+  if (!record || record.expiresAt <= now || record.revokedAt || !record.client.isActive) return null;
+  const tenantId = boundGrantTenant(record);
+  if (!tenantId || !record.userId || (record.client.tenantId && record.client.tenantId !== tenantId) ||
+      !await activeCredentialMembership(prisma, record.userId, tenantId)) return null;
   const normalizedCapabilities = record.grant ? capabilityMapFromGrant(record.grant) : sessionCapabilitiesValue(record.sessionScope);
   await prisma.oAuthAccessToken.update({ where: { id: record.id }, data: { lastUsedAt: now } });
   return {
     tokenId: record.id,
     clientId: record.clientId,
     userId: record.userId,
+    credentialTenantId: tenantId,
     grantId: record.grantId,
     scope: parseScopeString(record.scope),
     sessionScope: sessionScopeValue(record.sessionScope),
@@ -455,19 +521,22 @@ export async function revokeToken(token: string, clientId: string) {
   ]);
 }
 
-export async function revokeClientGrants(userId: string, clientId: string) {
+export async function revokeClientGrants(userId: string, tenantId: string, clientId: string) {
   const now = new Date();
   await prisma.$transaction([
-    prisma.oAuthGrant.updateMany({ where: { userId, clientId, revokedAt: null }, data: { revokedAt: now } }),
-    prisma.oAuthRefreshToken.updateMany({ where: { userId, clientId, revokedAt: null }, data: { revokedAt: now } }),
-    prisma.oAuthAccessToken.updateMany({ where: { userId, clientId, revokedAt: null }, data: { revokedAt: now } }),
+    prisma.oAuthGrant.updateMany({ where: { userId, tenantId, clientId, revokedAt: null }, data: { revokedAt: now } }),
+    prisma.oAuthRefreshToken.updateMany({ where: { userId, tenantId, clientId, revokedAt: null }, data: { revokedAt: now } }),
+    prisma.oAuthAccessToken.updateMany({ where: { userId, tenantId, clientId, revokedAt: null }, data: { revokedAt: now } }),
   ]);
 }
 
-export async function listUserGrants(userId: string) {
+export async function listUserGrants(userId: string, tenantId: string) {
   const grants = await prisma.oAuthGrant.findMany({
-    where: { userId, revokedAt: null },
-    include: { client: { select: { name: true } }, sessionCapabilities: { select: { sessionId: true, capability: true } } },
+    where: { userId, tenantId, revokedAt: null },
+    include: {
+      client: { select: { name: true } },
+      sessionCapabilities: { where: { tenantId, session: { tenantId, userId } }, select: { sessionId: true, capability: true } },
+    },
     orderBy: { createdAt: "desc" },
   });
   return grants.map((grant) => ({

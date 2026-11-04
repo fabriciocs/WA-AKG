@@ -5,11 +5,12 @@ import { prisma } from "@/lib/prisma";
 import { waManager } from "@/modules/whatsapp/manager";
 import { safeFetchBuffer } from "@/lib/security";
 import { logger } from "./logger";
-import type { PrismaClient } from "@prisma/client";
+import type { BroadcastLog, BroadcastRecipient, PrismaClient } from "@prisma/client";
+import type { Server } from "socket.io";
+import { emitSessionRoomEvent } from "@/server/socket";
 
 const LEASE_MS = 10 * 60 * 1000;
 const BATCH_SIZE = 20;
-type SocketEmitter = { to: (room: string) => { emit: (event: string, payload: unknown) => void } };
 let scheduledTask: ReturnType<typeof cron.schedule> | null = null;
 
 type LeaseModel = "scheduledMessage" | "broadcastRecipient" | "broadcastLog";
@@ -62,7 +63,7 @@ type ScheduledMessageDelegate = Pick<
 
 type ScheduledMessageProcessorDependencies = {
     scheduledMessage: ScheduledMessageDelegate;
-    getSender: (sessionId: string) => ((jid: string, content: Awaited<ReturnType<typeof buildScheduledContent>>) => Promise<unknown>) | undefined;
+    getSender: (sessionId: string, tenantId: string) => ((jid: string, content: Awaited<ReturnType<typeof buildScheduledContent>>) => Promise<unknown>) | undefined;
     buildContent: typeof buildScheduledContent;
     startHeartbeat: (id: string, token: string) => () => void;
     createToken: () => string;
@@ -78,21 +79,24 @@ export function createScheduledMessageProcessor(dependencies: ScheduledMessagePr
     const expiredBefore = new Date(now.getTime() - LEASE_MS);
     const candidates = await scheduledMessage.findMany({
         where: {
+            tenant: { status: "ACTIVE" },
             OR: [
                 { status: "PENDING", sendAt: { lte: now } },
                 { status: "PROCESSING", claimedAt: { lte: expiredBefore } }
             ]
         },
-        select: { id: true },
+        select: { id: true, tenantId: true },
         take: BATCH_SIZE,
         orderBy: { sendAt: "asc" }
     });
 
     for (const candidate of candidates) {
+        if (!candidate.tenantId) continue;
         const token = createToken();
         const claimed = await scheduledMessage.updateMany({
             where: {
                 id: candidate.id,
+                tenantId: candidate.tenantId,
                 OR: [
                     { status: "PENDING", sendAt: { lte: now } },
                     { status: "PROCESSING", claimedAt: { lte: expiredBefore } }
@@ -105,15 +109,24 @@ export function createScheduledMessageProcessor(dependencies: ScheduledMessagePr
         const stopHeartbeat = startHeartbeat(candidate.id, token);
         try {
             const message = await scheduledMessage.findFirst({
-                where: { id: candidate.id, claimToken: token },
+                where: { id: candidate.id, tenantId: candidate.tenantId, claimToken: token },
                 include: { session: true }
             });
             if (!message) continue;
 
-            const sendMessage = getSender(message.session.sessionId);
+            const tenantId = message.tenantId;
+            if (!tenantId || tenantId !== candidate.tenantId || tenantId !== message.session.tenantId) {
+                await scheduledMessage.updateMany({
+                    where: { id: candidate.id, tenantId: candidate.tenantId, claimToken: token },
+                    data: { status: "FAILED", lastError: "Invalid tenant binding", claimToken: null, claimedAt: null }
+                });
+                logWarn("Scheduled send rejected due to invalid tenant binding");
+                continue;
+            }
+            const sendMessage = getSender(message.session.sessionId, tenantId);
             if (!sendMessage) {
                 await scheduledMessage.updateMany({
-                    where: { id: message.id, claimToken: token },
+                    where: { id: message.id, tenantId, claimToken: token },
                     data: { status: "PENDING", claimToken: null, claimedAt: null }
                 });
                 logWarn(`Session ${message.session.sessionId} is disconnected; job ${message.id} returned to PENDING`);
@@ -129,7 +142,7 @@ export function createScheduledMessageProcessor(dependencies: ScheduledMessagePr
                     ? cronParser.parse(message.cronExpression, { tz: "Asia/Jakarta", currentDate: now }).next().toDate()
                     : undefined;
                 await scheduledMessage.updateMany({
-                    where: { id: message.id, claimToken: token },
+                    where: { id: message.id, tenantId, claimToken: token },
                     data: {
                         status: retryAt ? "PENDING" : "FAILED",
                         sendAt: retryAt,
@@ -145,7 +158,7 @@ export function createScheduledMessageProcessor(dependencies: ScheduledMessagePr
                 ? cronParser.parse(message.cronExpression, { tz: "Asia/Jakarta", currentDate: now }).next().toDate()
                 : undefined;
             const updated = await scheduledMessage.updateMany({
-                where: { id: message.id, claimToken: token },
+                where: { id: message.id, tenantId, claimToken: token },
                 data: {
                     status: nextDate ? "PENDING" : "SENT",
                     sendAt: nextDate,
@@ -169,9 +182,10 @@ export function createScheduledMessageProcessor(dependencies: ScheduledMessagePr
 
 const processScheduledMessages = createScheduledMessageProcessor({
     scheduledMessage: prisma.scheduledMessage,
-    getSender: sessionId => {
-        const socket = waManager.getInstance(sessionId)?.socket;
-        if (!socket) return undefined;
+    getSender: (sessionId, tenantId) => {
+        const instance = waManager.getInstance(sessionId);
+        if (!instance?.socket || instance.tenantId !== tenantId) return undefined;
+        const socket = instance.socket;
         return (jid, content) => socket.sendMessage(jid, content);
     },
     buildContent: buildScheduledContent,
@@ -206,13 +220,13 @@ type BroadcastRecipientDelegate = Pick<PrismaClient["broadcastRecipient"], "find
 type BroadcastRecipientProcessorDependencies = {
     broadcastLog: BroadcastLogDelegate;
     broadcastRecipient: BroadcastRecipientDelegate;
-    getSender: (sessionId: string) => ((jid: string, content: { text: string }) => Promise<unknown>) | undefined;
+    getSender: (sessionId: string, tenantId: string) => ((jid: string, content: { text: string }) => Promise<unknown>) | undefined;
     startHeartbeat: (id: string, token: string) => () => void;
     createToken: () => string;
     now: () => Date;
     sleep: (milliseconds: number) => Promise<void>;
     logError: (message: string, error?: unknown) => void;
-    emitProgress: (sessionId: string, payload: unknown) => void;
+    emitProgress: (sessionId: string, tenantId: string, payload: unknown) => void;
 };
 
 /** Creates the broadcast recipient worker with injectable boundaries for deterministic tests. */
@@ -234,6 +248,7 @@ export function createBroadcastRecipientProcessor(dependencies: BroadcastRecipie
     const candidates = await broadcastLog.findMany({
         where: {
             status: "running",
+            tenant: { status: "ACTIVE" },
             OR: [{ claimToken: null }, { claimedAt: { lte: expiredBefore } }],
             recipients: {
                 some: {
@@ -244,15 +259,17 @@ export function createBroadcastRecipientProcessor(dependencies: BroadcastRecipie
                 }
             }
         },
-        select: { id: true },
+        select: { id: true, tenantId: true },
         take: BATCH_SIZE,
         orderBy: { startedAt: "asc" }
     });
 
     for (const candidate of candidates) {
+        const tenantId = candidate.tenantId;
+        if (!tenantId) continue;
         const logToken = createToken();
         const logClaim = await broadcastLog.updateMany({
-            where: { id: candidate.id, status: "running", OR: [{ claimToken: null }, { claimedAt: { lte: expiredBefore } }] },
+            where: { id: candidate.id, tenantId, status: "running", OR: [{ claimToken: null }, { claimedAt: { lte: expiredBefore } }] },
             data: { claimToken: logToken, claimedAt: now }
         });
         if (logClaim.count !== 1) continue;
@@ -261,9 +278,10 @@ export function createBroadcastRecipientProcessor(dependencies: BroadcastRecipie
         try {
             for (let index = 0; index < BATCH_SIZE; index++) {
                 const eligibleAt = getNow();
-                const recipientCandidate = await broadcastRecipient.findFirst({
+                const recipientCandidate: Pick<BroadcastRecipient, "id"> | null = await broadcastRecipient.findFirst({
                     where: {
                         broadcastLogId: candidate.id,
+                        tenantId,
                         OR: [
                             { status: "pending", OR: [{ nextAttemptAt: null }, { nextAttemptAt: { lte: eligibleAt } }] },
                             { status: "processing", claimedAt: { lte: expiredBefore } }
@@ -279,6 +297,7 @@ export function createBroadcastRecipientProcessor(dependencies: BroadcastRecipie
                     where: {
                         id: recipientCandidate.id,
                         broadcastLogId: candidate.id,
+                        tenantId,
                         OR: [
                             { status: "pending", OR: [{ nextAttemptAt: null }, { nextAttemptAt: { lte: getNow() } }] },
                             { status: "processing", claimedAt: { lte: expiredBefore } }
@@ -288,22 +307,26 @@ export function createBroadcastRecipientProcessor(dependencies: BroadcastRecipie
                 });
                 if (claim.count !== 1) continue;
 
-                const recipient = await broadcastRecipient.findFirst({
-                    where: { id: recipientCandidate.id, claimToken: token },
+                const recipient: (BroadcastRecipient & { broadcastLog: BroadcastLog }) | null = await broadcastRecipient.findFirst({
+                    where: { id: recipientCandidate.id, tenantId, claimToken: token },
                     include: { broadcastLog: true }
                 });
                 if (!recipient) continue;
-                const sendMessage = getSender(recipient.broadcastLog.sessionId);
+                if (recipient.tenantId !== tenantId || recipient.broadcastLog.tenantId !== tenantId) {
+                    logError("Broadcast recipient rejected due to invalid tenant binding");
+                    break;
+                }
+                const sendMessage = getSender(recipient.broadcastLog.sessionId, tenantId);
                 if (!sendMessage) {
                     await broadcastRecipient.updateMany({
-                        where: { id: recipient.id, claimToken: token },
+                        where: { id: recipient.id, tenantId, claimToken: token },
                         data: { status: "pending", claimToken: null, claimedAt: null }
                     });
                     break;
                 }
 
                 const lastSent = await broadcastRecipient.findFirst({
-                    where: { broadcastLogId: recipient.broadcastLogId, status: "sent", sentAt: { not: null } },
+                    where: { broadcastLogId: recipient.broadcastLogId, tenantId, status: "sent", sentAt: { not: null } },
                     orderBy: { sentAt: "desc" },
                     select: { sentAt: true }
                 });
@@ -316,14 +339,14 @@ export function createBroadcastRecipientProcessor(dependencies: BroadcastRecipie
                 try {
                     await sendMessage(recipient.jid, { text: recipient.broadcastLog.message });
                     await broadcastRecipient.updateMany({
-                        where: { id: recipient.id, claimToken: token },
+                        where: { id: recipient.id, tenantId, claimToken: token },
                         data: { status: "sent", sentAt: getNow(), claimToken: null, claimedAt: null, error: null, nextAttemptAt: null }
                     });
                 } catch (error) {
                     const shouldRetry = recipient.attempts < 3;
                     const retryDelay = Math.min(5 * 60 * 1000, recipient.broadcastLog.delay * Math.pow(2, recipient.attempts));
                     await broadcastRecipient.updateMany({
-                        where: { id: recipient.id, claimToken: token },
+                        where: { id: recipient.id, tenantId, claimToken: token },
                         data: {
                             status: shouldRetry ? "pending" : "failed",
                             nextAttemptAt: shouldRetry ? new Date(getNow().getTime() + retryDelay) : null,
@@ -335,16 +358,16 @@ export function createBroadcastRecipientProcessor(dependencies: BroadcastRecipie
                 }
 
                 const [sent, failed, pending] = await Promise.all([
-                    broadcastRecipient.count({ where: { broadcastLogId: recipient.broadcastLogId, status: "sent" } }),
-                    broadcastRecipient.count({ where: { broadcastLogId: recipient.broadcastLogId, status: "failed" } }),
-                    broadcastRecipient.count({ where: { broadcastLogId: recipient.broadcastLogId, status: { in: ["pending", "processing"] } } })
+                    broadcastRecipient.count({ where: { broadcastLogId: recipient.broadcastLogId, tenantId, status: "sent" } }),
+                    broadcastRecipient.count({ where: { broadcastLogId: recipient.broadcastLogId, tenantId, status: "failed" } }),
+                    broadcastRecipient.count({ where: { broadcastLogId: recipient.broadcastLogId, tenantId, status: { in: ["pending", "processing"] } } })
                 ]);
                 const completed = pending === 0;
                 await broadcastLog.updateMany({
-                    where: { id: recipient.broadcastLogId, claimToken: logToken },
+                    where: { id: recipient.broadcastLogId, tenantId, claimToken: logToken },
                     data: { sent, failed, ...(completed ? { status: "completed", completedAt: getNow(), claimToken: null, claimedAt: null } : {}) }
                 });
-                emitProgress(recipient.broadcastLog.sessionId, {
+                emitProgress(recipient.broadcastLog.sessionId, tenantId, {
                     broadcastId: recipient.broadcastLogId,
                     status: completed ? "completed" : "running",
                     total: recipient.broadcastLog.total,
@@ -361,7 +384,7 @@ export function createBroadcastRecipientProcessor(dependencies: BroadcastRecipie
         } finally {
             stopHeartbeat();
             await broadcastLog.updateMany({
-                where: { id: candidate.id, status: "running", claimToken: logToken },
+                where: { id: candidate.id, tenantId, status: "running", claimToken: logToken },
                 data: { claimToken: null, claimedAt: null }
             }).catch(error => logError(`Failed to release broadcast lease ${candidate.id}`, error));
         }
@@ -372,9 +395,10 @@ export function createBroadcastRecipientProcessor(dependencies: BroadcastRecipie
 const processBroadcastRecipients = createBroadcastRecipientProcessor({
     broadcastLog: prisma.broadcastLog,
     broadcastRecipient: prisma.broadcastRecipient,
-    getSender: sessionId => {
-        const socket = waManager.getInstance(sessionId)?.socket;
-        if (!socket) return undefined;
+    getSender: (sessionId, tenantId) => {
+        const instance = waManager.getInstance(sessionId);
+        if (!instance?.socket || instance.tenantId !== tenantId) return undefined;
+        const socket = instance.socket;
         return (jid, content) => socket.sendMessage(jid, content);
     },
     startHeartbeat: (id, token) => heartbeat("broadcastLog", id, token),
@@ -382,8 +406,8 @@ const processBroadcastRecipients = createBroadcastRecipientProcessor({
     now: () => new Date(),
     sleep: milliseconds => new Promise(resolve => setTimeout(resolve, milliseconds)),
     logError: (message, error) => logger.error("Cron", message, error),
-    emitProgress: (sessionId, payload) => {
-        (globalThis as typeof globalThis & { io?: SocketEmitter }).io?.to(sessionId).emit("broadcast.progress", payload);
+    emitProgress: (sessionId, tenantId, payload) => {
+        void emitSessionRoomEvent((globalThis as typeof globalThis & { io?: Server }).io, tenantId, sessionId, "broadcast.progress", payload);
     }
 });
 

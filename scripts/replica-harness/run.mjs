@@ -12,7 +12,7 @@ const targetRepo = path.resolve(targetIndex >= 0 ? process.argv[targetIndex + 1]
 const childScript = path.join(harnessRoot, "scripts", "replica-harness", "replica-child.mjs");
 const publicOrigin = "https://replica-harness.invalid";
 const resource = `${publicOrigin}/wa-akg/mcp`;
-const tokens = { userA: "harness-token-user-a-read", userB: "harness-token-user-b-read", wrongAudience: "harness-token-user-a-wrong-audience" };
+const tokens = { userA: "harness-token-user-a-read", userB: "harness-token-user-b-read", userC: "harness-token-user-c-read", wrongAudience: "harness-token-user-a-wrong-audience" };
 
 async function request(url, options = {}) { const response = await fetch(url, options); return { response, text: await response.text() }; }
 function body(id, method, params = {}) { return JSON.stringify({ jsonrpc: "2.0", id, method, params }); }
@@ -57,8 +57,11 @@ async function main() {
     const crossUser = await call(firstBase, tokens.userB, firstSession.sessionId, 4, "tools/list"); assert.equal(crossUser.response.status, 403, crossUser.text);
     const secondSession = await initialize(secondBase, tokens.userA, "user-a-b"); assert.notEqual(secondSession.sessionId, firstSession.sessionId);
     const userBSession = await initialize(secondBase, tokens.userB, "user-b-b");
+    const userCSession = await initialize(firstBase, tokens.userC, "user-c-a");
+    const sameTenantCrossUser = await call(firstBase, tokens.userC, firstSession.sessionId, 7, "tools/list"); assert.equal(sameTenantCrossUser.response.status, 403, sameTenantCrossUser.text);
     const sessionsA = await call(firstBase, tokens.userA, firstSession.sessionId, 5, "tools/call", { name: "wa_akg_get_sessions", arguments: {} }); assert.match(sessionsA.text, /synthetic-session-a/); assert.doesNotMatch(sessionsA.text, /synthetic-session-b/);
     const sessionsB = await call(secondBase, tokens.userB, userBSession.sessionId, 6, "tools/call", { name: "wa_akg_get_sessions", arguments: {} }); assert.match(sessionsB.text, /synthetic-session-b/); assert.doesNotMatch(sessionsB.text, /synthetic-session-a/);
+    const sessionsC = await call(firstBase, tokens.userC, userCSession.sessionId, 8, "tools/call", { name: "wa_akg_get_sessions", arguments: {} }); assert.match(sessionsC.text, /synthetic-session-c/); assert.doesNotMatch(sessionsC.text, /synthetic-session-a|synthetic-session-b/);
     const stateA = await request(`${firstBase}/__harness/state`); const stateB = await request(`${secondBase}/__harness/state`); assert.equal(JSON.parse(stateA.text).createSessionRequests, 0); assert.equal(JSON.parse(stateB.text).createSessionRequests, 0);
     process.stdout.write(JSON.stringify({ status: "TESTED", scope: "two-process-mcp-http", targetRepo, checks: { bearerAuth: "pass", strictAudience: "pass", userIsolation: "pass", replicaAffinity: "pass", noImplicitSessionCreation: "pass", syntheticBackendOnly: "pass" }, limitation: "Does not prove two full Next/Socket.IO/Baileys replicas." }, null, 2) + "\n");
   } finally { firstReady?.lines.close(); secondReady?.lines.close(); await Promise.allSettled([stop(first), stop(second)]); }

@@ -6,31 +6,17 @@ import { logger } from "@/lib/logger";
  * Sync contacts from WhatsApp to database.
  * Uses proper Baileys events for syncing and correct Session.id foreign key.
  */
-export function bindContactSync(sock: WASocket, sessionId: string) {
-    // First, get the database Session ID (cuid)
-    let dbSessionId: string | null = null;
-    
-    // Initialize by fetching the session ID
-    (async () => {
-        const session = await prisma.session.findUnique({
-            where: { sessionId },
-            select: { id: true }
-        });
-        if (session) {
-            dbSessionId = session.id;
-            logger.info("Store", `Contact sync initialized for session ${sessionId} (db: ${dbSessionId})`);
-        } else {
-            logger.error("Store", `Session ${sessionId} not found for contact sync`);
-        }
-    })();
+export function bindContactSync(sock: WASocket, sessionId: string, tenantId: string) {
+    const getSession = () => prisma.session.findUnique({
+        where: { sessionId, tenantId, tenant: { status: "ACTIVE" } },
+        select: { id: true },
+    });
 
     // Handle contacts.update event (fires when contacts are updated)
     sock.ev.on('contacts.update', async (updates) => {
-        if (!dbSessionId) {
-            const session = await prisma.session.findUnique({ where: { sessionId }, select: { id: true } });
-            if (!session) return;
-            dbSessionId = session.id;
-        }
+        const session = await getSession();
+        if (!session) return;
+        const dbSessionId = session.id;
         
         logger.debug("Store", `Received ${updates.length} contact updates for session ${sessionId}`);
         for (const update of updates) {
@@ -38,9 +24,10 @@ export function bindContactSync(sock: WASocket, sessionId: string) {
                 if (!update.id) continue;
                 
                 await prisma.contact.upsert({
-                    where: { sessionId_jid: { sessionId: dbSessionId, jid: update.id } },
+                    where: { sessionId_jid: { sessionId: dbSessionId, jid: update.id }, tenantId },
                     create: {
                         sessionId: dbSessionId,
+                        tenantId,
                         jid: update.id,
                         name: update.name || update.notify,
                         notify: update.notify,
@@ -60,11 +47,9 @@ export function bindContactSync(sock: WASocket, sessionId: string) {
 
     // Also listen for messaging events to auto-create contacts
     sock.ev.on('messaging-history.set', async ({ chats, contacts, messages }) => {
-        if (!dbSessionId) {
-            const session = await prisma.session.findUnique({ where: { sessionId }, select: { id: true } });
-            if (!session) return;
-            dbSessionId = session.id;
-        }
+        const session = await getSession();
+        if (!session) return;
+        const dbSessionId = session.id;
         
         logger.info("Store", `Received messaging history: ${chats.length} chats, ${contacts?.length || 0} contacts, ${messages.length} messages`);
         
@@ -75,9 +60,10 @@ export function bindContactSync(sock: WASocket, sessionId: string) {
                 
                 const notify = "notify" in chat && typeof chat.notify === "string" ? chat.notify : undefined;
                 await prisma.contact.upsert({
-                    where: { sessionId_jid: { sessionId: dbSessionId, jid: chat.id } },
+                    where: { sessionId_jid: { sessionId: dbSessionId, jid: chat.id }, tenantId },
                     create: {
                         sessionId: dbSessionId,
+                        tenantId,
                         jid: chat.id,
                         name: chat.name || undefined,
                         notify
@@ -98,9 +84,10 @@ export function bindContactSync(sock: WASocket, sessionId: string) {
                     if (!contact.id) continue;
                     
                     await prisma.contact.upsert({
-                        where: { sessionId_jid: { sessionId: dbSessionId, jid: contact.id } },
+                        where: { sessionId_jid: { sessionId: dbSessionId, jid: contact.id }, tenantId },
                         create: {
                             sessionId: dbSessionId,
+                            tenantId,
                             jid: contact.id,
                             name: contact.name || contact.notify,
                             notify: contact.notify

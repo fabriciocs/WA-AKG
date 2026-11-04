@@ -1,8 +1,9 @@
 import { NextResponse, NextRequest } from "next/server";
-import { getAuthenticatedUser, canAccessSession } from "@/lib/api-auth";
+import { getAuthenticatedUser } from "@/lib/api-auth";
 import { prisma } from "@/lib/prisma";
-import fs from "fs";
-import path from "path";
+import { readFile } from "node:fs/promises";
+import { isSessionMessageMediaFilename, resolvePrivateMediaReference } from "@/lib/private-media";
+import { getAuthorizedSession } from "@/lib/session-access";
 
 // GET: Download media from message
 export async function GET(
@@ -17,42 +18,38 @@ export async function GET(
         }
 
         // Check if user can access this session
-        const canAccess = await canAccessSession(user.id, user.role, sessionId);
-        if (!canAccess) {
+        const session = await getAuthorizedSession(user, request, sessionId);
+        if (!session) {
             return NextResponse.json({ status: false, message: "Forbidden - Cannot access this session", error: "Forbidden - Cannot access this session" }, { status: 403 });
         }
 
         // Find message in database
         const message = await prisma.message.findUnique({
-            where: { id: messageId },
+            where: { id: messageId, sessionId: session.id, tenantId: session.tenantId },
         });
 
         if (!message) {
             return NextResponse.json({ status: false, message: "Message not found", error: "Message not found" }, { status: 404 });
         }
 
-        if (message.sessionId !== sessionId) {
-            return NextResponse.json({ status: false, message: "Message does not belong to this session", error: "Message does not belong to this session" }, { status: 403 });
-        }
-
         if (!message.mediaUrl) {
             return NextResponse.json({ status: false, message: "Message has no media", error: "Message has no media" }, { status: 404 });
         }
 
-        // If mediaUrl is a local path, return it
-        // If it's external URL, redirect to it
-        if (message.mediaUrl.startsWith('http')) {
-            return NextResponse.redirect(message.mediaUrl);
+        // Persisted media URLs are untrusted, even after checking session ownership.
+        // Serve only local files in data/media or redirect to a valid HTTP(S) origin.
+        const mediaReference = resolvePrivateMediaReference(message.mediaUrl);
+        if (mediaReference.kind === "invalid") {
+            return NextResponse.json({ status: false, message: "Media unavailable", error: "Media unavailable" }, { status: 404 });
+        }
+        if (mediaReference.kind === "external") {
+            return NextResponse.redirect(mediaReference.url, { headers: { "Cache-Control": "private, no-store" } });
+        }
+        if (!isSessionMessageMediaFilename(mediaReference.filename, session.sessionId, message.keyId)) {
+            return NextResponse.json({ status: false, message: "Media unavailable", error: "Media unavailable" }, { status: 404 });
         }
 
-        // For local files, read and return
-        const filePath = path.join(process.cwd(), message.mediaUrl);
-        
-        if (!fs.existsSync(filePath)) {
-            return NextResponse.json({ status: false, message: "Media file not found on disk", error: "Media file not found on disk" }, { status: 404 });
-        }
-
-        const fileBuffer = fs.readFileSync(filePath);
+        const fileBuffer = await readFile(/* turbopackIgnore: true */ mediaReference.filePath);
         const mimeType = message.type === 'IMAGE' ? 'image/jpeg' 
             : message.type === 'VIDEO' ? 'video/mp4'
             : message.type === 'AUDIO' ? 'audio/mpeg'
@@ -60,12 +57,14 @@ export async function GET(
             : 'application/octet-stream';
 
         // Extract filename from path
-        const fileName = path.basename(message.mediaUrl);
+        const fileName = mediaReference.filename;
 
         return new NextResponse(fileBuffer, {
             headers: {
                 'Content-Type': mimeType,
                 'Content-Disposition': `attachment; filename="${fileName}"`,
+                'X-Content-Type-Options': 'nosniff',
+                'Cache-Control': 'private, no-store',
             },
         });
 

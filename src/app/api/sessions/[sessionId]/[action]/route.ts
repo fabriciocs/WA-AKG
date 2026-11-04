@@ -20,7 +20,7 @@ export async function POST(
         const action = resolvedParams.action;
 
         // Verify access
-        const isOwner = await isSessionOwner(user.id, user.role, sessionId);
+        const isOwner = await isSessionOwner(user, request, sessionId);
         if (!isOwner) {
             return NextResponse.json({ status: false, message: "Forbidden - Cannot access this session", error: "Forbidden - Cannot access this session" }, { status: 403 });
         }

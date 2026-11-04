@@ -98,7 +98,7 @@ function LoginForm() {
   }
 
   return (
-    <div className="flex items-center justify-center min-h-screen relative overflow-hidden bg-background">
+    <main className="flex items-center justify-center min-h-screen relative overflow-hidden bg-background">
       <div className="absolute top-4 right-4 z-20">
         <LanguageSwitcher />
       </div>
@@ -191,7 +191,7 @@ function LoginForm() {
           </Link>
         </div>
       </div>
-    </div>
+    </main>
   );
 }
 

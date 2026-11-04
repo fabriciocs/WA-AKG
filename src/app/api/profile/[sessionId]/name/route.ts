@@ -14,7 +14,7 @@ export async function PUT(
             return NextResponse.json({ status: false, message: "Unauthorized" }, { status: 401 });
         }
 
-        const canAccess = await canAccessSession(user.id, user.role, sessionId);
+        const canAccess = await canAccessSession(user, request, sessionId);
         if (!canAccess) {
             return NextResponse.json({ status: false, message: "Forbidden" }, { status: 403 });
         }

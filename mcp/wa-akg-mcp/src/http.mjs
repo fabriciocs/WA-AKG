@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { AsyncLocalStorage } from "node:async_hooks";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { addNgrokSkipWarningHeader, createMcpServer, initializeMcpServer } from "./server.mjs";
 import { appOrigin, canonicalMcpResource, normalizeBasePath, protectedResourceMetadataUrl, requestOriginFromNodeRequest } from "../../../src/lib/oauth/discovery.mjs";
@@ -8,6 +9,14 @@ const maxBodyBytes = 1024 * 1024;
 const maxSessions = 500;
 const sessionIdleTtlMs = 30 * 60_000;
 const sessions = new Map();
+const requestCredential = new AsyncLocalStorage();
+
+export function matchesMcpSession(previous, current) {
+  return Boolean(current?.tenantId && current.grantId &&
+    previous.userId === current.userId && previous.clientId === current.clientId &&
+    previous.tenantId === current.tenantId && previous.grantId === current.grantId &&
+    previous.resource === current.resource);
+}
 
 async function cleanupSessions() {
   const now = Date.now();
@@ -48,8 +57,10 @@ async function authenticate(req, basePath) {
     });
     if (!response.ok) return null;
     const info = await response.json();
-    const scopes = info?.wa_akg?.scope;
+    const { client_id: clientId, tenant_id: tenantId, grant_id: grantId, scope: scopes } = info?.wa_akg ?? {};
     if (typeof info?.sub !== "string" || !Array.isArray(scopes) || !scopes.includes("mcp:read")) return null;
+    if (![clientId, tenantId, grantId].every((value) => typeof value === "string" && value.length > 0)) return null;
+    if (req.headers["x-tenant-id"] !== undefined && req.headers["x-tenant-id"] !== tenantId) return null;
     if (!process.env.OAUTH_ISSUER_URL?.trim() && !process.env.BASE_URL?.trim()) return null;
     const expectedResource = canonicalMcpResource({
       configuredIssuer: process.env.OAUTH_ISSUER_URL,
@@ -62,7 +73,7 @@ async function authenticate(req, basePath) {
     const sessionScope = info?.wa_akg?.session_scope;
     const sessionCapabilities = info?.wa_akg?.session_capabilities;
     const operationAllowlist = info?.wa_akg?.operation_allowlist;
-    return { authMethod: "oauth-user-delegation", accessToken: token, userId: info.sub, clientId: info.wa_akg.client_id, scopes, resource: tokenResource,
+    return { authMethod: "oauth-user-delegation", accessToken: token, userId: info.sub, clientId, tenantId, grantId, scopes, resource: tokenResource,
       ...(Array.isArray(sessionScope) ? { sessionScope } : {}),
       ...(sessionCapabilities && typeof sessionCapabilities === "object" ? { sessionCapabilities } : {}),
       ...(Array.isArray(operationAllowlist) ? { operationAllowlist } : {}) };
@@ -132,20 +143,14 @@ export async function createMcpHttpHandler({ basePath = process.env.NEXT_PUBLIC_
       const sessionId = req.headers["mcp-session-id"];
       const entry = sessionId ? sessions.get(sessionId) : undefined;
       let transport = entry?.transport;
-      let credential = entry?.credential;
       let sessionEntry = entry;
 
-      if (entry && (entry.authContext.userId !== authContext.userId || entry.authContext.clientId !== authContext.clientId)) {
+      if (entry && !matchesMcpSession(entry.identity, authContext)) {
         res.writeHead(403, { "Content-Type": "application/json", "Cache-Control": "no-store" });
-        res.end(JSON.stringify({ error: "MCP session belongs to another OAuth client or user" }));
+        res.end(JSON.stringify({ error: "MCP session belongs to another OAuth grant" }));
         return true;
       }
       if (entry) {
-        credential.accessToken = authContext.accessToken;
-        credential.scopes = authContext.scopes;
-        credential.sessionScope = authContext.sessionScope;
-        credential.sessionCapabilities = authContext.sessionCapabilities;
-        credential.operationAllowlist = authContext.operationAllowlist;
         entry.lastSeenAt = Date.now();
       }
 
@@ -166,21 +171,29 @@ export async function createMcpHttpHandler({ basePath = process.env.NEXT_PUBLIC_
           return true;
         }
         const mcpServer = createMcpServer();
-        credential = { accessToken: authContext.accessToken, scopes: authContext.scopes, sessionScope: authContext.sessionScope, sessionCapabilities: authContext.sessionCapabilities, operationAllowlist: authContext.operationAllowlist };
-        await initializeMcpServer(mcpServer, credential);
+        const { userId, clientId, tenantId, grantId, resource } = authContext;
+        const identity = { userId, clientId, tenantId, grantId, resource };
+        const credential = {
+          authMethod: "oauth-user-delegation",
+          get accessToken() { return requestCredential.getStore()?.accessToken; },
+          get scopes() { return requestCredential.getStore()?.scopes ?? []; },
+          get sessionScope() { return requestCredential.getStore()?.sessionScope; },
+          get sessionCapabilities() { return requestCredential.getStore()?.sessionCapabilities; },
+          get operationAllowlist() { return requestCredential.getStore()?.operationAllowlist; },
+        };
+        await requestCredential.run(authContext, () => initializeMcpServer(mcpServer, credential));
         transport = new StreamableHTTPServerTransport({ sessionIdGenerator: () => randomUUID() });
         const currentTransport = transport;
         transport.onclose = () => {
           if (currentTransport.sessionId) sessions.delete(currentTransport.sessionId);
         };
         await mcpServer.connect(transport);
-        sessionEntry = { transport, authContext: { ...authContext }, credential, lastSeenAt: Date.now() };
+        sessionEntry = { transport, identity, lastSeenAt: Date.now() };
       }
 
       res.setHeader("Cache-Control", "no-store");
-      await transport.handleRequest(req, res, body);
+      await requestCredential.run(authContext, () => transport.handleRequest(req, res, body));
       if (transport.sessionId) {
-        sessionEntry.authContext = { ...authContext };
         sessionEntry.lastSeenAt = Date.now();
         sessions.set(transport.sessionId, sessionEntry);
       }

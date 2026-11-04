@@ -62,7 +62,7 @@ export async function GET(
             return NextResponse.json({ status: false, error: "Processing job not found" }, { status: 404 });
         }
 
-        const canAccess = await canAccessSession(user.id, user.role, event.session.sessionId);
+        const canAccess = await canAccessSession(user, request, event.session.sessionId);
         if (!canAccess) {
             return NextResponse.json({ status: false, error: "Forbidden - Cannot access this processing job" }, { status: 403 });
         }

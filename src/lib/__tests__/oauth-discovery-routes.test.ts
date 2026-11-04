@@ -25,6 +25,7 @@ test("authorization-server metadata advertises only implemented grants", async (
   assert.deepEqual(metadata.grant_types_supported, ["authorization_code", "refresh_token"]);
   assert.equal(metadata.registration_endpoint, "https://wa-akg.example.test/api/oauth/register");
   assert.equal(metadata.authorization_response_iss_parameter_supported, true);
+  assert.equal(metadata.client_id_metadata_document_supported, true);
   assert.equal(metadata.grant_types_supported.includes("client_credentials"), false);
 });
 

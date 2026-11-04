@@ -3,6 +3,7 @@ import { waManager } from "@/modules/whatsapp/manager";
 import { getAuthenticatedUser, getAccessibleSessions } from "@/lib/api-auth";
 import { sanitizeOAuthReadSession } from "@/lib/session-access";
 import { isValidSessionId } from "@/lib/session-id";
+import { getRequestTenantContext, permitsOwnedTenantResource } from "@/lib/tenancy/context";
 
 export const dynamic = 'force-dynamic';
 
@@ -15,7 +16,7 @@ export async function GET(request: NextRequest) {
         }
 
         // Get sessions based on user role
-        let sessions = await getAccessibleSessions(user.id, user.role);
+        let sessions = await getAccessibleSessions(user, request);
         if (user.authMethod === "oauth" && user.oauthSessionScope) {
             const scope = new Set(user.oauthSessionScope);
             sessions = sessions.filter((item) => scope.has(item.id));
@@ -36,6 +37,12 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ status: false, message: "Unauthorized", error: "Unauthorized" }, { status: 401 });
         }
 
+        const context = await getRequestTenantContext(user, request);
+        if (!context || context.actor.tenantRole === "VIEWER" ||
+            !permitsOwnedTenantResource(context, { tenantId: context.actor.tenantId, ownerUserId: user.id }, "WRITE")) {
+            return NextResponse.json({ status: false, message: "Tenant access denied" }, { status: 403 });
+        }
+
         const body = await request.json();
         const { name, sessionId } = body;
 
@@ -48,7 +55,7 @@ export async function POST(request: NextRequest) {
         }
 
         // Create session for the authenticated user
-        const session = await waManager.createSession(user.id, name, sessionId);
+        const session = await waManager.createSession(user.id, name, sessionId, context.actor.tenantId);
         return NextResponse.json({ status: true, message: "Session created successfully", data: session });
     } catch (error) {
         console.error("Create session error:", error);

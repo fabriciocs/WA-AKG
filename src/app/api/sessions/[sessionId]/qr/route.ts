@@ -19,7 +19,7 @@ export async function GET(
         }
 
         // Pairing QR codes can link a new WhatsApp device and are owner-only.
-        const isOwner = await isSessionOwner(user.id, user.role, sessionId);
+        const isOwner = await isSessionOwner(user, request, sessionId);
         if (!isOwner) {
             return NextResponse.json({ status: false, message: "Forbidden - Only the session owner can view the QR code", error: "Forbidden" }, { status: 403 });
         }

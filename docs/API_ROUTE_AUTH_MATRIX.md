@@ -1,10 +1,10 @@
 # API route authentication matrix (static)
 
-Generated from the current route handlers: **95 route files, 125 HTTP methods**. This is a source-level inventory, not runtime test evidence. Guards may be delegated to local helpers; the evidence column records the call site or the reviewed policy for helper-backed/public protocol routes.
+Historical baseline: **95 route files, 125 HTTP methods**. The current branch contains additional routes; see the C02 inventory below for the updated coverage and verification status. This is source-level evidence, not runtime isolation proof. Guards may be delegated to local helpers; the evidence column records the call site or the reviewed policy for helper-backed/public protocol routes.
 
 Coverage method: each row has static source review evidence. Runtime anonymous checks used `http://127.0.0.1:43000/wa-akg`: earlier sweeps covered 82 protected route paths; a complete method enumeration below exercised 122 of the 125 declared methods and all returned 401 without a `Location` header. Public endpoint samples `GET /api/auth/providers` and `GET /api/auth/session` returned 200; response bodies were not read. Three public authentication methods were excluded from the full-method sweep because they can create accounts or authentication state: `POST /api/auth/register` and `GET`/`POST /api/auth/[...nextauth]`. No request body, cookie, or API key was supplied; response bodies were cancelled. Authenticated success, owner/shared/admin isolation, and handler behavior after authentication remain `NOT_VERIFIED`. Shared session access is intentionally distinct from owner-only management operations; remediations require owner/admin for session settings, lifecycle actions, QR/pairing, bot configuration writes, and webhook mutations/tests.
 
-The heuristic pass found **0 methods with no auth marker or reviewed exception**.
+The historical heuristic pass found **0 methods with no auth marker or reviewed exception** among the 125 methods then inventoried; this claim is not extended to the 20 newer methods.
 
 | Route | Method | Authentication / access evidence | Handler line |
 |---|---|---|---:|
@@ -151,3 +151,51 @@ Runtime-checked GET paths:
 `/api/autoreplies/probe`, `/api/chat/probe`, `/api/chat/probe/12025550123@s.whatsapp.net`, `/api/chats/probe/by-label/probe`, `/api/contacts/probe`, `/api/docs`, `/api/groups/probe`, `/api/groups/probe/12025550123@s.whatsapp.net/invite`, `/api/groups/probe/12025550123@s.whatsapp.net`, `/api/labels/probe/chat/12025550123@s.whatsapp.net/labels`, `/api/labels/probe/chats`, `/api/labels/probe`, `/api/media`, `/api/media/missing-probe.txt`, `/api/messages/probe/broadcast/history`, `/api/messages/probe/broadcast/history/probe`, `/api/messages/probe/download/probe/media`, `/api/messages/probe/search`, `/api/notifications`, `/api/oauth/clients`, `/api/oauth/grants`, `/api/oauth/userinfo`, `/api/profile/probe`, `/api/scheduler/probe`, `/api/sessions`, `/api/sessions/probe/access`, `/api/sessions/probe/bot-config`, `/api/sessions/probe/qr`, `/api/sessions/probe`, `/api/sessions/probe/settings`, `/api/settings/system`, `/api/system/monitor`, `/api/system/monitor/probe`, `/api/user/api-key`, `/api/users`, `/api/webhooks/probe`, `/api/webhooks/probe/probe/logs`.
 
 The API audit agents' Chrome DevTools context contained only `about:blank`. The coordinator later reused a separate isolated browser context with the user-authorized superadmin session and made four read-only GET probes using inert nonexistent IDs. `/api/sessions/__codex_no_such_session__` and `/api/system/monitor/__codex_no_such_session__` returned 404; `/api/users/__codex_no_such_user__` and `/api/oauth/clients/__codex_no_such_client__` returned 405 because those item routes do not declare GET. Response bodies were fully consumed but never inspected. These results confirm middleware passage for those samples only; authenticated owner/shared/non-owner isolation, valid resource reads, and handler business logic remain `NOT_VERIFIED`.
+
+## C02 — atualização incremental do inventário (2026-11-03)
+
+**SHA inspecionado:** `38782458ef25d559219ad385e8355bbdf683ecbd` (branch `feature/multi-tenant-isolation-20261103`). **Estado: IMPLEMENTED — revisão estática; isolamento E2E NOT_VERIFIED.**
+
+Comparação da árvore `src/app/api/**/route.ts` com as linhas da matriz histórica acima: **110 arquivos atuais**, **95 documentados anteriormente**, **15 novos arquivos** e **0 linhas de rotas removidas**. Nos 15 arquivos, foram identificados **20 handlers HTTP**; portanto, a matriz consolidada contém **145 operações (125 históricas + 20 novas)**. As antigas observações de HTTP 401 e de cobertura referem-se exclusivamente à baseline de 95 arquivos; não se aplicam automaticamente aos 15 novos arquivos ou ao SHA atual.
+
+| Handler (relativo a `src/app/api/`) | Método | Classe C02 | Controle observado no código | Operação/limite sujeito a teste |
+|---|---|---|---|---|
+| `account/profile/route.ts` | `GET` | Privada por identidade | `getAuthenticatedUser`; consulta `user.id` | Leitura do próprio perfil global |
+| `account/profile/route.ts` | `PATCH` | Privada por identidade | `getAuthenticatedUser`; validação Zod; comparação de senha | Atualização do próprio perfil e senha |
+| `admin/audit/route.ts` | `GET` | Administração privilegiada | `withPrivilegedAdministration`; `parseTenantIdHeader` | Consulta de auditoria global/por tenant; validar MFA e registro |
+| `admin/tenants/route.ts` | `GET` | Administração privilegiada | `withPrivilegedAdministration` | Diretório global de tenants |
+| `admin/tenants/route.ts` | `POST` | Administração privilegiada | `withPrivilegedAdministration`; Zod; transação | Criação de tenant e vínculo inicial do owner |
+| `admin/tenants/[tenantId]/route.ts` | `GET` | Administração privilegiada | `parseTenantIdHeader`; `withPrivilegedAdministration` | Consulta do tenant selecionado |
+| `admin/tenants/[tenantId]/route.ts` | `PATCH` | Administração privilegiada | `parseTenantIdHeader`; `withPrivilegedAdministration` | Alteração de nome, suspensão/reativação |
+| `auth/resend-verification/route.ts` | `POST` | Pública de identidade | Zod; resposta genérica em caso comum | Reenvio de email; limites, enumeração e falhas de transporte a testar sem envio real |
+| `auth/verify-email/route.ts` | `POST` | Pública por token | Zod; `consumeVerificationToken` | Consumo de token; uso único, expiração e concorrência |
+| `internal/processing-results/route.ts` | `POST` | Interna por assinatura/token | `verifyWebhookSignature` ou `verifySharedToken` | Escrita em serviço delegado; confirmar tenant do resultado e proteção contra replay |
+| `messages/[sessionId]/operations/[operationId]/route.ts` | `GET` | Privada por sessão | `getAuthenticatedUser`; `canAccessSession`; `getOperationReceipt` | Consultar recibo; rever associação com tenant e sessão na consulta interna |
+| `oauth/register/route.ts` | `POST` | Pública OAuth DCR | `createDcrRegistrationHandler` | Registrar cliente; verificar limites e redirects no helper |
+| `processing-jobs/[jobId]/route.ts` | `GET` | Privada por sessão | `getAuthenticatedUser`; `canAccessSession` após localizar o job | Revisar busca inicial por ID sem escopo tenant |
+| `processing-results/[sessionId]/route.ts` | `GET` | Privada por sessão | `getAuthenticatedUser`; `canAccessSession` | Pesquisa/paginação; verificar relações e tenant |
+| `tenants/current/members/route.ts` | `GET` | Privada de gestão | `getTenantSessionUser`; associação ativa; `isManagementRole` | Testar revogação e acesso cruzado |
+| `tenants/current/route.ts` | `GET` | Privada de tenant | `getTenantSessionUser`; `findActiveTenantMembership` | Leitura da seleção autenticada |
+| `tenants/current/route.ts` | `POST` | Privada de tenant | `getTenantSessionUser`; origem exata; `findActiveTenantMembership` | Seleção com cookie `httpOnly`, `sameSite` e `no-store` |
+| `tenants/route.ts` | `GET` | Privada de tenant | `getTenantSessionUser`; vínculo ativo | Listar tenants associados ao usuário |
+| `tenants/route.ts` | `POST` | Privada de tenant | `getTenantSessionUser`; `parseTenantCreateInput`; transação | Criar tenant e vínculo OWNER atomicamente |
+| `user/mcp/setup/route.ts` | `POST` | Privada por sessão e tenant | `auth`; `resolveTenantMembership`; `provisionManagedApiKey` | Credencial de tenant; revisar escopos e revelação única |
+
+### Critérios e limitações da atualização C02
+
+- **Inventário:** 110 arquivos em `src/app/api`; 95 existentes na baseline documental e 15 adicionados, com 20 novos métodos. A contagem consolidada é 145 operações HTTP.
+- **Cobertura documental não equivale a isolamento:** as verificações HTTP anônimas descritas anteriormente são históricas. Nenhuma execução E2E autenticada ou teste contra tenants reais foi realizada nesta atualização.
+- **Pendências de revisão:** inspecionar `getOperationReceipt`, `persistProcessingResult`, o fluxo de busca em `processing-jobs`, `withPrivilegedAdministration`, `createDcrRegistrationHandler` e `provisionManagedApiKey` com casos negativos e fixtures isoladas.
+- **Escopo externo:** Server Actions, `src/modules`, `src/server`, MCP e scripts continuam dependentes do inventário C02 de escritores e consumidores.
+- **Decisão:** `IMPLEMENTED` para a matriz estática atualizada; `NOT_VERIFIED` para isolamento entre tenants, entre usuários do mesmo tenant, HTTP autenticado e superfícies não HTTP. C02 e C05 permanecem abertos até esses testes.
+
+## Evidencia C02 adicional — checkout com WIP local em 2026-11-03
+
+- Base Git: `38782458ef25d559219ad385e8355bbdf683ecbd`. As alteracoes de testes, guardas e documentacao desta rodada ainda nao foram commitadas.
+- `npm test`: **224 passed, 0 failed**. Inclui Socket.IO real em loopback com Prisma simulado: dono A, outro usuario do tenant A, usuario do tenant B, revogacao de membro e entrega em sala privada.
+- `npm run replica:harness`: **TESTED**, dois processos MCP HTTP com API sintetica isolada. Contempla tres principals, tenants A/B, recusa de session resume por outro usuario do mesmo tenant e de tenant diferente, leitura somente da propria sessao e ausencia de criacao implicita.
+- `tsc --noEmit`: exit 0 apos as guardas de outbox; `npm run mcp:test`: 8 passed, 0 failed.
+- Inventario reproduzivel: `scripts/Verify-C02Writers.ps1` gera `docs/C02_NON_HTTP_WRITERS.md`, com 242 marcadores candidatos em 53 arquivos e classificacoes de revisao.
+- Outbound idempotente: `tenantId` persistido para operacoes novas, recibos filtrados por tenant, owner/membership/session/tenant ACTIVE validados antes de envio. O helper de vinculo tem testes negativos para tenants e usuarios distintos.
+- Escopo nao coberto: Next.js + Prisma + MySQL isolado, replay, backfill/restauracao, validacao completa dos 53 arquivos e transacoes concorrentes. Nao considerar E2E sintetico como validacao de ambiente real.
+- Decisao: `C02 = PARTIAL`; `C05 = BLOCKED` ate completar os gates e comprovar isolamento E2E com banco isolado no mesmo candidato.

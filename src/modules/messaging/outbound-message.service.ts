@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { ChatService } from "@/modules/whatsapp/chat.service";
 import { waManager } from "@/modules/whatsapp/manager";
 import { hashIdempotencyKey, hashTextRequest, type IdempotentTextPayload } from "./idempotency";
+import { isValidOutboundTenantBinding } from "./outbound-tenant-binding";
 
 export type OperationStatus = "QUEUED" | "PROCESSING" | "SENT" | "FAILED" | "UNKNOWN";
 
@@ -34,20 +35,24 @@ function toReceipt(operation: {
 export async function submitIdempotentText(input: {
     userId: string; sessionId: string; jid: string; key: string; payload: IdempotentTextPayload;
 }): Promise<{ receipt: OperationReceipt; created: boolean; conflict: boolean }> {
-    const session = await prisma.session.findUnique({ where: { sessionId: input.sessionId }, select: { id: true } });
-    if (!session) throw new Error("Session not found");
+    const session = await prisma.session.findUnique({ where: { sessionId: input.sessionId }, select: { id: true, userId: true, tenantId: true, tenant: { select: { status: true } } } });
+    if (!session?.tenantId || session.userId !== input.userId || session.tenant?.status !== "ACTIVE") throw new Error("Session unavailable");
+    const membership = await prisma.tenantMembership.findFirst({ where: { tenantId: session.tenantId, userId: input.userId, status: "ACTIVE" }, select: { tenantId: true } });
+    if (!membership) throw new Error("Session unavailable");
 
     const idempotencyKeyHash = hashIdempotencyKey(input.key);
     const requestHash = hashTextRequest(input.jid, input.payload);
     const where = { userId_sessionDbId_idempotencyKeyHash: { userId: input.userId, sessionDbId: session.id, idempotencyKeyHash } };
     const existing = await prisma.outboundMessageOperation.findUnique({ where });
     if (existing) {
+        if (existing.tenantId !== session.tenantId) throw new Error("Session unavailable");
         return { receipt: toReceipt(existing), created: false, conflict: existing.requestHash !== requestHash };
     }
 
     try {
         const operation = await prisma.outboundMessageOperation.create({
             data: {
+                tenantId: session.tenantId,
                 userId: input.userId,
                 sessionDbId: session.id,
                 whatsappSessionId: input.sessionId,
@@ -63,15 +68,16 @@ export async function submitIdempotentText(input: {
         if (!error || typeof error !== "object" || !("code" in error) || error.code !== "P2002") throw error;
         const raced = await prisma.outboundMessageOperation.findUnique({ where });
         if (!raced) throw error;
+        if (raced.tenantId !== session.tenantId) throw new Error("Session unavailable");
         return { receipt: toReceipt(raced), created: false, conflict: raced.requestHash !== requestHash };
     }
 }
 
 export async function getOperationReceipt(input: { operationId: string; userId: string; sessionId: string }): Promise<OperationReceipt | null> {
-    const session = await prisma.session.findUnique({ where: { sessionId: input.sessionId }, select: { id: true } });
-    if (!session) return null;
+    const session = await prisma.session.findUnique({ where: { sessionId: input.sessionId }, select: { id: true, userId: true, tenantId: true } });
+    if (!session?.tenantId || session.userId !== input.userId) return null;
     const operation = await prisma.outboundMessageOperation.findFirst({
-        where: { id: input.operationId, userId: input.userId, sessionDbId: session.id }
+        where: { id: input.operationId, userId: input.userId, sessionDbId: session.id, tenantId: session.tenantId }
     });
     return operation ? toReceipt(operation) : null;
 }
@@ -102,9 +108,24 @@ async function processOne(): Promise<boolean> {
 
     const current = await prisma.outboundMessageOperation.findUnique({ where: { id: candidate.id } });
     if (!current || current.claimToken !== claimToken) return true;
+    const session = await prisma.session.findUnique({
+        where: { id: current.sessionDbId },
+        select: { id: true, userId: true, tenantId: true, sessionId: true, tenant: { select: { status: true } } }
+    });
+    const membership = current.tenantId ? await prisma.tenantMembership.findFirst({
+        where: { tenantId: current.tenantId, userId: current.userId, status: "ACTIVE" },
+        select: { tenantId: true }
+    }) : null;
+    if (!isValidOutboundTenantBinding(current, session) || !membership) {
+        await prisma.outboundMessageOperation.updateMany({
+            where: { id: current.id, status: "PROCESSING", claimToken },
+            data: { status: "FAILED", failureCode: "INVALID_TENANT_BINDING", completedAt: new Date(), claimToken: null }
+        });
+        return true;
+    }
     const payload = current.payload as unknown as IdempotentTextPayload;
     const instance = waManager.getInstance(current.whatsappSessionId);
-    if (!instance?.socket) {
+    if (!instance?.socket || instance.tenantId !== current.tenantId) {
         await prisma.outboundMessageOperation.updateMany({
             where: { id: current.id, status: "PROCESSING", claimToken },
             data: { status: "FAILED", failureCode: "SESSION_DISCONNECTED", completedAt: new Date(), claimToken: null }

@@ -1,25 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { readFile } from "fs/promises";
-import path from "path";
-import { existsSync } from "fs";
-import { getAuthenticatedUser, canAccessSession } from "@/lib/api-auth";
-
-// Media directory — private, NOT in public/
-const MEDIA_DIR = path.join(process.cwd(), "data", "media");
-
-/**
- * Extract sessionId from media filename.
- * Format: {sessionId}-{messageId}.{ext}
- * e.g. "marketing-1-ABCDEF123456.jpg" → "marketing-1"
- */
-function extractSessionId(filename: string): string | null {
-    // Remove extension
-    const base = filename.replace(/\.[^.]+$/, "");
-    // The last segment after the last "-" is the messageId
-    const lastDash = base.lastIndexOf("-");
-    if (lastDash <= 0) return null;
-    return base.substring(0, lastDash);
-}
+import { readFile } from "node:fs/promises";
+import path from "node:path";
+import { getAuthenticatedUser } from "@/lib/api-auth";
+import { prisma } from "@/lib/prisma";
+import { isSessionMessageMediaFilename, resolvePrivateMediaReference } from "@/lib/private-media";
+import { getRequestTenantContext, permitsOwnedTenantResource } from "@/lib/tenancy/context";
 
 export async function GET(
     request: NextRequest,
@@ -39,33 +24,27 @@ export async function GET(
             return NextResponse.json({ status: false, message: "Invalid filename", error: "Invalid filename" }, { status: 400 });
         }
 
-        // Session ownership check — extract sessionId from filename
-        const sessionId = extractSessionId(filename);
-        if (!sessionId) {
-            // Files without valid session prefix require SUPERADMIN privileges
-            if (user.role !== "SUPERADMIN") {
-                return NextResponse.json({ status: false, message: "Forbidden - Invalid media identifier", error: "Forbidden" }, { status: 403 });
-            }
-        } else {
-            const canAccess = await canAccessSession(user.id, user.role, sessionId);
-            if (!canAccess) {
-                return NextResponse.json({ status: false, message: "Forbidden - Cannot access this session's media", error: "Forbidden - Cannot access this session's media" }, { status: 403 });
-            }
+        // Filenames are not authorization evidence. Require an actual message
+        // bound to a session, then enforce ownership before touching the file.
+        const context = await getRequestTenantContext(user, request);
+        if (!context || !permitsOwnedTenantResource(context, { tenantId: context.actor.tenantId, ownerUserId: user.id }, "READ")) {
+            return NextResponse.json({ status: false, message: "Tenant access denied" }, { status: 403 });
         }
-
-        const filePath = path.join(MEDIA_DIR, filename);
-
-        // Ensure resolved path is still within MEDIA_DIR
-        const resolvedPath = path.resolve(filePath);
-        if (!resolvedPath.startsWith(path.resolve(MEDIA_DIR))) {
-            return NextResponse.json({ status: false, message: "Access denied", error: "Access denied" }, { status: 403 });
-        }
-
-        if (!existsSync(filePath)) {
+        const { tenantId } = context.actor;
+        const messages = await prisma.message.findMany({
+            where: { mediaUrl: `/api/media/${filename}`, tenantId, session: { tenantId, userId: user.id } },
+            select: { keyId: true, mediaUrl: true, session: { select: { sessionId: true } } },
+        });
+        if (!messages.some((message) => message.mediaUrl === `/api/media/${filename}` &&
+            isSessionMessageMediaFilename(filename, message.session.sessionId, message.keyId))) {
             return NextResponse.json({ status: false, message: "File not found", error: "File not found" }, { status: 404 });
         }
 
-        const fileBuffer = await readFile(filePath);
+        const media = resolvePrivateMediaReference(`/api/media/${filename}`);
+        if (media.kind !== "local") {
+            return NextResponse.json({ status: false, message: "File not found", error: "File not found" }, { status: 404 });
+        }
+        const fileBuffer = await readFile(/* turbopackIgnore: true */ media.filePath);
 
         // Determine content type based on extension
         const ext = path.extname(filename).toLowerCase();
@@ -92,7 +71,7 @@ export async function GET(
             headers: {
                 'Content-Type': contentType,
                 'Content-Disposition': `inline; filename="${filename}"`,
-                'Cache-Control': 'private, max-age=3600',
+                'Cache-Control': 'private, no-store',
                 'X-Content-Type-Options': 'nosniff',
             },
         });

@@ -23,7 +23,7 @@ export async function GET(
         const search = searchParams.get("search") || "";
 
         // Check if user can access this session
-        const canAccess = await canAccessSession(user.id, user.role, sessionId);
+        const canAccess = await canAccessSession(user, req, sessionId);
         if (!canAccess) {
             return NextResponse.json({ status: false, message: "Forbidden - Cannot access this session", error: "Forbidden - Cannot access this session" }, { status: 403 });
         }

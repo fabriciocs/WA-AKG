@@ -2,9 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { readdir, stat, unlink } from "fs/promises";
 import path from "path";
 import { existsSync } from "fs";
-import { getAuthenticatedUser, canAccessSession } from "@/lib/api-auth";
+import { getAuthenticatedUser } from "@/lib/api-auth";
+import { resolvePrivateMediaReference } from "@/lib/private-media";
 import { prisma } from "@/lib/prisma";
 import { requestBasePath, withBasePath } from "@/lib/base-path";
+import { getRequestTenantContext, permitsOwnedTenantResource } from "@/lib/tenancy/context";
 
 // Media directory — private, NOT in public/
 const MEDIA_DIR = path.join(process.cwd(), "data", "media");
@@ -31,25 +33,24 @@ export async function GET(request: NextRequest) {
     if (!user) {
         return NextResponse.json({ status: false, message: "Unauthorized", error: "Unauthorized" }, { status: 401 });
     }
+    const context = await getRequestTenantContext(user, request);
+    if (!context || !permitsOwnedTenantResource(context, { tenantId: context.actor.tenantId, ownerUserId: user.id }, "READ")) {
+        return NextResponse.json({ status: false, message: "Tenant access denied" }, { status: 403 });
+    }
+    const { tenantId } = context.actor;
 
     try {
         if (!existsSync(MEDIA_DIR)) {
             return NextResponse.json({ status: true, message: "No media directory", data: { files: [], totalSize: 0, totalCount: 0 } });
         }
 
-        const isSuperAdmin = user.role === "SUPERADMIN";
-
-        // Get sessions with owner info
-        const sessions = isSuperAdmin
-            ? await prisma.session.findMany({
-                include: { user: { select: { id: true, name: true, email: true } } },
-                orderBy: { createdAt: "desc" },
-            })
-            : await prisma.session.findMany({
-                where: { userId: user.id },
-                include: { user: { select: { id: true, name: true, email: true } } },
-                orderBy: { createdAt: "desc" },
-            });
+        // Listing private media is owner-scoped for every role, including SUPERADMIN.
+        // Privileged platform operations require their own MFA + audit flow.
+        const sessions = await prisma.session.findMany({
+            where: { userId: user.id, tenantId },
+            include: { user: { select: { id: true, name: true, email: true } } },
+            orderBy: { createdAt: "desc" },
+        });
 
         // Map sessionId -> session with owner
         const sessionMap = new Map(sessions.map(s => [s.sessionId, {
@@ -65,10 +66,11 @@ export async function GET(request: NextRequest) {
         for (const name of filenames) {
             const parsed = parseFilename(name);
             if (!parsed) {
-                if (isSuperAdmin) ownedFiles.push({ name, parsed: null });
                 continue;
             }
-            if (isSuperAdmin || sessionMap.has(parsed.sessionId)) {
+            // Reject symlinks, traversal and stale files before exposing metadata.
+            if (sessionMap.has(parsed.sessionId) &&
+                resolvePrivateMediaReference(`/api/media/${name}`).kind === "local") {
                 ownedFiles.push({ name, parsed });
             }
         }
@@ -77,16 +79,19 @@ export async function GET(request: NextRequest) {
         const keyIds = ownedFiles.filter(f => f.parsed).map(f => f.parsed!.keyId);
         const messages = keyIds.length > 0
             ? await prisma.message.findMany({
-                where: { keyId: { in: keyIds } },
-                select: { keyId: true, remoteJid: true, senderJid: true, pushName: true, fromMe: true, session: { select: { sessionId: true } } },
+                where: { tenantId, keyId: { in: keyIds }, sessionId: { in: sessions.map(s => s.id) } },
+                select: { keyId: true, mediaUrl: true, remoteJid: true, senderJid: true, pushName: true, fromMe: true, session: { select: { sessionId: true } } },
             })
             : [];
         const messageMap = new Map(messages.map(m => [`${m.session.sessionId}-${m.keyId}`, m]));
 
         // Build response
         const files = await Promise.all(
-            ownedFiles.map(async ({ name, parsed }) => {
-                const filePath = path.join(MEDIA_DIR, name);
+            ownedFiles.filter(({ name, parsed }) =>
+                parsed && messageMap.get(`${parsed.sessionId}-${parsed.keyId}`)?.mediaUrl === `/api/media/${name}`
+            ).map(async ({ name, parsed }) => {
+                // Private media remains on disk and must not be traced into the build.
+                const filePath = path.join(/* turbopackIgnore: true */ MEDIA_DIR, name);
                 const fileStat = await stat(filePath);
                 const ext = path.extname(name).toLowerCase();
 
@@ -151,12 +156,19 @@ export async function DELETE(request: NextRequest) {
     if (!user) {
         return NextResponse.json({ status: false, message: "Unauthorized", error: "Unauthorized" }, { status: 401 });
     }
+    const context = await getRequestTenantContext(user, request);
+    if (!context || !permitsOwnedTenantResource(context, { tenantId: context.actor.tenantId, ownerUserId: user.id }, "DELETE")) {
+        return NextResponse.json({ status: false, message: "Tenant access denied" }, { status: 403 });
+    }
+    const { tenantId } = context.actor;
 
     try {
-        const body = await request.json();
-        const { filenames } = body;
+        const body: unknown = await request.json();
+        const filenames = body && typeof body === "object" && "filenames" in body
+            ? (body as { filenames: unknown }).filenames
+            : null;
 
-        if (!Array.isArray(filenames) || filenames.length === 0) {
+        if (!Array.isArray(filenames) || filenames.length === 0 || filenames.length > 100) {
             return NextResponse.json({ status: false, message: "Invalid payload", error: "filenames array is required" }, { status: 400 });
         }
 
@@ -165,37 +177,33 @@ export async function DELETE(request: NextRequest) {
         const errors: string[] = [];
 
         for (const filename of filenames) {
-            if (filename.includes("..") || filename.includes("/") || filename.includes("\\")) {
-                errors.push(`Invalid filename: ${filename}`);
+            if (typeof filename !== "string" || !/^[a-zA-Z0-9_-][a-zA-Z0-9_.-]*\.[a-zA-Z0-9]{1,10}$/.test(filename)) {
+                errors.push("Invalid filename");
                 failed++;
                 continue;
             }
 
+            // Filename syntax and platform roles alone never authorize deletion.
             const parsed = parseFilename(filename);
-            if (!parsed) {
-                if (user.role !== "SUPERADMIN") {
-                    errors.push(`Forbidden: ${filename}`);
-                    failed++;
-                    continue;
-                }
-            } else {
-                const canAccess = await canAccessSession(user.id, user.role, parsed.sessionId);
-                if (!canAccess) {
-                    errors.push(`Forbidden: ${filename}`);
-                    failed++;
-                    continue;
-                }
+            const message = parsed && await prisma.message.findFirst({
+                where: { tenantId, mediaUrl: `/api/media/${filename}`, keyId: parsed.keyId, session: { tenantId, userId: user.id, sessionId: parsed.sessionId } },
+                select: { id: true },
+            });
+            if (!message) {
+                errors.push(`Forbidden: ${filename}`);
+                failed++;
+                continue;
             }
 
-            const filePath = path.join(MEDIA_DIR, filename);
-            if (!existsSync(filePath)) {
+            const media = resolvePrivateMediaReference(`/api/media/${filename}`);
+            if (media.kind !== "local") {
                 errors.push(`Not found: ${filename}`);
                 failed++;
                 continue;
             }
 
             try {
-                await unlink(filePath);
+                await unlink(media.filePath);
                 deleted++;
             } catch {
                 errors.push(`Failed to delete: ${filename}`);

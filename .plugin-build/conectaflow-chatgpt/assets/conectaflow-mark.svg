@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" role="img" aria-labelledby="title desc">
+  <title id="title">ConectaFlow</title><desc id="desc">Monograma formado por um arco de conexão e três linhas de fluxo</desc>
+  <rect width="120" height="120" rx="30" fill="#0D3033"/>
+  <path d="M74 30C64 23 51 22 41 27C29 33 22 44 22 60C22 76 29 87 41 93C51 98 64 97 74 90" fill="none" stroke="#F6F7EF" stroke-width="12" stroke-linecap="round"/>
+  <path d="M59 45H97M59 61H86" stroke="#BBEB68" stroke-width="11" stroke-linecap="round"/>
+  <circle cx="92" cy="82" r="7" fill="#55D6C2"/>
+</svg>

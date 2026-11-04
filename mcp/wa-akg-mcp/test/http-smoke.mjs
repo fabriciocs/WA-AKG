@@ -17,6 +17,8 @@ test("HTTP MCP endpoint enforces bearer auth and supports MCP initialization/too
   const originalFetch = globalThis.fetch;
   let tokenScopes = ["mcp:read", "api:read", "sessions:read"];
   let tokenResource = "https://wa-akg.example.test/wa-akg/mcp";
+  let tokenTenant = "test-tenant-a";
+  let tokenGrant = "test-grant-a";
   const tokenSessionScope = ["test-session-db-id"];
   let mockSessions = [{ id: "test-session", sessionId: "wa-test", name: "Mock session" }];
   let createCalls = 0;
@@ -26,7 +28,7 @@ test("HTTP MCP endpoint enforces bearer auth and supports MCP initialization/too
       assert.equal(headers.get("ngrok-skip-browser-warning"), "true");
       const authorization = headers.get("authorization");
       if (authorization !== `Bearer ${token}`) return new Response(JSON.stringify({ error: "invalid_token" }), { status: 401 });
-      return new Response(JSON.stringify({ sub: "test-user", wa_akg: { client_id: "test-client", scope: tokenScopes, session_scope: tokenSessionScope, session_capabilities: { "test-session": "WRITE" }, operation_allowlist: ["POST /messages/{sessionId}/{jid}/send", "POST /groups/{sessionId}/create"], resource: tokenResource } }), { status: 200, headers: { "Content-Type": "application/json" } });
+      return new Response(JSON.stringify({ sub: "test-user", wa_akg: { client_id: "test-client", tenant_id: tokenTenant, grant_id: tokenGrant, scope: tokenScopes, session_scope: tokenSessionScope, session_capabilities: { "test-session": "WRITE" }, operation_allowlist: ["POST /messages/{sessionId}/{jid}/send", "POST /groups/{sessionId}/create"], resource: tokenResource } }), { status: 200, headers: { "Content-Type": "application/json" } });
     }
     if (new URL(String(input)).pathname.endsWith("/api/sessions")) {
       const headers = new Headers(init?.headers);
@@ -96,6 +98,19 @@ test("HTTP MCP endpoint enforces bearer auth and supports MCP initialization/too
     assert.match(initText, /serverInfo|wa-akg-mcp/);
     const sessionId = initialized.headers.get("mcp-session-id");
     assert.ok(sessionId, "initialize response should return an MCP session ID");
+
+    for (const change of ["tenant", "grant"]) {
+      tokenTenant = change === "tenant" ? "test-tenant-b" : "test-tenant-a";
+      tokenGrant = change === "grant" ? "test-grant-b" : "test-grant-a";
+      const wrongGrant = await fetch(url, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Mcp-Session-Id": sessionId, "Content-Type": "application/json", Accept: "application/json, text/event-stream" },
+        body: JSON.stringify({ jsonrpc: "2.0", id: 98, method: "tools/list", params: {} })
+      });
+      assert.equal(wrongGrant.status, 403);
+    }
+    tokenTenant = "test-tenant-a";
+    tokenGrant = "test-grant-a";
 
     const notification = await fetch(url, {
       method: "POST",

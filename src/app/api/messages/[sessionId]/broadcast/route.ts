@@ -3,7 +3,8 @@ import { prisma } from "@/lib/prisma";
 import { getAuthenticatedUser, canAccessSession } from "@/lib/api-auth";
 import { normalizeBroadcastInput } from "@/lib/broadcast-validation";
 
-type SocketEmitter = { to: (room: string) => { emit: (event: string, payload: unknown) => void } };
+import type { Server } from "socket.io";
+import { emitSessionRoomEvent } from "@/server/socket";
 
 export async function POST(
     request: NextRequest,
@@ -25,27 +26,35 @@ export async function POST(
         const message = parsed.data.message;
         const delay = parsed.data.delay ?? 2000;
 
-        if (!(await canAccessSession(user.id, user.role, sessionId))) {
+        if (!(await canAccessSession(user, request, sessionId))) {
             return NextResponse.json({ status: false, message: "Forbidden", error: "Forbidden" }, { status: 403 });
         }
 
-        const instance = (await import("@/modules/whatsapp/manager")).waManager.getInstance(sessionId);
-        if (!instance?.socket) {
+        const session = await prisma.session.findFirst({
+            where: { OR: [{ id: sessionId }, { sessionId }], tenant: { status: "ACTIVE" } },
+            select: { sessionId: true, tenantId: true },
+        });
+        if (!session?.tenantId) {
+            return NextResponse.json({ status: false, error: "Session not found" }, { status: 404 });
+        }
+        const instance = (await import("@/modules/whatsapp/manager")).waManager.getInstance(session.sessionId);
+        if (!instance?.socket || instance.tenantId !== session.tenantId) {
             return NextResponse.json({ status: false, message: "Session not ready", error: "Session not ready" }, { status: 503 });
         }
 
         const log = await prisma.broadcastLog.create({
             data: {
-                sessionId,
+                sessionId: session.sessionId,
+                tenantId: session.tenantId,
                 message,
                 total: recipients.length,
                 delay,
                 status: "running",
-                recipients: { create: recipients.map(jid => ({ jid, status: "pending" })) }
+                recipients: { create: recipients.map(jid => ({ jid, tenantId: session.tenantId, status: "pending" })) }
             }
         });
 
-        (globalThis as typeof globalThis & { io?: SocketEmitter }).io?.to(sessionId).emit("broadcast.progress", {
+        void emitSessionRoomEvent((globalThis as typeof globalThis & { io?: Server }).io, session.tenantId, session.sessionId, "broadcast.progress", {
             broadcastId: log.id,
             status: "running",
             total: recipients.length,

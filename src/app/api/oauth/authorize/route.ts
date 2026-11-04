@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { getClient, createAuthorizationRequest, OAuthError } from "@/lib/oauth";
+import { isCimdClientId, resolveCimdClient } from "@/lib/oauth/cimd";
 import { parseScopeString } from "@/lib/oauth/scopes";
 import { appOrigin, mcpResourceUrl, oauthIssuer } from "@/lib/oauth/discovery.mjs";
 import { prisma } from "@/lib/prisma";
@@ -22,9 +23,9 @@ export async function GET(request: NextRequest) {
   try {
     const rate = await checkOAuthRateLimitDistributed("authorize", trustedProxyClientIp(request), { limit: 60, windowMs: 5 * 60 * 1000 });
     if (!rate.allowed) throw new OAuthError("Too many authorization requests", "slow_down", 429);
-    const client = await getClient(clientId);
-    if (!client) throw new OAuthError("Unknown client_id", "invalid_client", 400);
     if (params.get("response_type") !== "code") throw new OAuthError("Only response_type=code is supported", "unsupported_response_type");
+    const client = isCimdClientId(clientId) ? await resolveCimdClient(clientId) : await getClient(clientId);
+    if (!client) throw new OAuthError("Unknown client_id", "invalid_client", 400);
     const challengeMethod = params.get("code_challenge_method");
     const challenge = params.get("code_challenge") ?? "";
     if (challengeMethod !== "S256" || !/^[A-Za-z0-9_-]{43}$/.test(challenge)) throw new OAuthError("PKCE S256 is required", "invalid_request");
@@ -40,7 +41,7 @@ export async function GET(request: NextRequest) {
         requestOrigin,
         basePath,
       });
-      if (new URL(resource).origin !== new URL(issuer).origin) throw new OAuthError("resource must belong to this WA-AKG issuer", "invalid_target");
+      if (new URL(resource).origin !== new URL(issuer).origin) throw new OAuthError("resource must belong to this OAuth issuer", "invalid_target");
     }
     if (scope.some((item) => item.startsWith("mcp:"))) {
       const expectedResource = mcpResourceUrl({
@@ -48,7 +49,7 @@ export async function GET(request: NextRequest) {
         basePath,
         endpointPath: process.env.WA_AKG_MCP_HTTP_PATH || "/mcp",
       });
-      if (resource !== expectedResource) throw new OAuthError("resource must exactly match the WA-AKG MCP endpoint", "invalid_target");
+      if (resource !== expectedResource) throw new OAuthError("resource must exactly match the configured MCP endpoint", "invalid_target");
     }
     const requestId = await createAuthorizationRequest({
       client,

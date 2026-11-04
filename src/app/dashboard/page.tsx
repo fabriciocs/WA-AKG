@@ -20,6 +20,7 @@ import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { headers } from "next/headers";
 import { requestBasePath, withBasePath } from "@/lib/base-path";
+import { readBrowserTenantSelection, resolveTenantMembership } from "@/lib/tenancy/context";
 
 export const dynamic = 'force-dynamic';
 
@@ -27,20 +28,25 @@ export default async function DashboardPage() {
     const requestHeaders = await headers();
     const basePath = requestBasePath(requestHeaders);
     const session = await auth();
-    if (!session?.user) {
+    if (!session?.user?.id) {
         redirect(withBasePath("/auth/login", basePath));
     }
 
     const t = await getTranslations("dashboard");
 
-    const sessions = await getAccessibleSessions(session.user.id!, session.user.role || "USER");
+    const request = new Request("http://localhost", { headers: requestHeaders });
+    const membership = await resolveTenantMembership(session.user.id, readBrowserTenantSelection(request));
+    const sessions = await getAccessibleSessions(
+        { id: session.user.id, role: "USER", authMethod: "session" },
+        request,
+    );
     const account = await prisma.user.findUnique({ where: { id: session.user.id! }, select: { emailVerified: true } });
 
     const totalSessions = sessions.length;
     const connectedSessions = sessions.filter(s => s.status === 'CONNECTED').length;
     const disconnectedSessions = totalSessions - connectedSessions; // Anything not connected is disconnected
-    const activeMcpGrant = await prisma.oAuthRefreshToken.findFirst({
-        where: { userId: session.user.id!, revokedAt: null, expiresAt: { gt: new Date() }, scope: { contains: "mcp:read" } },
+    const activeMcpGrant = membership && await prisma.oAuthRefreshToken.findFirst({
+        where: { userId: session.user.id, tenantId: membership.tenantId, revokedAt: null, expiresAt: { gt: new Date() }, scope: { contains: "mcp:read" } },
         select: { id: true },
     });
     const host = requestHeaders.get("x-forwarded-host") || requestHeaders.get("host");
@@ -65,9 +71,9 @@ export default async function DashboardPage() {
     let autoReplyCount = 0;
     try {
         const sessionIds = sessions.map(s => s.sessionId);
-        if (sessionIds.length > 0) {
+        if (membership && sessionIds.length > 0) {
             autoReplyCount = await prisma.autoReply.count({
-                where: { sessionId: { in: sessionIds } }
+                where: { tenantId: membership.tenantId, sessionId: { in: sessionIds } }
             });
         }
     } catch {

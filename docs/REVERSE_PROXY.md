@@ -19,3 +19,44 @@ Configure the proxy in front of port `43000` with this contract:
 The proxy must replace client-supplied `X-Forwarded-Prefix`, `X-Forwarded-Host` and `X-Forwarded-Proto` values with trusted values. These headers control generated navigation, API, authentication, media, OAuth and Socket.IO URLs, as well as redirect origins.
 
 The proxy configuration is external to this repository. A successful application build does not verify that the proxy or ngrok tunnel implements this contract.
+
+## Claude OAuth fallback paths on the ngrok host
+
+The canonical authorization endpoint in OAuth discovery is `/wa-akg/api/oauth/authorize`. Some clients fall back to `/authorize` at the origin root when discovery fails or an old configuration is cached. Without an explicit host-scoped route, the root path reaches the generic Caddy gateway instead of the WA-AKG consent flow.
+
+Keep the existing WA-AKG and unrelated application routes. Within the existing `:8080` site block, add the following **host-restricted** compatibility aliases:
+
+```caddyfile
+@wa_akg_public_oauth_authorize_alias {
+    host gauntlet-fruit-discount.ngrok-free.dev
+    path /authorize
+}
+handle @wa_akg_public_oauth_authorize_alias {
+    redir * /wa-akg/api/oauth/authorize{?query} 307
+}
+@wa_akg_public_oauth_protocol_alias {
+    host gauntlet-fruit-discount.ngrok-free.dev
+    path /token /register /revoke /introspect
+}
+handle @wa_akg_public_oauth_protocol_alias {
+    rewrite * /api/oauth{uri}
+    reverse_proxy http://127.0.0.1:43000 {
+        header_up X-Forwarded-Prefix /wa-akg
+        header_up X-Forwarded-Host gauntlet-fruit-discount.ngrok-free.dev
+        header_up X-Forwarded-Proto https
+    }
+}
+```
+
+The public `/authorize` redirect retains the complete query string, including PKCE, state, requested scopes, callback and resource. The other aliases proxy requests internally so a POST retains its method/body. Do **not** replace the proper discovery URLs; compatibility aliases are fallback-only and must not match other hostnames.
+
+The repository includes a PowerShell 5.1-compatible script for idempotent host-scoped setup:
+
+```powershell
+powershell.exe -NoProfile -File .\scripts\Repair-Caddy-OAuth-Compat.ps1
+powershell.exe -NoProfile -File .\scripts\Repair-Caddy-OAuth-Compat.ps1 -Apply
+```
+
+The first command prepares a candidate and checks `caddy adapt` without changing the live file; `-Apply` keeps a byte-for-byte backup in the current user's local app data, reloads via the existing Caddy admin API (no process restart), tests an inert `/authorize` request and attempts rollback on failure. A full `caddy validate` may fail under a non-privileged shell if Caddy's access log is writable only by the LocalSystem service; `caddy adapt` plus the actual reload/HTTP probe provide separate evidence.
+
+**ngrok free-tier interstitial:** `ERR_NGROK_6024` occurs at ngrok's edge, before Caddy. A backend rewrite cannot remove it. For API diagnostics, `ngrok-skip-browser-warning: 1` or an appropriate non-browser User-Agent may bypass the warning. Browser visits may require accepting the warning once. A permanent seamless third-party OAuth flow may require a public endpoint without this interstitial. Never register stale PKCE states or retry an old authorization URL.

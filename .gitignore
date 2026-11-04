@@ -55,3 +55,7 @@ server.log
 .claude-flow/data/
 .claude-flow/logs/
 .claude-flow/sessions/
+
+# Local operational evidence and generated delivery archives
+/.remote-desktop/
+/*.zip

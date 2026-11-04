@@ -10,7 +10,8 @@
     "start": "node src/server.mjs",
     "check": "node --check src/server.mjs && node --check src/http.mjs && node --check scripts/production-sessions-check.mjs",
     "test": "node --test",
-    "test:production-sessions": "node scripts/production-sessions-check.mjs"
+    "test:production-sessions": "node scripts/production-sessions-check.mjs",
+    "smoke:live-readonly": "node scripts/live-readonly-smoke.mjs"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.25.2",

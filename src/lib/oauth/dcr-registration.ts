@@ -42,7 +42,7 @@ function invalidMetadata(message: string) {
   return new OAuthError(message, "invalid_client_metadata", 400);
 }
 
-function validatedMetadata(input: unknown) {
+export function validatePublicClientMetadata(input: unknown) {
   const result = registrationSchema.safeParse(input);
   if (!result.success) throw invalidMetadata("Invalid OAuth client metadata");
   const metadata: RegistrationInput = result.data;
@@ -75,11 +75,11 @@ function validatedMetadata(input: unknown) {
     requestedScopes.some((scope) => !SUPPORTED_SCOPES.includes(scope as (typeof SUPPORTED_SCOPES)[number])) ||
     !hasCompatibleScopeSet(requestedScopes)
   ) {
-    throw invalidMetadata("Only compatible WA-AKG API and MCP scopes are supported");
+    throw invalidMetadata("Only compatible API and MCP scopes are supported");
   }
 
   return {
-    name: metadata.client_name ?? "WA-AKG MCP client",
+    name: metadata.client_name ?? "ConectaFlow MCP client",
     redirectUris: redirects,
     grantTypes: grantTypes as (typeof SUPPORTED_GRANTS)[number][],
     allowedScopes: requestedScopes,
@@ -157,7 +157,7 @@ export function createDcrRegistrationHandler(dependencies: {
     }
 
     try {
-      const metadata = validatedMetadata(body);
+      const metadata = validatePublicClientMetadata(body);
       const { client } = await persistClient({
         name: metadata.name,
         description: "Dynamically registered public MCP client",

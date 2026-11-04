@@ -1184,7 +1184,7 @@
   "oauth": {
     "security": "Security",
     "title": "OAuth access",
-    "subtitle": "Manage connected clients and revoke their access to your WA-AKG account.",
+    "subtitle": "Manage connected clients and revoke their access to your ConectaFlow account.",
     "loadError": "Could not load OAuth access.",
     "createError": "Could not create the client.",
     "updateError": "Could not update the client.",

@@ -1184,7 +1184,7 @@
   "oauth": {
     "security": "Segurança",
     "title": "Acesso OAuth",
-    "subtitle": "Gerencie clientes conectados e revogue o acesso deles à sua conta WA-AKG.",
+    "subtitle": "Gerencie clientes conectados e revogue o acesso deles à sua conta ConectaFlow.",
     "loadError": "Não foi possível carregar o acesso OAuth.",
     "createError": "Não foi possível criar o cliente.",
     "updateError": "Não foi possível atualizar o cliente.",

@@ -25,7 +25,7 @@ export async function GET(
         const { sessionId } = await params;
 
         // Only session owner or SUPERADMIN can view access list
-        const isOwner = await isSessionOwner(user.id, user.role, sessionId);
+        const isOwner = await isSessionOwner(user, request, sessionId);
         if (!isOwner) {
             return NextResponse.json({ status: false, message: "Forbidden - Only session owner can manage access" }, { status: 403 });
         }
@@ -77,7 +77,7 @@ export async function POST(
         const { sessionId } = await params;
 
         // Only session owner or SUPERADMIN can grant access
-        const isOwner = await isSessionOwner(user.id, user.role, sessionId);
+        const isOwner = await isSessionOwner(user, request, sessionId);
         if (!isOwner) {
             return NextResponse.json({ status: false, message: "Forbidden - Only session owner can manage access" }, { status: 403 });
         }
@@ -175,7 +175,7 @@ export async function DELETE(
         const { sessionId } = await params;
 
         // Only session owner or SUPERADMIN can revoke access
-        const isOwner = await isSessionOwner(user.id, user.role, sessionId);
+        const isOwner = await isSessionOwner(user, request, sessionId);
         if (!isOwner) {
             return NextResponse.json({ status: false, message: "Forbidden - Only session owner can manage access" }, { status: 403 });
         }

@@ -1,0 +1,34 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "conectaflow",
+  "version": "0.2.1",
+  "description": "Conecte o ChatGPT ao ConectaFlow para consultar conversas e gerenciar sessões autorizadas.",
+  "author": {
+    "name": "ConectaFlow"
+  },
+  "license": "MIT",
+  "keywords": [
+    "conectaflow",
+    "conversas",
+    "whatsapp",
+    "mcp",
+    "oauth",
+    "automações"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "ConectaFlow",
+        "shortDescription": "Conversas e sessões conectadas",
+        "longDescription": "Consulte mensagens, organize sessões e execute operações permitidas pelo seu ConectaFlow, com controle de acesso via OAuth e MCP.",
+        "developerName": "ConectaFlow",
+        "category": "Productivity",
+        "capabilities": [],
+        "brandColor": "#087F76",
+        "composerIcon": "./assets/conectaflow-icon-192.png",
+        "logo": "./assets/conectaflow-icon-512.png",
+        "defaultPrompt": ["Use o ConectaFlow para consultar minhas sessões e mensagens.", "Liste as sessões conectadas e seu estado.", "Só execute ações externas quando eu autorizar."]
+      }
+    }
+  }
+}

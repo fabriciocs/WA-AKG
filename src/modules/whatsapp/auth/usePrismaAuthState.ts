@@ -7,13 +7,15 @@ import { encryptData, decryptData, isEncryptedData } from "@/lib/crypto";
  * database, ciphertext and JSON errors are fatal so a broken session is never
  * silently replaced by a new identity.
  */
-export const loadPrismaAuthState = async (sessionId: string): Promise<{ state: AuthenticationState, saveCreds: () => Promise<void> }> => {
+export const loadPrismaAuthState = async (sessionId: string, tenantId: string): Promise<{ state: AuthenticationState, saveCreds: () => Promise<void> }> => {
     const readData = async (type: string, id: string) => {
         const key = `${type}-${id}`;
         const data = await prisma.authState.findUnique({
             where: { sessionId_key: { sessionId, key } }
         });
-        if (!data || data.value == null) return null;
+        if (!data) return null;
+        if (data.tenantId !== tenantId) throw new Error("WhatsApp auth state tenant mismatch");
+        if (data.value == null) return null;
 
         const raw = typeof data.value === "string" ? data.value : JSON.stringify(data.value);
         if (!raw) throw new Error(`Stored WhatsApp auth state is empty (${type})`);
@@ -26,7 +28,7 @@ export const loadPrismaAuthState = async (sessionId: string): Promise<{ state: A
             // once, then immediately replace the row with authenticated ciphertext.
             if (!isEncryptedData(raw)) {
                 await prisma.authState.update({
-                    where: { sessionId_key: { sessionId, key } },
+                    where: { sessionId_key: { sessionId, key }, tenantId },
                     data: { value: encryptData(JSON.stringify(value, BufferJSON.replacer)) },
                 });
             }
@@ -64,12 +66,12 @@ export const loadPrismaAuthState = async (sessionId: string): Promise<{ state: A
                             if (value) {
                                 const encrypted = encode(value);
                                 operations.push(prisma.authState.upsert({
-                                    where: { sessionId_key: { sessionId, key } },
-                                    create: { sessionId, key, value: encrypted },
+                                    where: { sessionId_key: { sessionId, key }, tenantId },
+                                    create: { sessionId, tenantId, key, value: encrypted },
                                     update: { value: encrypted }
                                 }));
                             } else {
-                                deletes.push(prisma.authState.deleteMany({ where: { sessionId, key } }));
+                                deletes.push(prisma.authState.deleteMany({ where: { sessionId, tenantId, key } }));
                             }
                         }
                     }
@@ -82,8 +84,8 @@ export const loadPrismaAuthState = async (sessionId: string): Promise<{ state: A
             const key = "creds-me";
             const value = encode(authenticationCreds);
             await prisma.authState.upsert({
-                where: { sessionId_key: { sessionId, key } },
-                create: { sessionId, key, value },
+                where: { sessionId_key: { sessionId, key }, tenantId },
+                create: { sessionId, tenantId, key, value },
                 update: { value }
             });
         }

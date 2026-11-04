@@ -86,13 +86,13 @@ function canAutoReply(config: BotConfig | null, fromMe: boolean, senderJid: stri
     return false;
 }
 
-export async function bindAutoReply(sock: WASocket, sessionId: string) {
+export async function bindAutoReply(sock: WASocket, sessionId: string, tenantId: string) {
     sock.ev.on('messages.upsert', async ({ messages, type }) => {
         if (type !== 'notify') return;
 
         // Fetch session ID and Bot Config once per batch (optimization)
         const session = await prisma.session.findUnique({
-            where: { sessionId },
+            where: { sessionId, tenantId, tenant: { status: "ACTIVE" } },
             include: { botConfig: true }
         });
 
@@ -157,9 +157,8 @@ export async function bindAutoReply(sock: WASocket, sessionId: string) {
                 // Fetch rules for this session
                 const rules = await prisma.autoReply.findMany({
                     where: {
-                        session: {
-                            sessionId: sessionId
-                        }
+                        sessionId: session.id,
+                        tenantId
                     }
                 });
 

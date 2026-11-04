@@ -18,7 +18,7 @@ export async function getAuthenticatedUserForAction() {
             });
 
             if (user) {
-                return user;
+                return { ...user, authMethod: "session" as const };
             }
         }
         return null;

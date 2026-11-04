@@ -33,7 +33,7 @@ export async function GET(
     const { sessionId } = await params;
 
     // Verify access to session
-    const hasAccess = await canAccessSession(user.id, user.role, sessionId);
+    const hasAccess = await canAccessSession(user, request, sessionId);
     if (!hasAccess) {
         return NextResponse.json({ status: false, message: "Forbidden - Cannot access this session", error: "Forbidden - Cannot access this session" }, { status: 403 });
     }
@@ -62,7 +62,7 @@ export async function GET(
             },
             orderBy: { createdAt: 'desc' }
         });
-        const isOwner = await isSessionOwner(user.id, user.role, sessionId);
+        const isOwner = await isSessionOwner(user, request, sessionId);
 
         const safeWebhooks = webhooks.map(webhook => {
             const safeWebhook = { ...webhook };
@@ -94,7 +94,7 @@ export async function POST(
 
     const { sessionId } = await params;
 
-    const isOwner = await isSessionOwner(user.id, user.role, sessionId);
+    const isOwner = await isSessionOwner(user, request, sessionId);
     if (!isOwner) {
         return NextResponse.json({ status: false, message: "Forbidden - Cannot access this session", error: "Forbidden - Cannot access this session" }, { status: 403 });
     }

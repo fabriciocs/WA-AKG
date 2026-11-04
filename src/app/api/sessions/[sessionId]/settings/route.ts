@@ -17,7 +17,7 @@ export async function GET(
             return NextResponse.json({ status: false, message: "Unauthorized", error: "Unauthorized" }, { status: 401 });
         }
 
-        const canAccess = await canAccessSession(user.id, user.role, sessionId);
+        const canAccess = await canAccessSession(user, request, sessionId);
         if (!canAccess) {
             return NextResponse.json({ status: false, message: "Forbidden - Cannot access this session", error: "Forbidden - Cannot access this session" }, { status: 403 });
         }
@@ -56,12 +56,12 @@ export async function PATCH(
         }
 
         // Check if user can access this session
-        const canAccess = await canAccessSession(user.id, user.role, sessionId);
+        const canAccess = await canAccessSession(user, request, sessionId);
         if (!canAccess) {
             return NextResponse.json({ status: false, message: "Forbidden - Cannot access this session", error: "Forbidden - Cannot access this session" }, { status: 403 });
         }
 
-        const isOwner = await isSessionOwner(user.id, user.role, sessionId);
+        const isOwner = await isSessionOwner(user, request, sessionId);
         if (!isOwner) {
             return NextResponse.json({ status: false, message: "Forbidden - Only the session owner can update settings", error: "Forbidden" }, { status: 403 });
         }
@@ -106,7 +106,7 @@ export async function DELETE(
         }
 
         // Check if user can access this session
-        const isOwner = await isSessionOwner(user.id, user.role, sessionId);
+        const isOwner = await isSessionOwner(user, request, sessionId);
         if (!isOwner) {
             return NextResponse.json({ status: false, message: "Forbidden - Cannot delete this session", error: "Forbidden - Cannot delete this session" }, { status: 403 });
         }

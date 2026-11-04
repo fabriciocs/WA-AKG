@@ -1,7 +1,7 @@
 import { auth } from "@/lib/auth";
 import { ChatInterface } from "@/components/chat/chat-interface";
 import { ChatLayoutClient } from "@/components/chat/chat-layout-client";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { canAccessSession } from "@/lib/api-auth";
 import { SessionGuard } from "@/components/dashboard/session-guard";
 
@@ -24,7 +24,7 @@ export default async function ChatWithJidPage({
     let validSessionId: string | null = null;
 
     if (sessionId) {
-        const hasAccess = await canAccessSession(session.user.id, session.user.role, sessionId);
+        const hasAccess = await canAccessSession({ id: session.user.id, role: "USER", authMethod: "session" }, new Request("http://localhost", { headers: await headers() }), sessionId);
         if (hasAccess) {
             validSessionId = sessionId;
         }

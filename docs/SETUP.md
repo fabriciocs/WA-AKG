@@ -55,9 +55,13 @@ Use the Compose files and database procedure documented in [Database Setup](DATA
 
 ## Platform notes
 
-- Windows: run `npm run setup` from PowerShell or Command Prompt; Docker Desktop is required only for Docker mode.
+- Windows: run `npm run setup` from PowerShell or Command Prompt; Docker Desktop is required only for Docker mode. Node.js 22/24 cannot directly spawn npm/npx `.cmd` wrappers with `shell: false`; the wizard uses a Windows command shell only for its fixed, validated arguments. If an older version failed with `spawn EINVAL` at `[1/3]`, retain the `.env` backup, update the wizard and rerun the setup after verifying the database. For a non-mutating check, run `node --test scripts/setup.test.mjs` and `npx --no-install prisma migrate status`.
 - Linux: run from a shell with Node.js installed; ensure the configured port and database are reachable by the service account.
 - macOS: run from Terminal; Docker Desktop is required only for Docker mode.
+
+## Media files and production builds
+
+Media stored in the private `data/media` directory is runtime data, not part of the Next.js application bundle. The `GET /api/media`, `GET /api/media/[filename]`, and `DELETE /api/media` handlers keep their existing authentication and session checks, while targeted `turbopackIgnore` annotations prevent Turbopack from tracing user media into the build when composing runtime file paths. Keep `data/media` available to the application when running the production bundle; do not move or delete it during deployment. Verify a full `npm run build` reaches route generation and returns exit code 0; `Compiled successfully` alone is not proof of a completed build.
 
 ## Security limits
 

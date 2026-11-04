@@ -16,7 +16,7 @@ export async function GET(
     const limit = Math.min(parseInt(searchParams.get("limit") || "50"), 200);
     const offset = Math.max(parseInt(searchParams.get("offset") || "0"), 0);
 
-    const hasAccess = await canAccessSession(user.id, user.role, sessionId);
+    const hasAccess = await canAccessSession(user, request, sessionId);
     if (!hasAccess) {
         return NextResponse.json({ status: false, message: "Forbidden - Cannot access this session", error: "Forbidden - Cannot access this session" }, { status: 403 });
     }

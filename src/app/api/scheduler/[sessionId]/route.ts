@@ -17,24 +17,24 @@ export async function GET(
             return NextResponse.json({ status: false, message: "Unauthorized", error: "Unauthorized" }, { status: 401 });
         }
 
-        const canAccess = await canAccessSession(user.id, user.role, sessionId);
+        const canAccess = await canAccessSession(user, request, sessionId);
         if (!canAccess) {
             return NextResponse.json({ status: false, message: "Forbidden - Cannot access this session", error: "Forbidden - Cannot access this session" }, { status: 403 });
         }
 
         const session = await prisma.session.findUnique({
             where: { sessionId: sessionId },
-            select: { id: true }
+            select: { id: true, tenantId: true }
         });
 
-        if (!session) {
+        if (!session?.tenantId) {
             return NextResponse.json({ status: false, message: "Session not found", error: "Session not found" }, { status: 404 });
         }
 
         const url = new URL(request.url);
         const tab = url.searchParams.get("tab") || "pending";
         
-        const whereClause: Prisma.ScheduledMessageWhereInput = { sessionId: session.id };
+        const whereClause: Prisma.ScheduledMessageWhereInput = { sessionId: session.id, tenantId: session.tenantId };
         let orderByClause: Prisma.ScheduledMessageOrderByWithRelationInput = { sendAt: 'asc' };
         
         if (tab === "history") {
@@ -77,17 +77,17 @@ export async function POST(
             return NextResponse.json({ status: false, message: "Missing required fields (JID, Content/Media, SendAt)", error: "Missing required fields" }, { status: 400 });
         }
 
-        const canAccess = await canAccessSession(user.id, user.role, sessionId);
+        const canAccess = await canAccessSession(user, request, sessionId);
         if (!canAccess) {
             return NextResponse.json({ status: false, message: "Forbidden - Cannot access this session", error: "Forbidden - Cannot access this session" }, { status: 403 });
         }
 
         const session = await prisma.session.findUnique({
             where: { sessionId: sessionId },
-            select: { id: true }
+            select: { id: true, tenantId: true }
         });
 
-        if (!session) {
+        if (!session?.tenantId) {
             return NextResponse.json({ status: false, message: "Session not found", error: "Session not found" }, { status: 404 });
         }
 
@@ -102,6 +102,7 @@ export async function POST(
         const scheduled = await prisma.scheduledMessage.create({
             data: {
                 sessionId: session.id,
+                tenantId: session.tenantId,
                 jid,
                 content,
                 mediaUrl,

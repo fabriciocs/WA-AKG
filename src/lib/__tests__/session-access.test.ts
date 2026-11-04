@@ -77,8 +77,8 @@ test("OAuth read session projections redact connection and configuration secrets
     assert.equal(JSON.stringify(result).includes("sentinel"), false);
 });
 
-test("only the session owner and SUPERADMIN may manage session settings", () => {
+test("only the session owner may manage session settings without audited privilege", () => {
     assert.equal(mayManageSession("shared-user", "USER", "owner-user"), false);
     assert.equal(mayManageSession("owner-user", "USER", "owner-user"), true);
-    assert.equal(mayManageSession("admin-user", "SUPERADMIN", "owner-user"), true);
+    assert.equal(mayManageSession("admin-user", "SUPERADMIN", "owner-user"), false);
 });

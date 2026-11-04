@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { apiUrl } from "@/lib/api-url";
+import { OAuthClientModes } from "@/components/dashboard/oauth-client-modes";
 
 type Client = { clientId: string; name: string; description: string | null; redirectUris: string[]; allowedScopes: string[]; grantTypes: string[]; isConfidential: boolean; isActive: boolean };
 type Grant = { userId?: string; userEmail?: string | null; clientId: string; clientName: string; scope: string[]; sessionScope: string[] | null; createdAt: string };
@@ -100,6 +101,7 @@ export default function OAuthManagement({ canManage }: { canManage: boolean }) {
   return (
     <main className="mx-auto max-w-4xl space-y-8 p-6 md:p-10">
       <header><p className="text-sm text-muted-foreground">{t("security")}</p><h1 className="text-3xl font-semibold">{t("title")}</h1><p className="mt-2 text-sm text-muted-foreground">{t("subtitle")}</p></header>
+      <OAuthClientModes />
       {message && <p role="status" className="rounded-md border p-3 text-sm">{message}</p>}
       {createdClientId && <p className="break-all rounded-md border border-primary p-3 text-sm">{t("clientId")}: <code>{createdClientId}</code></p>}
 

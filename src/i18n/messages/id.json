@@ -1184,7 +1184,7 @@
   "oauth": {
     "security": "Keamanan",
     "title": "Akses OAuth",
-    "subtitle": "Kelola klien yang terhubung dan cabut akses mereka ke akun WA-AKG Anda.",
+    "subtitle": "Kelola klien yang terhubung dan cabut akses mereka ke akun ConectaFlow Anda.",
     "loadError": "Akses OAuth tidak dapat dimuat.",
     "createError": "Klien tidak dapat dibuat.",
     "updateError": "Klien tidak dapat diperbarui.",

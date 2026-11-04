@@ -18,6 +18,7 @@
     "mcp:check": "npm --prefix mcp/wa-akg-mcp run check",
     "mcp:test": "npm --prefix mcp/wa-akg-mcp test",
     "mcp:test:production-sessions": "npm --prefix mcp/wa-akg-mcp run test:production-sessions",
+    "mcp:smoke:live-readonly": "npm --prefix mcp/wa-akg-mcp run smoke:live-readonly",
     "replica:harness": "node scripts/replica-harness/run.mjs",
     "replica:preflight": "node scripts/replica-harness/real-preflight.mjs"
   },

@@ -14,7 +14,7 @@ export async function GET(
 
         const { sessionId, logId } = await params;
 
-        const canAccess = await canAccessSession(user.id, user.role, sessionId);
+        const canAccess = await canAccessSession(user, request, sessionId);
         if (!canAccess) {
             return NextResponse.json({ status: false, message: "Forbidden" }, { status: 403 });
         }

@@ -11,6 +11,7 @@ function createBroadcastHarness(options: {
     sendError?: Error;
     attempts?: number;
     connected?: boolean;
+    recipientTenantId?: string;
 } = {}) {
     const log = {
         id: "broadcast-1",
@@ -18,6 +19,7 @@ function createBroadcastHarness(options: {
         claimToken: null as string | null,
         claimedAt: null as Date | null,
         sessionId: "session-1",
+        tenantId: "tenant-a",
         message: "mock broadcast",
         delay: 1000,
         total: 1
@@ -25,6 +27,7 @@ function createBroadcastHarness(options: {
     const recipient = {
         id: "recipient-1",
         broadcastLogId: log.id,
+        tenantId: options.recipientTenantId ?? log.tenantId,
         status: "pending",
         claimToken: null as string | null,
         claimedAt: null as Date | null,
@@ -47,7 +50,7 @@ function createBroadcastHarness(options: {
     let candidateReturned = false;
 
     const fakeLogDelegate = {
-        findMany: async () => [{ id: log.id }],
+        findMany: async () => [{ id: log.id, tenantId: log.tenantId }],
         updateMany: async ({ where, data }: { where: Record<string, unknown>; data: Record<string, unknown> }) => {
             logUpdates.push({ where, data });
             if (data.claimToken === "log-token") {
@@ -110,7 +113,8 @@ function createBroadcastHarness(options: {
     const process = createBroadcastRecipientProcessor({
         broadcastLog: fakeLogDelegate,
         broadcastRecipient: fakeRecipientDelegate,
-        getSender: sessionId => options.connected === false ? undefined : async (jid, content) => {
+        getSender: (sessionId, tenantId) => options.connected === false ? undefined : async (jid, content) => {
+            assert.equal(tenantId, log.tenantId);
             sends.push({ sessionId, jid, content });
             if (options.sendError) throw options.sendError;
         },
@@ -122,7 +126,10 @@ function createBroadcastHarness(options: {
         now: () => new Date(fixedNow),
         sleep: async milliseconds => { sleeps.push(milliseconds); },
         logError: message => errors.push(message),
-        emitProgress: (sessionId, payload) => progress.push({ sessionId, payload })
+        emitProgress: (sessionId, tenantId, payload) => {
+            assert.equal(tenantId, log.tenantId);
+            progress.push({ sessionId, payload });
+        }
     });
 
     return { process, log, recipient, logUpdates, recipientUpdates, sends, progress, errors, stopped, sleeps };
@@ -195,4 +202,12 @@ test("lost recipient claim never sends and parent lease is released", async () =
     assert.equal(harness.recipient.status, "pending");
     assert.equal(harness.log.claimToken, null);
     assert.deepEqual(harness.stopped, ["log-token"]);
+});
+
+test("a broadcast recipient bound to another tenant never calls the sender", async () => {
+    const harness = createBroadcastHarness({ recipientTenantId: "tenant-b" });
+    await harness.process(fixedNow);
+    assert.equal(harness.sends.length, 0);
+    assert.equal(harness.progress.length, 0);
+    assert.match(harness.errors[0], /invalid tenant binding/);
 });

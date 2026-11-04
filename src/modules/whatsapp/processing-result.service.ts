@@ -66,25 +66,34 @@ export async function persistProcessingResult(value: unknown) {
             eventId: true,
             jobId: true,
             sessionId: true,
+            tenantId: true,
+            session: { select: { tenantId: true, userId: true, sessionId: true, tenant: { select: { status: true } } } },
             messageId: true,
+            message: { select: { sessionId: true, tenantId: true } },
             payload: true,
         },
     });
 
-    if (!inbound) {
+    if (!inbound?.tenantId || inbound.session.tenantId !== inbound.tenantId || inbound.session.tenant?.status !== "ACTIVE"
+        || (inbound.messageId && (inbound.message?.sessionId !== inbound.sessionId || inbound.message?.tenantId !== inbound.tenantId))) {
         throw new ProcessingResultPersistenceError("Inbound event not found", 404);
     }
 
+    const tenantId = inbound.tenantId;
     const envelope = assertProcessingResultMatchesInbound(result, inbound);
+    if (envelope.sessionId !== inbound.session.sessionId || envelope.authorization.subjectId !== inbound.session.userId) {
+        throw new ProcessingResultPersistenceError("Inbound event tenant binding is invalid", 409);
+    }
 
     const artifact = firstArtifact(result);
     const resultId = processingResultId(result.eventId, result.jobId);
     const stored = await prisma.$transaction(async (tx) => {
         const persisted = await tx.processingResult.upsert({
-            where: { eventId_jobId: { eventId: result.eventId, jobId: result.jobId } },
+            where: { eventId_jobId: { eventId: result.eventId, jobId: result.jobId }, tenantId },
             create: {
                 id: resultId,
                 resultId,
+                tenantId,
                 contractVersion: result.contractVersion,
                 eventId: result.eventId,
                 jobId: result.jobId,
@@ -122,7 +131,7 @@ export async function persistProcessingResult(value: unknown) {
         });
 
         await tx.inboundEvent.update({
-            where: { eventId: result.eventId },
+            where: { eventId: result.eventId, tenantId },
             data: {
                 resultId: persisted.resultId,
                 status: statusForInboundResult(result.status),

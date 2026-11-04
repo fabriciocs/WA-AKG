@@ -13,6 +13,7 @@ export type SessionCapability = "READ" | "WRITE";
 export interface OAuthClientRecord {
   id: string;
   clientId: string;
+  tenantId?: string | null;
   name: string;
   description: string | null;
   redirectUris: string[];
@@ -34,6 +35,7 @@ export interface OAuthPrincipal {
   tokenId: string;
   clientId: string;
   userId: string | null;
+  credentialTenantId: string;
   grantId: string | null;
   scope: string[];
   sessionScope: string[] | null;

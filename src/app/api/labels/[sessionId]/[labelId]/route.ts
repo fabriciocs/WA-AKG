@@ -33,7 +33,7 @@ export async function PUT(
         }
 
         // Check if user can access this session
-        const canAccess = await canAccessSession(user.id, user.role, label.sessionId);
+        const canAccess = await canAccessSession(user, request, label.sessionId);
         if (!canAccess) {
             return NextResponse.json({ status: false, message: "Forbidden - Cannot access this label", error: "Forbidden - Cannot access this label" }, { status: 403 });
         }
@@ -94,7 +94,7 @@ export async function DELETE(
         }
 
         // Check if user can access this session
-        const canAccess = await canAccessSession(user.id, user.role, label.sessionId);
+        const canAccess = await canAccessSession(user, request, label.sessionId);
         if (!canAccess) {
             return NextResponse.json({ status: false, message: "Forbidden - Cannot access this label", error: "Forbidden - Cannot access this label" }, { status: 403 });
         }

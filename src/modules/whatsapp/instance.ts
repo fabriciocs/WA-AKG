@@ -20,9 +20,7 @@ import { normalizeWhatsAppPhone } from "@/lib/whatsapp-phone";
 import {
     createPrivateConnectionUpdate,
     createPublicConnectionUpdate,
-    getSessionPrivateRoom,
-    getSessionPublicRoom,
-    mayReceivePrivateSessionEvent
+    emitSessionRoomEvent
 } from "@/server/socket";
 
 const MAX_RECONNECT_ATTEMPTS = 3;
@@ -44,7 +42,8 @@ export class WhatsAppInstance {
     rq: string | null = null;
     status: string = "DISCONNECTED";
     sessionId: string;
-    userId: string;
+    readonly userId: string;
+    readonly tenantId: string;
     io: Server;
     config: unknown = {};
     startTime: Date | null = null;
@@ -59,9 +58,10 @@ export class WhatsAppInstance {
     /** Called when instance auto-stops or logs out — lets manager remove it from Map */
     onRemovedFromManager: (() => void) | null = null;
 
-    constructor(sessionId: string, userId: string, io: Server) {
+    constructor(sessionId: string, userId: string, tenantId: string, io: Server) {
         this.sessionId = sessionId;
         this.userId = userId;
+        this.tenantId = tenantId;
         this.io = io;
     }
 
@@ -80,7 +80,7 @@ export class WhatsAppInstance {
 
     private async initialize(generation: number) {
         const sessionData = await prisma.session.findUnique({
-            where: { sessionId: this.sessionId },
+            where: { sessionId: this.sessionId, tenantId: this.tenantId, userId: this.userId, tenant: { status: "ACTIVE" } },
             include: { botConfig: true }
         });
         if (!sessionData) {
@@ -91,7 +91,7 @@ export class WhatsAppInstance {
         this.config = sessionData?.config || {};
         const botConfig = sessionData.botConfig;
 
-        const { state, saveCreds } = await loadPrismaAuthState(this.sessionId);
+        const { state, saveCreds } = await loadPrismaAuthState(this.sessionId, this.tenantId);
         const { version } = await fetchLatestBaileysVersion();
         if (this.isStopped || generation !== this.generation) return;
 
@@ -127,6 +127,17 @@ export class WhatsAppInstance {
         const sock = this.socket;
         const sendMessage: WASocket["sendMessage"] = async (jid, content, options) => {
             return antispam.enqueue(sessionId, jid, content, async () => {
+                if (this.isStopped || this.socket !== sock || generation !== this.generation) {
+                    throw new Error("WhatsApp session is no longer active");
+                }
+                const current = await prisma.session.findUnique({
+                    where: { sessionId, tenantId: this.tenantId, userId: this.userId, tenant: { status: "ACTIVE" } },
+                    select: { id: true, tenantId: true },
+                });
+                if (!current || !(await prisma.tenantMembership.findFirst({
+                    where: { tenantId: this.tenantId, userId: this.userId, status: "ACTIVE" },
+                    select: { id: true },
+                }))) throw new Error("WhatsApp session tenant binding is invalid");
                 if (isInteractiveContent(content)) {
                     const interactiveMsg = await handleInteractiveMessageDispatch(sock, jid, content, options);
                     if (interactiveMsg) return interactiveMsg;
@@ -137,10 +148,10 @@ export class WhatsAppInstance {
         this.socket.sendMessage = sendMessage;
 
         // Bind Store for DB Sync
-        bindSessionStore(this.socket, this.sessionId, this.io);
+        bindSessionStore(this.socket, this.sessionId, this.tenantId, this.io);
 
         // Bind Contact Sync
-        bindContactSync(this.socket, this.sessionId);
+        bindContactSync(this.socket, this.sessionId, this.tenantId);
 
         this.socket.ev.on("creds.update", saveCreds);
 
@@ -163,11 +174,11 @@ export class WhatsAppInstance {
                 this.status = "SCAN_QR";
 
                 this.pairingCode = null;
-                this.emitPublicConnectionUpdate();
+                await this.emitPublicConnectionUpdate();
                 await this.emitPrivateConnectionUpdate(createPrivateConnectionUpdate(this.status, qr, null));
 
                 await prisma.session.update({
-                    where: { sessionId: this.sessionId },
+                    where: { sessionId: this.sessionId, tenantId: this.tenantId },
                     data: { qr, status: "SCAN_QR" }
                 });
             }
@@ -185,18 +196,18 @@ export class WhatsAppInstance {
                     this.config = {};
                     this.qr = null;
                     this.pairingCode = null;
-                    this.emitPublicConnectionUpdate("LOGGED_OUT");
+                    await this.emitPublicConnectionUpdate("LOGGED_OUT");
                     await this.emitPrivateConnectionUpdate(createPrivateConnectionUpdate("LOGGED_OUT"));
 
                     logger.info("Instance", `Session ${this.sessionId} logged out. Deleting credentials...`);
                     try {
                         await prisma.$transaction([
                             prisma.session.update({
-                                where: { sessionId: this.sessionId },
+                                where: { sessionId: this.sessionId, tenantId: this.tenantId },
                                 data: { status: "LOGGED_OUT", qr: null }
                             }),
                             prisma.authState.deleteMany({
-                                where: { sessionId: this.sessionId }
+                                where: { sessionId: this.sessionId, tenantId: this.tenantId }
                             })
                         ]);
                     } catch { /* Auth row cleanup is best effort after logout. */ }
@@ -216,11 +227,11 @@ export class WhatsAppInstance {
                     this.reconnectCount = 0;
                     this.qr = null;
                     this.pairingCode = null;
-                    this.emitPublicConnectionUpdate("STOPPED");
+                    await this.emitPublicConnectionUpdate("STOPPED");
                     await this.emitPrivateConnectionUpdate(createPrivateConnectionUpdate("STOPPED"));
 
                     await prisma.session.update({
-                        where: { sessionId: this.sessionId },
+                        where: { sessionId: this.sessionId, tenantId: this.tenantId },
                         data: { status: "STOPPED", qr: null }
                     }).catch(() => {});
                     logger.warn("Instance", `Session ${this.sessionId} stopped. Credentials preserved.`);
@@ -240,10 +251,10 @@ export class WhatsAppInstance {
                     this.status = "DISCONNECTED";
                     this.qr = null;
                     this.pairingCode = null;
-                    this.emitPublicConnectionUpdate("DISCONNECTED");
+                    await this.emitPublicConnectionUpdate("DISCONNECTED");
                     await this.emitPrivateConnectionUpdate(createPrivateConnectionUpdate("DISCONNECTED"));
                     await prisma.session.update({
-                        where: { sessionId: this.sessionId },
+                        where: { sessionId: this.sessionId, tenantId: this.tenantId },
                         data: { status: "DISCONNECTED", qr: null }
                     }).catch(() => {});
 
@@ -263,11 +274,11 @@ export class WhatsAppInstance {
                     this.isStopped = true; // prevent further retries
                     this.qr = null;
                     this.pairingCode = null;
-                    this.emitPublicConnectionUpdate("STOPPED");
+                    await this.emitPublicConnectionUpdate("STOPPED");
                     await this.emitPrivateConnectionUpdate(createPrivateConnectionUpdate("STOPPED"));
 
                     await prisma.session.update({
-                        where: { sessionId: this.sessionId },
+                        where: { sessionId: this.sessionId, tenantId: this.tenantId },
                         data: { status: "STOPPED", qr: null }
                     }).catch(() => {});
                     logger.error("Instance",
@@ -290,19 +301,19 @@ export class WhatsAppInstance {
                 this.pairingCode = null;
                 this.startTime = new Date();
 
-                this.emitPublicConnectionUpdate("CONNECTED");
+                await this.emitPublicConnectionUpdate("CONNECTED");
                 await this.emitPrivateConnectionUpdate(createPrivateConnectionUpdate("CONNECTED"));
 
                 try {
-                    await syncGroups(this.socket as WASocket, this.sessionId);
+                    await syncGroups(this.socket as WASocket, this.sessionId, this.tenantId);
                 } catch (e) {
                     logger.error("Instance", "Group sync failed:", e);
                 }
 
-                bindAutoReply(this.socket as WASocket, this.sessionId);
+                bindAutoReply(this.socket as WASocket, this.sessionId, this.tenantId);
 
                 await prisma.session.update({
-                    where: { sessionId: this.sessionId },
+                    where: { sessionId: this.sessionId, tenantId: this.tenantId },
                     data: { status: "CONNECTED", qr: null }
                 });
 
@@ -335,7 +346,7 @@ export class WhatsAppInstance {
             this.pairingCode = code;
             this.status = "SCAN_QR";
 
-            this.emitPublicConnectionUpdate();
+            await this.emitPublicConnectionUpdate();
             await this.emitPrivateConnectionUpdate(createPrivateConnectionUpdate(this.status, this.qr, code));
 
             return code;
@@ -346,42 +357,11 @@ export class WhatsAppInstance {
     }
 
     private emitPublicConnectionUpdate(status = this.status) {
-        this.io?.to(getSessionPublicRoom(this.sessionId)).emit(
-            "connection.update",
-            createPublicConnectionUpdate(status)
-        );
+        return emitSessionRoomEvent(this.io, this.tenantId, this.sessionId, "connection.update", createPublicConnectionUpdate(status));
     }
 
-    private async emitPrivateConnectionUpdate(update: ReturnType<typeof createPrivateConnectionUpdate>) {
-        try {
-            const session = await prisma.session.findUnique({
-                where: { sessionId: this.sessionId },
-                select: { userId: true }
-            });
-            if (!session || !this.io) return;
-
-            const recipients = await this.io.in(getSessionPrivateRoom(this.sessionId)).fetchSockets();
-            const userIds = [...new Set(
-                recipients
-                    .map(recipient => recipient.data?.user?.id)
-                    .filter((id): id is string => typeof id === "string" && id.length > 0)
-            )];
-            if (userIds.length === 0) return;
-
-            const users = await prisma.user.findMany({
-                where: { id: { in: userIds } },
-                select: { id: true, role: true, emailVerified: true }
-            });
-            const usersById = new Map(users.map(user => [user.id, user]));
-
-            for (const recipient of recipients) {
-                const user = usersById.get(recipient.data?.user?.id);
-                if (!mayReceivePrivateSessionEvent(user, session.userId)) continue;
-                this.io.to(recipient.id).emit("connection.update", update);
-            }
-        } catch (error) {
-            logger.error("Instance", `Private connection event delivery failed for session ${this.sessionId}:`, error);
-        }
+    private emitPrivateConnectionUpdate(update: ReturnType<typeof createPrivateConnectionUpdate>) {
+        return emitSessionRoomEvent(this.io, this.tenantId, this.sessionId, "connection.update", update, "private");
     }
 
     /** Clean shutdown without triggering reconnect */

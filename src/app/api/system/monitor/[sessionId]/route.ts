@@ -19,7 +19,7 @@ export async function GET(
             return NextResponse.json({ status: false, message: "Unauthorized" }, { status: 401 });
         }
 
-        const hasAccess = await canAccessSession(auth.id, auth.role, sessionId);
+        const hasAccess = await canAccessSession(auth, req, sessionId);
         if (!hasAccess) {
             return NextResponse.json({ status: false, message: "Forbidden - Cannot access this session" }, { status: 403 });
         }

@@ -5,11 +5,12 @@ import { InvalidSessionCapabilityError, normalizeSessionCapabilities, parseSubmi
 import { authorizationRedirectWithIssuer, oauthIssuer } from "@/lib/oauth/discovery.mjs";
 import { prisma } from "@/lib/prisma";
 import { requestBasePath, requestPublicOrigin } from "@/lib/base-path";
+import { readBrowserTenantSelection, resolveTenantMembership } from "@/lib/tenancy/context";
 
 export async function POST(request: NextRequest) {
   const session = await auth();
   if (!session?.user?.id) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  const account = await prisma.user.findUnique({ where: { id: session.user.id }, select: { emailVerified: true, role: true } });
+  const account = await prisma.user.findUnique({ where: { id: session.user.id }, select: { emailVerified: true } });
   if (!account?.emailVerified) return NextResponse.json({ error: "email_not_verified" }, { status: 403, headers: { "Cache-Control": "no-store" } });
   const origin = request.headers.get("origin");
   if (origin && origin !== requestPublicOrigin(request.headers, request.url)) return NextResponse.json({ error: "forbidden" }, { status: 403 });
@@ -18,7 +19,9 @@ export async function POST(request: NextRequest) {
     const requestId = String(form.get("requestId") ?? "");
     const decision = String(form.get("decision") ?? "");
     if (!requestId || !["approve", "deny"].includes(decision)) throw new OAuthError("Invalid authorization decision");
-    const authorization = await bindAuthorizationRequest(requestId, session.user.id);
+    const membership = await resolveTenantMembership(session.user.id, readBrowserTenantSelection(request));
+    if (!membership) throw new OAuthError("Tenant unavailable", "access_denied", 403);
+    const authorization = await bindAuthorizationRequest(requestId, session.user.id, membership.tenantId);
     if (!authorization) throw new OAuthError("Authorization request expired", "invalid_request", 400);
     let result: { redirectUri: string; state: string | null; code?: string };
     if (decision === "deny") {
@@ -48,14 +51,7 @@ export async function POST(request: NextRequest) {
         if (error instanceof InvalidSessionCapabilityError) throw new OAuthError(error.message, "invalid_scope", 400);
         throw error;
       }
-      const accessible = await prisma.session.findMany({
-        where: account.role === "SUPERADMIN"
-          ? { id: { in: submittedIds } }
-          : { id: { in: submittedIds }, userId: session.user.id },
-        select: { id: true },
-      });
-      if (accessible.length !== new Set(submittedIds).size) throw new OAuthError("One or more selected sessions are not accessible", "access_denied", 403);
-      const approved = await approveAuthorizationRequest(requestId, session.user.id, accessible.map((item) => item.id), capabilities);
+      const approved = await approveAuthorizationRequest(requestId, session.user.id, submittedIds, capabilities);
       result = approved;
     }
     const basePath = requestBasePath(request.headers);

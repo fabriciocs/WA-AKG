@@ -26,10 +26,10 @@ export function withBasePath(basePath, routePath) {
 
 export function appOrigin({ configuredOrigin, requestOrigin }) {
   const candidate = configuredOrigin?.trim() || requestOrigin;
-  if (!candidate) throw new Error("WA-AKG public origin is unavailable");
+  if (!candidate) throw new Error("application public origin is unavailable");
   const url = new URL(candidate);
   if (!HTTP_PROTOCOLS.has(url.protocol) || url.username || url.password) {
-    throw new Error("Invalid WA-AKG public origin");
+    throw new Error("Invalid application public origin");
   }
   return url.origin;
 }

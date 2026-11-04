@@ -160,7 +160,9 @@ async function configure({ nonInteractive = false, requestedMode, applyMigration
       values.SWAGGER_PASSWORD = await askSecret(rl, "Senha Swagger", "");
       values.NODE_ENV = await ask(rl, "NODE_ENV (development/production)", "development");
     }
-    if (requestedMode === "production") {
+    const mode = requestedMode || (rl ? await ask(rl, "Modo (dev/production/docker)", "dev") : "dev");
+    if (!["dev", "production", "docker"].includes(mode)) throw new Error(`Modo desconhecido: ${mode}`);
+    if (mode === "production") {
       values.HOSTNAME = rl ? await ask(rl, "Binding de rede (127.0.0.1/0.0.0.0)", values.HOSTNAME || "127.0.0.1") : (values.HOSTNAME || "127.0.0.1");
       values.NODE_ENV = "production";
       if (rl && !(await ask(rl, "Executar prisma migrate deploy agora? (s/N)", "N")).toLowerCase().startsWith("s")) {
@@ -169,7 +171,6 @@ async function configure({ nonInteractive = false, requestedMode, applyMigration
       if (nonInteractive && !applyMigrations) throw new Error("Modo não interativo exige --apply-migrations em produção.");
     }
     if (nonInteractive) values.NODE_ENV = values.NODE_ENV || "development";
-    const mode = requestedMode || (rl ? await ask(rl, "Modo (dev/production/docker)", "dev") : "dev");
     const errors = validate(values, mode);
     if (errors.length) throw new Error(`Configuração inválida:\n- ${errors.join("\n- ")}`);
     const shouldWrite = detected.state === "missing" || reconfigure || detected.state === "legacy";
@@ -210,9 +211,22 @@ async function runProduction(result) {
   return runProcess(process.platform === "win32" ? "npm.cmd" : "npm", ["start"], result.values);
 }
 
+// Windows batch shims cannot be spawned directly by Node 24. All callers use
+// fixed, trusted command names and arguments (never user-provided shell input).
+export function spawnPortable(file, args, options = {}) {
+  if (process.platform === "win32" && /\.(?:cmd|bat)$/i.test(file)) {
+    const tokens = [file, ...args];
+    if (!tokens.every((token) => /^[a-z0-9_./:\\-]+$/i.test(token))) {
+      throw new Error("Comando Windows contém caracteres não permitidos.");
+    }
+    return spawn(tokens.join(" "), { ...options, shell: true });
+  }
+  return spawn(file, args, { ...options, shell: false });
+}
+
 function runProcess(file, args, values) {
   return new Promise((resolve, reject) => {
-    const child = spawn(file, args, { cwd: root, stdio: ["inherit", "pipe", "pipe"], shell: false, env: { ...process.env, ...values, NODE_ENV: "production" } });
+    const child = spawnPortable(file, args, { cwd: root, stdio: ["inherit", "pipe", "pipe"], env: { ...process.env, ...values, NODE_ENV: "production" } });
     const forward = (chunk) => output.write(sanitizeOutput(String(chunk), values));
     child.stdout.on("data", forward);
     child.stderr.on("data", forward);
@@ -232,12 +246,12 @@ export function runCommand(mode) {
   const spec = command(mode);
   return new Promise((resolve, reject) => {
     const env = { ...process.env, NODE_ENV: mode === "production" ? "production" : process.env.NODE_ENV };
-    const child = spawn(spec.file, spec.args, { cwd: root, stdio: "inherit", shell: false, env });
+    const child = spawnPortable(spec.file, spec.args, { cwd: root, stdio: "inherit", env });
     child.on("error", (error) => reject(new Error(`Não foi possível executar ${spec.file}: ${error.message}`)));
     child.on("exit", async (code) => {
       if ((code ?? 1) !== 0 || !spec.then) return resolve(code ?? 1);
       try {
-        const followUp = spawn(spec.file, spec.then, { cwd: root, stdio: "inherit", shell: false, env });
+        const followUp = spawnPortable(spec.file, spec.then, { cwd: root, stdio: "inherit", env });
         followUp.on("error", (error) => reject(new Error(`Não foi possível executar ${spec.file}: ${error.message}`)));
         followUp.on("exit", (followUpCode) => resolve(followUpCode ?? 1));
       } catch (error) { reject(error); }

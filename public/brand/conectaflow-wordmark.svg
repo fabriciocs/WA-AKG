@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 590 124" role="img" aria-labelledby="title">
+  <title id="title">ConectaFlow</title>
+  <rect x="2" y="2" width="120" height="120" rx="30" fill="#0D3033"/>
+  <path d="M76 32C66 25 53 24 43 29C31 35 24 46 24 62C24 78 31 89 43 95C53 100 66 99 76 92" fill="none" stroke="#F6F7EF" stroke-width="12" stroke-linecap="round"/>
+  <path d="M61 47H99M61 63H88" stroke="#BBEB68" stroke-width="11" stroke-linecap="round"/>
+  <circle cx="94" cy="84" r="7" fill="#55D6C2"/>
+  <text x="146" y="80" font-family="Arial, Helvetica, sans-serif" font-size="56" font-weight="700" letter-spacing="-2" fill="#0D3033">Conecta<tspan fill="#087F76">Flow</tspan></text>
+</svg>

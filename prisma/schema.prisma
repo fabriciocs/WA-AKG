@@ -16,6 +16,26 @@ enum Role {
   USER
 }
 
+enum TenantStatus {
+  ACTIVE
+  SUSPENDED
+  ARCHIVED
+  PENDING_DELETION
+}
+
+enum TenantRole {
+  OWNER
+  ADMIN
+  MEMBER
+  VIEWER
+}
+
+enum TenantMembershipStatus {
+  ACTIVE
+  REVOKED
+  SUSPENDED
+}
+
 enum MessageType {
   TEXT
   IMAGE
@@ -63,6 +83,191 @@ model User {
   oauthRefreshTokens         OAuthRefreshToken[]
   oidcIdentities             OIDCIdentity[]
   emailVerificationTokens    EmailVerificationToken[]
+  tenantMemberships          TenantMembership[]
+  resourceGrantsPrincipal    ResourceGrant[] @relation("ResourceGrantPrincipal")
+  resourceGrantsGranted      ResourceGrant[] @relation("ResourceGrantGrantedBy")
+  apiCredentials             ApiCredential[]
+  auditEvents                AuditEvent[] @relation("AuditEventActor")
+  adminAccessEvents          AdminAccessEvent[] @relation("AdminAccessEventActor")
+}
+
+model Tenant {
+  id             String       @id @default(cuid())
+  name           String
+  slug           String       @unique
+  status         TenantStatus @default(ACTIVE)
+  suspendedAt    DateTime?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  memberships                 TenantMembership[]
+  invitations                 TenantInvitation[]
+  settings                    TenantSettings?
+  resourceGrants              ResourceGrant[]
+  apiCredentials              ApiCredential[]
+  auditEvents                 AuditEvent[]
+  adminAccessEvents           AdminAccessEvent[]
+  sessions                    Session[]
+  messages                    Message[]
+  contacts                    Contact[]
+  groups                      Group[]
+  stories                     Story[]
+  labels                      Label[]
+  chatLabels                  ChatLabel[]
+  authStates                  AuthState[]
+  botConfigs                  BotConfig[]
+  autoReplies                 AutoReply[]
+  scheduledMessages           ScheduledMessage[]
+  webhooks                    Webhook[]
+  webhookLogs                 WebhookLog[]
+  inboundEvents               InboundEvent[]
+  processingResults           ProcessingResult[]
+  broadcastLogs               BroadcastLog[]
+  broadcastRecipients         BroadcastRecipient[]
+  outboundMessageOperations   OutboundMessageOperation[]
+  oauthClients                OAuthClient[]
+  oauthAuthorizationRequests  OAuthAuthorizationRequest[]
+  oauthAuthorizationCodes     OAuthAuthorizationCode[]
+  oauthAccessTokens           OAuthAccessToken[]
+  oauthRefreshTokens          OAuthRefreshToken[]
+  oauthGrants                 OAuthGrant[]
+  oauthGrantCapabilities      OAuthGrantSessionCapability[]
+  whatsappSessionLeases       WhatsAppSessionLease[]
+  whatsappSendThrottles       WhatsAppSendThrottle[]
+  notifications               Notification[]
+  sessionAccesses             SessionAccess[]
+}
+
+model TenantMembership {
+  id                String                   @id @default(cuid())
+  tenantId          String
+  userId            String
+  role              TenantRole               @default(MEMBER)
+  status            TenantMembershipStatus   @default(ACTIVE)
+  joinedAt          DateTime                 @default(now())
+  revokedAt         DateTime?
+  membershipVersion Int                      @default(1)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, userId])
+  @@index([tenantId, status])
+  @@index([userId, status])
+}
+
+model TenantInvitation {
+  id         String     @id @default(cuid())
+  tenantId   String
+  email      String
+  role       TenantRole @default(MEMBER)
+  tokenHash  String     @unique
+  expiresAt  DateTime
+  acceptedAt DateTime?
+  revokedAt  DateTime?
+  createdAt  DateTime   @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, email])
+  @@index([tenantId, expiresAt, revokedAt])
+}
+
+model TenantSettings {
+  id                 String   @id @default(cuid())
+  tenantId           String   @unique
+  displayName        String?
+  timezone           String?
+  locale             String?
+  branding           Json?
+  registrationPolicy Json?
+  retentionPolicy    Json?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+}
+
+model ResourceGrant {
+  id              String   @id @default(cuid())
+  tenantId        String
+  resourceType    String
+  resourceId      String
+  principalUserId String?
+  capabilities    Json
+  grantedBy       String?
+  expiresAt       DateTime?
+  revokedAt       DateTime?
+  createdAt       DateTime @default(now())
+
+  tenant        Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  principalUser User?  @relation("ResourceGrantPrincipal", fields: [principalUserId], references: [id], onDelete: SetNull)
+  granter       User?  @relation("ResourceGrantGrantedBy", fields: [grantedBy], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, resourceType, resourceId])
+  @@index([tenantId, principalUserId])
+  @@index([tenantId, revokedAt, expiresAt])
+}
+
+model ApiCredential {
+  id         String   @id @default(cuid())
+  tenantId   String
+  userId     String
+  name       String
+  keyHash    String   @unique
+  keyPrefix  String
+  scopes     Json?
+  expiresAt  DateTime?
+  revokedAt  DateTime?
+  lastUsedAt DateTime?
+  createdAt  DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, userId])
+  @@index([tenantId, revokedAt, expiresAt])
+}
+
+model AuditEvent {
+  id          String   @id @default(cuid())
+  actorUserId String?
+  tenantId    String?
+  action      String
+  reason      String?  @db.Text
+  resourceType String?
+  resourceId  String?
+  requestId   String?
+  outcome     String
+  metadata    Json?
+  createdAt   DateTime @default(now())
+
+  actor  User?   @relation("AuditEventActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+  tenant Tenant? @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, createdAt])
+  @@index([actorUserId, createdAt])
+  @@index([requestId])
+}
+
+model AdminAccessEvent {
+  id          String   @id @default(cuid())
+  actorUserId String
+  tenantId    String?
+  action      String
+  reason      String   @db.Text
+  resourceType String?
+  resourceId  String?
+  requestId   String?
+  outcome     String
+  createdAt   DateTime @default(now())
+
+  actor  User    @relation("AdminAccessEventActor", fields: [actorUserId], references: [id], onDelete: Cascade)
+  tenant Tenant? @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, createdAt])
+  @@index([actorUserId, createdAt])
+  @@index([requestId])
 }
 
 model EmailVerificationToken {
@@ -81,6 +286,7 @@ model EmailVerificationToken {
 
 model Session {
   id        String   @id @default(cuid())
+  tenantId  String?
   userId    String
   name      String // e.g. "Marketing WA"
   sessionId String   @unique // The unique ID used for Baileys auth
@@ -90,6 +296,7 @@ model Session {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  tenant            Tenant?            @relation(fields: [tenantId], references: [id], onDelete: SetNull)
   user              User               @relation(fields: [userId], references: [id], onDelete: Cascade)
   contacts          Contact[]
   messages          Message[]
@@ -103,10 +310,13 @@ model Session {
   botConfig         BotConfig?
   sessionAccesses   SessionAccess[]
   oauthGrantCapabilities OAuthGrantSessionCapability[]
+
+  @@index([tenantId, userId])
 }
 
 model Contact {
   id           String   @id @default(cuid())
+  tenantId     String?
   sessionId    String
   jid          String // remoteJid (123456@s.whatsapp.net)
   lid          String? // LID JID
@@ -119,14 +329,17 @@ model Contact {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  session  Session   @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  tenant  Tenant?   @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  session Session   @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   messages Message[]
 
   @@unique([sessionId, jid])
+  @@index([tenantId, sessionId, jid])
 }
 
 model Message {
   id        String        @id @default(cuid())
+  tenantId  String?
   sessionId String
   remoteJid String // Receiver or Group Jid
   senderJid String? // If group, who sent it. If private, same as remoteJid (incoming) or me (outgoing)
@@ -143,17 +356,21 @@ model Message {
 
   contactId String?
   contract  Contact? @relation(fields: [contactId], references: [id])
+  tenant    Tenant?  @relation(fields: [tenantId], references: [id], onDelete: SetNull)
   session   Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   inboundEvents InboundEvent[]
   processingResults ProcessingResult[]
 
   @@unique([sessionId, keyId])
+  @@index([tenantId, sessionId, remoteJid])
+  @@index([tenantId, sessionId, remoteJid, timestamp])
   @@index([sessionId, remoteJid])
   @@index([sessionId, remoteJid, timestamp])
 }
 
 model Group {
   id           String    @id @default(cuid())
+  tenantId     String?
   sessionId    String
   jid          String
   subject      String?
@@ -175,13 +392,16 @@ model Group {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  session Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  tenant  Tenant? @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  session Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
 
   @@unique([sessionId, jid])
+  @@index([tenantId, sessionId, jid])
 }
 
 model AutoReply {
   id          String   @id @default(cuid())
+  tenantId    String?
   sessionId   String
   keyword     String
   matchType   String // EXACT, CONTAINS, REGEX
@@ -192,11 +412,15 @@ model AutoReply {
   triggerType String   @default("ALL") // ALL, GROUP, PRIVATE
   createdAt   DateTime @default(now())
 
+  tenant  Tenant? @relation(fields: [tenantId], references: [id], onDelete: SetNull)
   session Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, sessionId, keyword])
 }
 
 model Story {
   id        String   @id @default(cuid())
+  tenantId  String?
   sessionId String
   jid       String // User who posted the story or Broadcast JID
   content   String?  @db.Text
@@ -205,11 +429,15 @@ model Story {
   timestamp DateTime @default(now())
   viewed    Boolean  @default(false)
 
+  tenant  Tenant? @relation(fields: [tenantId], references: [id], onDelete: SetNull)
   session Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, sessionId, timestamp])
 }
 
 model ScheduledMessage {
   id             String   @id @default(cuid())
+  tenantId       String?
   sessionId      String
   jid            String
   content        String?  @db.Text
@@ -225,8 +453,11 @@ model ScheduledMessage {
   lastError      String?  @db.Text
   createdAt      DateTime @default(now())
 
+  tenant  Tenant? @relation(fields: [tenantId], references: [id], onDelete: SetNull)
   session Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
 
+  @@index([tenantId, status, sendAt])
+  @@index([tenantId, status, claimedAt])
   @@index([status, sendAt])
   @@index([status, claimedAt])
 }
@@ -234,16 +465,21 @@ model ScheduledMessage {
 // Store for Baileys MultiFileAuthState (in DB)
 model AuthState {
   id        String @id @default(cuid())
+  tenantId  String?
   sessionId String
   key       String // Filename/Key (creds.json, etc)
   value     Json
 
+  tenant Tenant? @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+
   @@unique([sessionId, key])
+  @@index([tenantId, sessionId, key])
 }
 
 // Webhook configuration for external event notifications
 model Webhook {
   id        String   @id @default(cuid())
+  tenantId  String?
   userId    String
   sessionId String? // Optional: specific session, null = all sessions
   name      String // e.g. "My Server Webhook"
@@ -257,14 +493,19 @@ model Webhook {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  tenant  Tenant?      @relation(fields: [tenantId], references: [id], onDelete: SetNull)
   user    User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   session Session?     @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   logs    WebhookLog[]
+
+  @@index([tenantId, userId])
+  @@index([tenantId, sessionId])
 }
 
 // Webhook delivery logs — tracks every webhook request attempt
 model WebhookLog {
   id                 String   @id @default(cuid())
+  tenantId           String?
   webhookId          String
   event              String // The event that triggered this webhook
   status             String // SUCCESS, FAILED
@@ -277,8 +518,10 @@ model WebhookLog {
   errorMessage       String?  @db.Text
   createdAt          DateTime @default(now())
 
+  tenant  Tenant? @relation(fields: [tenantId], references: [id], onDelete: SetNull)
   webhook Webhook @relation(fields: [webhookId], references: [id], onDelete: Cascade)
 
+  @@index([tenantId, webhookId, createdAt])
   @@index([webhookId])
   @@index([webhookId, createdAt])
 }
@@ -287,6 +530,7 @@ model WebhookLog {
 // from WebhookLog: one inbound event can fan out to many webhook destinations.
 model InboundEvent {
   id                String    @id @default(cuid()) @db.VarChar(191)
+  tenantId          String?
   eventId           String    @unique @db.VarChar(191)
   eventType         String    @db.VarChar(64)
   sessionId         String    @db.VarChar(191)
@@ -308,11 +552,13 @@ model InboundEvent {
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 
+  tenant  Tenant? @relation(fields: [tenantId], references: [id], onDelete: SetNull)
   session Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   message Message? @relation(fields: [messageId], references: [id], onDelete: SetNull)
   result  ProcessingResult? @relation(fields: [resultId], references: [resultId], onDelete: SetNull)
 
   @@unique([sessionId, eventType, originalMessageId], map: "inbound_event_source_uq")
+  @@index([tenantId, sessionId, receivedAt])
   @@index([status, availableAt], map: "inbound_event_queue_idx")
   @@index([sessionId, receivedAt], map: "inbound_event_session_idx")
   @@index([jobId], map: "inbound_event_job_idx")
@@ -325,6 +571,7 @@ model InboundEvent {
 // preserves the public WhatsApp session identifier carried by the contract.
 model ProcessingResult {
   id              String   @id @default(cuid()) @db.VarChar(191)
+  tenantId        String?  @db.VarChar(191)
   resultId        String   @unique @db.VarChar(191)
   contractVersion String   @db.VarChar(64)
   eventId         String   @db.VarChar(191)
@@ -347,11 +594,14 @@ model ProcessingResult {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
+  tenant       Tenant?       @relation(fields: [tenantId], references: [id], onDelete: SetNull)
   session      Session       @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   message      Message?      @relation(fields: [messageId], references: [id], onDelete: SetNull)
   inboundEvents InboundEvent[]
 
   @@unique([eventId, jobId], map: "processing_result_event_job_uq")
+  @@index([tenantId, sessionId, status, createdAt])
+  @@index([tenantId, sessionPublicId, createdAt])
   @@index([sessionId, status, createdAt], map: "processing_result_session_status_idx")
   @@index([sessionId, modality, createdAt], map: "processing_result_session_modality_idx")
   @@index([sessionPublicId, createdAt], map: "processing_result_public_session_idx")
@@ -366,6 +616,7 @@ enum AccessMode {
 
 model BotConfig {
   id        String  @id @default(cuid())
+  tenantId  String?
   sessionId String  @unique
   enabled   Boolean @default(true)
 
@@ -403,7 +654,10 @@ model BotConfig {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  tenant  Tenant? @relation(fields: [tenantId], references: [id], onDelete: SetNull)
   session Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, sessionId])
 }
 
 model SystemConfig {
@@ -420,6 +674,7 @@ model SystemConfig {
 // Labels/Tags for organizing chats
 model Label {
   id        String   @id @default(cuid())
+  tenantId  String?
   sessionId String
   name      String
   color     Int      @default(0) // 0-19 for WhatsApp color codes
@@ -427,28 +682,34 @@ model Label {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  tenant     Tenant?     @relation(fields: [tenantId], references: [id], onDelete: SetNull)
   chatLabels ChatLabel[]
 
   @@unique([sessionId, name]) // Unique label name per session
+  @@index([tenantId, sessionId])
   @@index([sessionId])
 }
 
 // Many-to-many relationship between chats and labels
 model ChatLabel {
   id        String   @id @default(cuid())
+  tenantId  String?
   labelId   String
   chatJid   String // The JID of the chat
   createdAt DateTime @default(now())
 
-  label Label @relation(fields: [labelId], references: [id], onDelete: Cascade)
+  tenant Tenant? @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  label Label   @relation(fields: [labelId], references: [id], onDelete: Cascade)
 
   @@unique([labelId, chatJid]) // Prevent duplicate label assignments
+  @@index([tenantId, labelId, chatJid])
   @@index([chatJid])
   @@index([labelId])
 }
 
 model Notification {
   id      String  @id @default(cuid())
+  tenantId String?
   userId  String
   title   String
   message String  @db.Text
@@ -458,26 +719,33 @@ model Notification {
 
   createdAt DateTime @default(now())
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tenant Tenant? @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  user User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, userId, createdAt])
 }
 
 // Shared session access — allows session owners to grant access to other users
 model SessionAccess {
   id        String   @id @default(cuid())
+  tenantId  String?
   sessionId String
   userId    String
   createdAt DateTime @default(now())
 
+  tenant  Tenant? @relation(fields: [tenantId], references: [id], onDelete: SetNull)
   session Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([sessionId, userId])
+  @@index([tenantId, sessionId, userId])
   @@index([userId])
   @@index([sessionId])
 }
 
 model OAuthClient {
   id               String    @id @default(cuid())
+  tenantId         String?
   clientId         String    @unique
   clientSecretHash String?
   name             String
@@ -492,6 +760,7 @@ model OAuthClient {
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 
+  tenant                Tenant?                     @relation(fields: [tenantId], references: [id], onDelete: SetNull)
   createdBy             User?                       @relation("OAuthClientCreator", fields: [createdById], references: [id], onDelete: SetNull)
   authorizationRequests OAuthAuthorizationRequest[]
   authorizationCodes    OAuthAuthorizationCode[]
@@ -500,11 +769,14 @@ model OAuthClient {
   grants                OAuthGrant[]
 
   @@index([createdById])
+  @@index([tenantId, createdById])
+  @@index([tenantId, isActive])
   @@index([isActive])
 }
 
 model OAuthAuthorizationRequest {
   id                  String    @id @default(cuid())
+  tenantId            String?
   requestId           String    @unique
   clientId            String
   userId              String?
@@ -521,15 +793,19 @@ model OAuthAuthorizationRequest {
   consumedAt          DateTime?
   createdAt           DateTime  @default(now())
 
+  tenant Tenant?     @relation(fields: [tenantId], references: [id], onDelete: SetNull)
   client OAuthClient @relation(fields: [clientId], references: [clientId], onDelete: Cascade)
   user   User?       @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([clientId, expiresAt])
   @@index([userId, expiresAt])
+  @@index([tenantId, clientId, expiresAt])
+  @@index([tenantId, userId, expiresAt])
 }
 
 model OAuthAuthorizationCode {
   id                  String    @id @default(cuid())
+  tenantId            String?
   codeHash            String    @unique
   clientId            String
   userId              String
@@ -545,6 +821,7 @@ model OAuthAuthorizationCode {
   consumedAt          DateTime?
   createdAt           DateTime  @default(now())
 
+  tenant Tenant?     @relation(fields: [tenantId], references: [id], onDelete: SetNull)
   client OAuthClient @relation(fields: [clientId], references: [clientId], onDelete: Cascade)
   user   User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   grant  OAuthGrant? @relation(fields: [grantId], references: [id], onDelete: SetNull)
@@ -552,10 +829,14 @@ model OAuthAuthorizationCode {
   @@index([clientId, expiresAt])
   @@index([userId, expiresAt])
   @@index([grantId])
+  @@index([tenantId, clientId, expiresAt])
+  @@index([tenantId, userId, expiresAt])
+  @@index([tenantId, grantId])
 }
 
 model OAuthAccessToken {
   id           String    @id @default(cuid())
+  tenantId     String?
   tokenHash    String    @unique
   clientId     String
   userId       String?
@@ -571,6 +852,7 @@ model OAuthAccessToken {
   createdAt    DateTime  @default(now())
   lastUsedAt   DateTime?
 
+  tenant Tenant?     @relation(fields: [tenantId], references: [id], onDelete: SetNull)
   client OAuthClient @relation(fields: [clientId], references: [clientId], onDelete: Cascade)
   user   User?       @relation(fields: [userId], references: [id], onDelete: Cascade)
   grant  OAuthGrant? @relation(fields: [grantId], references: [id], onDelete: SetNull)
@@ -580,10 +862,14 @@ model OAuthAccessToken {
   @@index([grantId])
   @@index([familyId])
   @@index([revokedAt])
+  @@index([tenantId, clientId, expiresAt])
+  @@index([tenantId, userId, expiresAt])
+  @@index([tenantId, grantId])
 }
 
 model OAuthRefreshToken {
   id           String    @id @default(cuid())
+  tenantId     String?
   tokenHash    String    @unique
   clientId     String
   userId       String?
@@ -600,6 +886,7 @@ model OAuthRefreshToken {
   createdAt    DateTime  @default(now())
   lastUsedAt   DateTime?
 
+  tenant Tenant?     @relation(fields: [tenantId], references: [id], onDelete: SetNull)
   client OAuthClient @relation(fields: [clientId], references: [clientId], onDelete: Cascade)
   user   User?       @relation(fields: [userId], references: [id], onDelete: Cascade)
   grant  OAuthGrant? @relation(fields: [grantId], references: [id], onDelete: SetNull)
@@ -609,6 +896,9 @@ model OAuthRefreshToken {
   @@index([grantId])
   @@index([familyId])
   @@index([revokedAt])
+  @@index([tenantId, clientId, expiresAt])
+  @@index([tenantId, userId, expiresAt])
+  @@index([tenantId, grantId])
 }
 
 model OAuthRateLimitBucket {
@@ -624,6 +914,7 @@ model OAuthRateLimitBucket {
 // JSON fields remain temporarily for tokens issued before this migration.
 model OAuthGrant {
   id        String    @id @default(cuid())
+  tenantId  String?
   clientId  String
   userId    String
   scope     String
@@ -632,6 +923,7 @@ model OAuthGrant {
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
 
+  tenant              Tenant?                        @relation(fields: [tenantId], references: [id], onDelete: SetNull)
   client              OAuthClient                    @relation(fields: [clientId], references: [clientId], onDelete: Cascade)
   user                User                           @relation(fields: [userId], references: [id], onDelete: Cascade)
   sessionCapabilities OAuthGrantSessionCapability[]
@@ -641,19 +933,24 @@ model OAuthGrant {
 
   @@index([userId, revokedAt])
   @@index([clientId, revokedAt])
+  @@index([tenantId, userId, revokedAt])
+  @@index([tenantId, clientId, revokedAt])
 }
 
 model OAuthGrantSessionCapability {
   id         String   @id @default(cuid())
+  tenantId   String?
   grantId    String
   sessionId  String
   capability String   @db.VarChar(16)
   createdAt  DateTime @default(now())
 
+  tenant  Tenant?   @relation(fields: [tenantId], references: [id], onDelete: SetNull)
   grant   OAuthGrant @relation(fields: [grantId], references: [id], onDelete: Cascade)
   session Session    @relation(fields: [sessionId], references: [id], onDelete: Cascade)
 
   @@unique([grantId, sessionId])
+  @@index([tenantId, grantId, sessionId])
   @@index([sessionId, capability])
 }
 
@@ -677,6 +974,7 @@ model OIDCIdentity {
 // Broadcast/Blast history & logs
 model BroadcastLog {
   id          String    @id @default(cuid())
+  tenantId    String?
   sessionId   String // WA session ID string
   message     String    @db.Text
   total       Int
@@ -691,6 +989,10 @@ model BroadcastLog {
 
   recipients BroadcastRecipient[]
 
+  tenant Tenant? @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, sessionId])
+  @@index([tenantId, sessionId, startedAt])
   @@index([sessionId])
   @@index([sessionId, startedAt])
   @@index([status, claimedAt])
@@ -698,6 +1000,7 @@ model BroadcastLog {
 
 model BroadcastRecipient {
   id             String    @id @default(cuid())
+  tenantId       String?
   broadcastLogId String
   jid            String
   status         String    @default("pending") // pending, sent, failed
@@ -708,8 +1011,12 @@ model BroadcastRecipient {
   attempts       Int       @default(0)
   nextAttemptAt  DateTime?
 
+  tenant       Tenant?      @relation(fields: [tenantId], references: [id], onDelete: SetNull)
   broadcastLog BroadcastLog @relation(fields: [broadcastLogId], references: [id], onDelete: Cascade)
 
+  @@index([tenantId, broadcastLogId, status])
+  @@index([tenantId, status, claimedAt])
+  @@index([tenantId, status, nextAttemptAt])
   @@index([broadcastLogId, status])
   @@index([status, claimedAt])
   @@index([status, nextAttemptAt])
@@ -718,11 +1025,15 @@ model BroadcastRecipient {
 // Shared send lock and pacing state used by every app replica for one WA session.
 model WhatsAppSendThrottle {
   sessionId      String   @id
+  tenantId       String?
   nextAllowedAt  DateTime?
   leaseToken     String?
   leaseUntil     DateTime?
   updatedAt      DateTime @updatedAt
 
+  tenant Tenant? @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, sessionId])
   @@index([leaseUntil])
 }
 
@@ -730,12 +1041,16 @@ model WhatsAppSendThrottle {
 // live Baileys connection for a WhatsApp session at a time.
 model WhatsAppSessionLease {
   sessionId    String   @id
+  tenantId     String?
   ownerId      String
   leaseToken   String
   fencingToken Int      @default(0)
   leaseUntil   DateTime
   updatedAt    DateTime @updatedAt
 
+  tenant Tenant? @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, sessionId])
   @@index([leaseUntil])
   @@index([ownerId])
 }
@@ -744,6 +1059,7 @@ model WhatsAppSessionLease {
 // Durable receipt and outbox record for idempotent text sends.
 model OutboundMessageOperation {
   id                    String   @id @default(cuid()) @db.VarChar(191)
+  tenantId              String?  @db.VarChar(191)
   userId                String   @db.VarChar(191)
   sessionDbId           String   @db.VarChar(191)
   whatsappSessionId     String   @db.VarChar(191)
@@ -763,8 +1079,12 @@ model OutboundMessageOperation {
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
 
+  tenant Tenant? @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+
   @@unique([userId, sessionDbId, idempotencyKeyHash], map: "outbound_op_idempotency_uq")
   @@index([status, availableAt], map: "outbound_op_queue_idx")
+  @@index([tenantId, sessionDbId, createdAt], map: "outbound_op_tenant_session_idx")
+  @@index([tenantId, userId, sessionDbId, createdAt], map: "outbound_op_tenant_user_session_idx")
   @@index([sessionDbId, createdAt], map: "outbound_op_session_idx")
   @@index([userId, sessionDbId, createdAt], map: "outbound_op_user_session_idx")
 }

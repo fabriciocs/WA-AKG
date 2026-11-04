@@ -35,7 +35,7 @@ export async function GET(
             return NextResponse.json({ status: false, error: "Invalid processing result status" }, { status: 400 });
         }
 
-        const canAccess = await canAccessSession(user.id, user.role, sessionId);
+        const canAccess = await canAccessSession(user, request, sessionId);
         if (!canAccess) {
             return NextResponse.json({ status: false, error: "Forbidden - Cannot access this session" }, { status: 403 });
         }

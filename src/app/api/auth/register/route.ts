@@ -4,6 +4,7 @@ import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { sendVerificationEmail } from "@/lib/email-verification";
 import { requestBasePath } from "@/lib/base-path";
+import { personalTenantId } from "@/lib/tenancy/context";
 
 const registerSchema = z.object({
     name: z.string().trim().min(2).max(120),
@@ -27,9 +28,21 @@ export async function POST(req: Request) {
         }
 
         const hashedPassword = await bcrypt.hash(password, 10);
-        const newUser = await prisma.user.create({
-            data: { name, email, password: hashedPassword, role: "USER", emailVerified: false },
-            select: { id: true, name: true, email: true },
+        const newUser = await prisma.$transaction(async (transaction) => {
+            const user = await transaction.user.create({
+                data: { name, email, password: hashedPassword, role: "USER", emailVerified: false },
+                select: { id: true, name: true, email: true },
+            });
+            const id = personalTenantId(user.id);
+            await transaction.tenant.create({
+                data: {
+                    id,
+                    slug: id,
+                    name: `${name.slice(0, 100)} — Personal`,
+                    memberships: { create: { userId: user.id, role: "OWNER", status: "ACTIVE" } },
+                },
+            });
+            return user;
         });
 
         try {

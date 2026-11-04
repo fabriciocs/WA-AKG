@@ -1,5 +1,6 @@
 "use server";
 
+import { headers } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import { ChatService, type ChatListFilter } from "@/modules/whatsapp/chat.service";
 import { getAuthenticatedUserForAction } from "@/lib/server-action-auth";
@@ -19,7 +20,7 @@ export async function getChatsStatus(
     const user = await getAuthenticatedUserForAction();
     if (!user) throw new Error("Unauthorized");
 
-    const canAccess = await canAccessSession(user.id, user.role, sessionId);
+    const canAccess = await canAccessSession(user, new Request("http://localhost", { headers: await headers(), method: "GET" }), sessionId);
     if (!canAccess) throw new Error("Forbidden");
 
     const session = await prisma.session.findUnique({
@@ -42,7 +43,7 @@ export async function getChatMessages(
     const user = await getAuthenticatedUserForAction();
     if (!user) throw new Error("Unauthorized");
 
-    const canAccess = await canAccessSession(user.id, user.role, sessionId);
+    const canAccess = await canAccessSession(user, new Request("http://localhost", { headers: await headers(), method: "GET" }), sessionId);
     if (!canAccess) throw new Error("Forbidden");
 
     const session = await prisma.session.findUnique({
@@ -70,7 +71,7 @@ export async function sendChatMessage(sessionId: string, jid: string, text: stri
     const user = await getAuthenticatedUserForAction();
     if (!user) throw new Error("Unauthorized");
 
-    const canAccess = await canAccessSession(user.id, user.role, sessionId);
+    const canAccess = await canAccessSession(user, new Request("http://localhost", { headers: await headers(), method: "POST" }), sessionId);
     if (!canAccess) throw new Error("Forbidden");
 
     try {
@@ -96,7 +97,7 @@ export async function sendMediaMessage(formData: FormData) {
         throw new Error("Missing required fields");
     }
 
-    const canAccess = await canAccessSession(user.id, user.role, sessionId);
+    const canAccess = await canAccessSession(user, new Request("http://localhost", { headers: await headers(), method: "POST" }), sessionId);
     if (!canAccess) throw new Error("Forbidden");
 
     try {
@@ -128,7 +129,7 @@ export async function sendInteractiveChatMessage(
     const user = await getAuthenticatedUserForAction();
     if (!user) throw new Error("Unauthorized");
 
-    const canAccess = await canAccessSession(user.id, user.role, sessionId);
+    const canAccess = await canAccessSession(user, new Request("http://localhost", { headers: await headers(), method: "POST" }), sessionId);
     if (!canAccess) throw new Error("Forbidden");
 
     try {

@@ -142,7 +142,7 @@ test("expired and malformed confirmation tokens cannot verify an account", async
   const tokenDelegate = prisma.emailVerificationToken;
   const restore = [
     override(tokenDelegate, "findUnique", async () => ({
-      id: "expired-token", userId: "user-1", expiresAt: new Date(Date.now() - 1), consumedAt: null,
+      id: "expired-token", userId: "user-1", expiresAt: new Date("2000-01-01T00:00:00.000Z"), consumedAt: null,
     })),
     override(prisma, "$transaction", async (callback: (tx: unknown) => Promise<unknown>) => {
       transactionCalls += 1;

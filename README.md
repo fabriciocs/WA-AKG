@@ -1,23 +1,14 @@
 <div align="center">
 
-# 🚀 WA-AKG: The Ultimate WhatsApp Gateway & Dashboard
+<img src="public/brand/conectaflow-wordmark.svg" alt="ConectaFlow" width="380" />
 
-[![WhatsApp Bot](https://img.shields.io/badge/WhatsApp-Bot-25D366?style=for-the-badge&logo=whatsapp&logoColor=white)](https://wa.me/)
-[![Next.js](https://img.shields.io/badge/Next.js-16-black?style=for-the-badge&logo=next.js&logoColor=white)](https://nextjs.org/)
-[![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
-[![Prisma](https://img.shields.io/badge/Prisma-ORM-2D3748?style=for-the-badge&logo=prisma&logoColor=white)](https://www.prisma.io/)
-[![Version](https://img.shields.io/badge/Version-1.7.0-blue?style=for-the-badge)](https://github.com/mrifqidaffaaditya/WA-AKG/releases)
-[![Main Branch](https://img.shields.io/badge/Branch-Main-green?style=for-the-badge&logo=git)](https://github.com/mrifqidaffaaditya/WA-AKG)
+# ConectaFlow
 
-[![Active Apps](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fapi-wa-akg.aikeigroup.net%2Fapi%2Factive-apps&query=%24.activeCount&style=flat-square&color=25D366&logo=whatsapp&logoColor=white&label=)](https://api-wa-akg.aikeigroup.net/)
+**Conversas, automações e equipes em um só lugar.**
 
-**A professional, multi-session WhatsApp Gateway, Dashboard, and Automation System.**  
-Built with **Next.js 16**, **React**, and **Baileys** for high-performance messaging automation and real-time WhatsApp Bot Gateway services.
+Gerencie sessões de mensagens, conecte integrações e acompanhe operações com API HTTP, webhooks e MCP.
 
-> [!TIP]
-> **Looking for the latest features?** Check out the [beta branch](https://github.com/mrifqidaffaaditya/WA-AKG/tree/beta) or our [pre-releases](https://github.com/mrifqidaffaaditya/WA-AKG/releases) for experimental sources.
-
-[Features](#-key-features) • [User Guide](docs/USER_GUIDE.md) • [API Documentation](docs/API_DOCUMENTATION.md) • [Database Setup](docs/DATABASE_SETUP.md) • [Installation](#-quick-installation)
+[Documentação](docs/README.md) · [Instalação](docs/SETUP.md) · [API](docs/API_DOCUMENTATION.md) · [Identidade visual](docs/BRAND-IDENTITY.md)
 
 </div>
 
@@ -25,12 +16,13 @@ Built with **Next.js 16**, **React**, and **Baileys** for high-performance messa
 
 ## 📖 Complete Documentation
 
-WA-AKG comes with extensive documentation designed for both developers and users.
+ConectaFlow comes with extensive documentation designed for both developers and users.
 
 - **[Master Project Documentation](docs/PROJECT_DOCUMENTATION.md)**: Architecture, database, and logic flow.
 - **[API Documentation](docs/API_DOCUMENTATION.md)**: Comprehensive OpenAPI / Swagger guide for all **109+ endpoints**.
 - **[API Quick Reference](docs/API-QUICK-REFERENCE.md)**: Instantly jumpstart your integration with ready-to-use cURL/JavaScript snippets.
 - **[OAuth and MCP authorization](docs/OAUTH.md)**: OAuth clients, user consent, session scopes, and MCP setup.
+- **[Onboarding to functional MCP](docs/ONBOARDING-MCP.md)**: First-run wizard, OAuth client modes, transport checks, runtime validation and security gates.
 - **[Environment Variables](docs/ENVIRONMENT_VARIABLES.md)**: Configuration and security guide.
 - **[Setup and execution guide](docs/SETUP.md)**: Cross-platform wizard, migration, backups and execution modes.
 - **[Reverse proxy under `/wa-akg`](docs/REVERSE_PROXY.md)**: Required path, forwarded headers, static asset and WebSocket behavior.
@@ -38,15 +30,15 @@ WA-AKG comes with extensive documentation designed for both developers and users
 
 ---
 
-## 🌟 Why WA-AKG WhatsApp API Gateway?
+## 🌟 Why ConectaFlow?
 
-WA-AKG transforms your WhatsApp into a fully programmable RESTful API. It's designed for scale, reliability, and ease of use, making it the perfect bridge between your business logic and WhatsApp's global reach. Excellent for developing a **WhatsApp Bot**, Automation, or Customer Service Gateway.
+ConectaFlow turns your WhatsApp into a fully programmable RESTful API. It's designed for scale, reliability, and ease of use, making it the perfect bridge between your business logic and WhatsApp's global reach. Excellent for developing a **WhatsApp Bot**, Automation, or Customer Service Gateway.
 
 ### 🏗️ How it Works
 
 ```mermaid
 graph LR
-    User([User / App]) -->|REST API| API[WA-AKG Gateway]
+    User([User / App]) -->|REST API| API[ConectaFlow Gateway]
     API -->|Baileys| WhatsApp[[WhatsApp Server]]
     API -->|Real-time| DB[(Prisma / DB)]
     WhatsApp -.->|Webhook| API
@@ -97,7 +89,7 @@ graph LR
 
 ## 🧩 Integrations: Native n8n Support
 
-WA-AKG natively supports **n8n**! You can build complex, no-code/low-code WhatsApp automation workflows using our official community nodes.
+ConectaFlow supports **n8n**! You can build complex, no-code/low-code WhatsApp automation workflows using our official community nodes.
 
 [![n8n nodes](https://img.shields.io/badge/n8n-nodes--wa--akg-EA4B71?style=for-the-badge&logo=n8n&logoColor=white)](https://www.npmjs.com/package/n8n-nodes-wa-akg)
 
@@ -119,7 +111,7 @@ WA-AKG natively supports **n8n**! You can build complex, no-code/low-code WhatsA
 ### 2. Setup with the cross-platform wizard
 ```bash
 # Clone and install
-git clone https://github.com/mrifqidaffaaditya/WA-AKG.git
+git clone https://github.com/fabriciocs/WA-AKG.git
 cd WA-AKG
 npm install
 
@@ -194,7 +186,7 @@ Docker Compose is an alternative execution mode:
 
 ## 📚 API Reference Overview
 
-WA-AKG provides a comprehensive REST API to integrate WhatsApp Messaging directly into your applications. Full details in [API_DOCUMENTATION.md](docs/API_DOCUMENTATION.md).
+ConectaFlow provides a REST API to integrate WhatsApp Messaging directly into your applications. Full details in [API_DOCUMENTATION.md](docs/API_DOCUMENTATION.md).
 
 > [!TIP]
 > Use the built-in **Swagger UI** for interactive exploration at `/docs`.
@@ -215,7 +207,7 @@ curl -X POST http://localhost:3000/api/messages/session_01/62812345678@s.whatsap
   -H "X-API-Key: your_api_key" \
   -H "Content-Type: application/json" \
   -d '{
-    "message": { "text": "Hello from WA-AKG!" }
+    "message": { "text": "Hello from ConectaFlow!" }
   }'
 ```
 
@@ -253,7 +245,7 @@ curl -X POST http://localhost:3000/api/messages/session_01/62812345678@s.whatsap
 
 ## Optional MCP integration
 
-WA-AKG includes an optional Model Context Protocol (MCP) add-on under `mcp/wa-akg-mcp`. The recommended HTTP transport is mounted on the same WA-AKG HTTP server at `/mcp`; it is disabled by default and does not replace the existing API or WhatsApp runtime. When `WA_AKG_MCP_ENABLED` is not exactly `true`, regular startup behavior is unchanged. Standalone stdio mode is also available.
+ConectaFlow includes an optional Model Context Protocol (MCP) add-on under `mcp/wa-akg-mcp`. The recommended HTTP transport is mounted on the same HTTP server at `/mcp`; it is disabled by default and does not replace the existing API or WhatsApp runtime. When `WA_AKG_MCP_ENABLED` is not exactly `true`, regular startup behavior is unchanged. Standalone stdio mode is also available.
 
 Install and validate the optional module:
 

@@ -10,7 +10,7 @@ export async function GET(
     if (!user) return NextResponse.json({ status: false, error: "Unauthorized" }, { status: 401 });
 
     const { sessionId, operationId } = await params;
-    if (!await canAccessSession(user.id, user.role, sessionId)) {
+    if (!await canAccessSession(user, request, sessionId)) {
         return NextResponse.json({ status: false, error: "Forbidden" }, { status: 403 });
     }
 

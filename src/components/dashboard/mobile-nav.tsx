@@ -6,7 +6,10 @@ import { Button } from "@/components/ui/button";
 import { Menu, LogOut } from "lucide-react";
 import Link from "@/components/app-link";
 import { usePathname } from "next/navigation";
-import { useSession, signOut } from "next-auth/react";
+import { useSession } from "next-auth/react";
+import { useAppBasePath } from "@/components/app-base-path";
+import { signOutToLogin } from "./sign-out";
+import { toast } from "sonner";
 import { useTranslations } from "next-intl";
 import { LanguageSwitcher } from "@/components/language-switcher";
 import { navGroups } from "./sidebar-nav";
@@ -15,6 +18,7 @@ import { useBranding } from "@/components/branding-provider";
 
 export function MobileNav({ appName }: { appName?: string }) {
     const [open, setOpen] = useState(false);
+    const basePath = useAppBasePath();
     const pathname = usePathname();
     const { data: session } = useSession();
     const t = useTranslations();
@@ -113,7 +117,11 @@ export function MobileNav({ appName }: { appName?: string }) {
                         className="w-full flex items-center justify-center gap-2 text-xs h-10"
                         onClick={async () => {
                             setOpen(false);
-                            await signOut({ callbackUrl: "/auth/login" });
+                            try {
+                                await signOutToLogin(basePath);
+                            } catch {
+                                toast.error(t("auth.unexpectedError"));
+                            }
                         }}
                     >
                         <LogOut size={14} /> {t("common.signOut")}

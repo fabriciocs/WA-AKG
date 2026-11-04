@@ -43,6 +43,7 @@ export interface InboundWebhookEnvelope {
 
 export interface RecordInboundEventInput {
     sessionDbId: string;
+    tenantId: string;
     sessionId: string;
     event: string;
     data: unknown;
@@ -177,6 +178,7 @@ export async function recordInboundEvent(input: RecordInboundEventInput): Promis
         eventId: identity.eventId,
         eventType: input.event,
         sessionId: input.sessionDbId,
+        tenantId: input.tenantId,
         originalMessageId: identity.originalMessageId,
         payloadHash: identity.payloadHash,
         payload: asJsonInput(payload),
@@ -185,49 +187,57 @@ export async function recordInboundEvent(input: RecordInboundEventInput): Promis
         jobId,
     };
 
-    try {
-        const event = await prisma.inboundEvent.create({ data: createData });
+    // Replayed WhatsApp events are expected. Let MySQL's unique constraints
+    // deduplicate atomically without raising/logging a Prisma P2002 per replay.
+    // A count of zero must still be verified against the source identity: an
+    // unrelated unique-key collision or an ignored insert is not a duplicate.
+    const inserted = await prisma.inboundEvent.createMany({
+        data: [createData],
+        skipDuplicates: true,
+    });
+    if (inserted.count === 1) {
+        const event = await prisma.inboundEvent.findUnique({ where: { eventId: identity.eventId, tenantId: input.tenantId } });
+        if (!event) throw new Error("New inbound event receipt could not be read back");
         return { created: true, conflict: false, event };
-    } catch (error) {
-        if (!isUniqueViolation(error)) throw error;
-
-        const existing = await prisma.inboundEvent.findFirst({
-            where: {
-                sessionId: input.sessionDbId,
-                eventType: input.event,
-                originalMessageId: identity.originalMessageId,
-            },
-        });
-
-        if (!existing) throw error;
-        return {
-            created: false,
-            conflict: existing.payloadHash !== identity.payloadHash,
-            event: existing,
-        };
     }
+
+    const existing = await prisma.inboundEvent.findFirst({
+        where: {
+            sessionId: input.sessionDbId,
+            tenantId: input.tenantId,
+            eventType: input.event,
+            originalMessageId: identity.originalMessageId,
+        },
+    });
+    if (!existing) throw new Error("Inbound event insert skipped without an existing source receipt");
+    return {
+        created: false,
+        conflict: existing.payloadHash !== identity.payloadHash,
+        event: existing,
+    };
 }
 
-export async function markInboundEventQueued(eventId: string): Promise<void> {
+export async function markInboundEventQueued(eventId: string, tenantId: string): Promise<void> {
     await prisma.inboundEvent.updateMany({
-        where: { eventId, status: "RECEIVED" },
+        where: { eventId, tenantId, status: "RECEIVED" },
         data: { status: "QUEUED" },
     });
 }
 
-export async function markInboundEventCompleted(eventId: string): Promise<void> {
+export async function markInboundEventCompleted(eventId: string, tenantId: string): Promise<void> {
     await prisma.inboundEvent.updateMany({
-        where: { eventId, status: { in: ["RECEIVED", "QUEUED", "PROCESSING"] } },
+        where: { eventId, tenantId, status: { in: ["RECEIVED", "QUEUED", "PROCESSING"] } },
         data: { status: "COMPLETED", processedAt: new Date(), claimToken: null, claimExpiresAt: null },
     });
 }
 
 export async function linkInboundEvent(
     eventId: string,
+    tenantId: string,
     input: { messageId?: string | null; mediaRef?: string | null },
 ): Promise<boolean> {
     const updated = await prisma.inboundEvent.updateMany({
-        where: { eventId, status: { in: ["RECEIVED", "QUEUED", "PROCESSING"] } },
+        where: { eventId, tenantId, status: { in: ["RECEIVED", "QUEUED", "PROCESSING"] } },
         data: {
             messageId: input.messageId ?? undefined,
             mediaRef: input.mediaRef ?? undefined,
@@ -236,9 +246,9 @@ export async function linkInboundEvent(
     return updated.count === 1;
 }
 
-export async function markInboundEventFailed(eventId: string, reason: string): Promise<void> {
+export async function markInboundEventFailed(eventId: string, tenantId: string, reason: string): Promise<void> {
     await prisma.inboundEvent.updateMany({
-        where: { eventId, status: { in: ["RECEIVED", "QUEUED", "PROCESSING"] } },
+        where: { eventId, tenantId, status: { in: ["RECEIVED", "QUEUED", "PROCESSING"] } },
         data: {
             status: "FAILED",
             attempts: { increment: 1 },
@@ -249,11 +259,12 @@ export async function markInboundEventFailed(eventId: string, reason: string): P
     });
 }
 
-export async function claimInboundEvent(eventId: string, leaseMs = 5 * 60 * 1000): Promise<string | null> {
+export async function claimInboundEvent(eventId: string, tenantId: string, leaseMs = 5 * 60 * 1000): Promise<string | null> {
     const claimToken = randomUUID();
     const claimed = await prisma.inboundEvent.updateMany({
         where: {
             eventId,
+            tenantId,
             status: { in: ["RECEIVED", "QUEUED", "FAILED"] },
             availableAt: { lte: new Date() },
             OR: [{ claimExpiresAt: null }, { claimExpiresAt: { lt: new Date() } }],
@@ -273,6 +284,7 @@ export async function recoverExpiredInboundEvents(limit = 100): Promise<number> 
     const boundedLimit = Math.min(Math.max(Math.floor(limit), 1), 1000);
     const expired = await prisma.inboundEvent.findMany({
         where: {
+            tenant: { status: "ACTIVE" },
             status: "PROCESSING",
             claimExpiresAt: { lt: now },
         },
@@ -285,6 +297,7 @@ export async function recoverExpiredInboundEvents(limit = 100): Promise<number> 
     const recovered = await prisma.inboundEvent.updateMany({
         where: {
             eventId: { in: expired.map((event) => event.eventId) },
+            tenant: { status: "ACTIVE" },
             status: "PROCESSING",
             claimExpiresAt: { lt: now },
         },
@@ -299,9 +312,9 @@ export async function recoverExpiredInboundEvents(limit = 100): Promise<number> 
     return recovered.count;
 }
 
-export async function requeueInboundEvent(eventId: string, delayMs = 0): Promise<boolean> {
+export async function requeueInboundEvent(eventId: string, tenantId: string, delayMs = 0): Promise<boolean> {
     const result = await prisma.inboundEvent.updateMany({
-        where: { eventId, status: { in: ["FAILED", "PARTIAL", "BLOCKED"] } },
+        where: { eventId, tenantId, status: { in: ["FAILED", "PARTIAL", "BLOCKED"] } },
         data: {
             status: "QUEUED",
             availableAt: new Date(Date.now() + delayMs),

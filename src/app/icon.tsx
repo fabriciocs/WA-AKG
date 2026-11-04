@@ -14,8 +14,8 @@ export const contentType = "image/png";
 // Image generation
 export default async function Icon() {
     // Default config
-    let letter = "W";
-    const color = "#16a34a"; // green-600
+    let letter = "C";
+    const color = "#0D3033"; // ConectaFlow ink
 
     try {
         // Fetch system config
@@ -23,7 +23,7 @@ export default async function Icon() {
             where: { id: "default" }
         });
 
-        if (config?.appName) {
+        if (config?.appName && config.appName.trim().toLowerCase() !== "wa-akg") {
             letter = config.appName.charAt(0).toUpperCase();
         }
     } catch (e) {

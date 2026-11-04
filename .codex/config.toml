@@ -16,4 +16,4 @@ env_vars = ["WA_AKG_API_KEY"]
 [mcp_servers.wa-akg.env]
 WA_AKG_API_BASE_URL = "http://127.0.0.1:3030/api"
 WA_AKG_MCP_ALLOW_REMOTE_API = "false"
-WA_AKG_API_KEY="wag_R2-CGE4L-eVCcgVXFlwOUabYSlwYNPom"
+# API key must be supplied through the client environment, never in tracked TOML

@@ -8,18 +8,20 @@ const now = new Date("2026-10-24T12:00:00.000Z");
 type FakeJob = {
     id: string;
     sessionId: string;
+    tenantId: string;
     jid: string;
     content: string | null;
     mediaUrl: string | null;
     mediaType: string | null;
     cronExpression: string | null;
     attempts: number;
-    session: { sessionId: string };
+    session: { sessionId: string; tenantId: string };
 };
 
 function createHarness(options: {
     claimCount?: number;
     connected?: boolean;
+    sessionTenantId?: string;
     cronExpression?: string | null;
     sendError?: Error;
     finalUpdateCount?: number;
@@ -28,13 +30,14 @@ function createHarness(options: {
     const job: FakeJob = {
         id: "job-1",
         sessionId: "session-1",
+        tenantId: "tenant-a",
         jid: "5511999999999@s.whatsapp.net",
         content: "hello",
         mediaUrl: null,
         mediaType: null,
         cronExpression: options.cronExpression ?? null,
         attempts: 0,
-        session: { sessionId: "session-1" }
+        session: { sessionId: "session-1", tenantId: options.sessionTenantId ?? "tenant-a" }
     };
     const state: { status: string; claimToken: string | null; claimedAt: Date | null; sendAt: Date; attempts: number; lastError: string | null } = {
         status: "PENDING",
@@ -52,7 +55,7 @@ function createHarness(options: {
     let claimAvailable = options.claimCount !== 0;
 
     const fakeDelegate = {
-        findMany: async () => [{ id: job.id }],
+        findMany: async () => [{ id: job.id, tenantId: job.tenantId }],
         findFirst: async ({ where }: { where: { id: string; claimToken: string } }) =>
             where.id === job.id && where.claimToken === state.claimToken ? { ...job, attempts: state.attempts } : null,
         updateMany: async ({ where, data }: { where: { id?: string; claimToken?: string }; data: Record<string, unknown> }) => {
@@ -77,7 +80,8 @@ function createHarness(options: {
 
     const process = createScheduledMessageProcessor({
         scheduledMessage: fakeDelegate,
-        getSender: sessionId => options.connected === false ? undefined : async (jid, content) => {
+        getSender: (sessionId, tenantId) => options.connected === false ? undefined : async (jid, content) => {
+            assert.equal(tenantId, job.tenantId);
             sends.push({ sessionId, jid, content });
             if (options.sendError) throw options.sendError;
         },
@@ -206,4 +210,12 @@ test("scheduler single-flight lock skips overlapping runs and unlocks after comp
 
     assert.equal(runs, 2);
     assert.deepEqual(errors, []);
+});
+
+test("a scheduled job bound to another tenant never calls the sender", async () => {
+    const harness = createHarness({ sessionTenantId: "tenant-b" });
+    await harness.process(now);
+    assert.equal(harness.sends.length, 0);
+    assert.equal(harness.state.status, "FAILED");
+    assert.equal(harness.state.lastError, "Invalid tenant binding");
 });

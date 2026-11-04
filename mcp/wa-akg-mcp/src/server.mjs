@@ -193,8 +193,11 @@ async function callApi(method, route, operation, args, authContext) {
   const baseUrl = safeBaseUrl();
   const url = buildUrl(baseUrl, route, operation, args);
   const headers = addNgrokSkipWarningHeader({ Accept: "application/json" }, url);
-  if (authContext?.accessToken) headers.Authorization = `Bearer ${authContext.accessToken}`;
-  else if (apiKey) headers["X-API-Key"] = apiKey;
+  if (authContext?.authMethod === "oauth-user-delegation") {
+    const accessToken = authContext.accessToken;
+    if (!accessToken) throw new Error("OAuth request credential is unavailable");
+    headers.Authorization = `Bearer ${accessToken}`;
+  } else if (apiKey) headers["X-API-Key"] = apiKey;
   let body;
   if (operation.requestBody && args.body !== undefined) {
     headers["Content-Type"] = "application/json";

@@ -17,7 +17,7 @@ export async function DELETE(
         const { sessionId, jid, messageId } = await params;
 
         // Check if user can access this session
-        const canAccess = await canAccessSession(user.id, user.role, sessionId);
+        const canAccess = await canAccessSession(user, request, sessionId);
         if (!canAccess) {
             return NextResponse.json({ status: false, message: "Forbidden - Cannot access this session", error: "Forbidden - Cannot access this session" }, { status: 403 });
         }
@@ -69,7 +69,7 @@ export async function PATCH(
             return NextResponse.json({ status: false, message: "Text is required to edit message", error: "Bad Request" }, { status: 400 });
         }
 
-        const canAccess = await canAccessSession(user.id, user.role, sessionId);
+        const canAccess = await canAccessSession(user, request, sessionId);
         if (!canAccess) {
             return NextResponse.json({ status: false, message: "Forbidden - Cannot access this session", error: "Forbidden - Cannot access this session" }, { status: 403 });
         }
